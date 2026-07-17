@@ -4,6 +4,7 @@ import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc
 
 let bookings = [];
 let cars = [];
+let customers = [];
 let filter = "all";
 let ctx = null;
 let calYear, calMonth; // currently displayed month
@@ -31,6 +32,10 @@ let calYear, calMonth; // currently displayed month
   onSnapshot(query(collection(db, "cars"), where("companyId", "==", ctx.companyId)), (snap) => {
     cars = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     render();
+  });
+
+  onSnapshot(query(collection(db, "customers"), where("companyId", "==", ctx.companyId)), (snap) => {
+    customers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   });
 })();
 
@@ -78,6 +83,7 @@ function wireUi() {
   document.getElementById("search").addEventListener("input", render);
   document.getElementById("new-booking-btn").addEventListener("click", openBookingModal);
   document.getElementById("save-booking-btn").addEventListener("click", saveBooking);
+  document.getElementById("b-customer").addEventListener("change", toggleNewCustomerFields);
 
   document.getElementById("cal-prev").addEventListener("click", () => { shiftMonth(-1); });
   document.getElementById("cal-next").addEventListener("click", () => { shiftMonth(1); });
@@ -221,9 +227,25 @@ function openBookingModal() {
     .sort((a,b) => (a.make+a.model).localeCompare(b.make+b.model))
     .map(c => `<option value="${c.id}">${esc(`${c.year || ""} ${c.make} ${c.model} (${c.plate || "no plate"})`.trim())}</option>`)
     .join("");
+
+  // Customer dropdown: existing customers + "new customer" option
+  const csel = document.getElementById("b-customer");
+  csel.innerHTML = customers
+    .slice()
+    .sort((a,b) => a.name.localeCompare(b.name))
+    .map(c => `<option value="${c.id}">${esc(c.name)}${c.phone ? " · " + esc(c.phone) : ""}</option>`)
+    .join("") + `<option value="__new__">+ New customer...</option>`;
+  csel.value = customers.length ? csel.options[0].value : "__new__";
+  toggleNewCustomerFields();
+
   ["b-name","b-phone","b-start","b-end"].forEach(i => document.getElementById(i).value = "");
   document.getElementById("booking-error").classList.remove("show");
   document.getElementById("booking-modal").classList.add("open");
+}
+
+function toggleNewCustomerFields() {
+  const isNew = document.getElementById("b-customer").value === "__new__";
+  document.getElementById("new-customer-fields").style.display = isNew ? "block" : "none";
 }
 
 async function saveBooking() {
@@ -231,14 +253,24 @@ async function saveBooking() {
   errEl.classList.remove("show");
 
   const carId = document.getElementById("b-car").value;
-  const renter = document.getElementById("b-name").value.trim();
-  const phone = document.getElementById("b-phone").value.trim();
+  const customerChoice = document.getElementById("b-customer").value;
   const startDate = document.getElementById("b-start").value;
   const endDate = document.getElementById("b-end").value;
 
+  let customerId, renter, phone;
+  if (customerChoice === "__new__") {
+    renter = document.getElementById("b-name").value.trim();
+    phone = document.getElementById("b-phone").value.trim();
+    if (!renter) { errEl.textContent = "Enter the new customer's name."; errEl.classList.add("show"); return; }
+  } else {
+    const c = customers.find(x => x.id === customerChoice);
+    if (!c) { errEl.textContent = "Pick a customer."; errEl.classList.add("show"); return; }
+    customerId = c.id; renter = c.name; phone = c.phone || "";
+  }
+
   // Validation
-  if (!carId || !renter || !startDate || !endDate) {
-    errEl.textContent = "Please fill in car, renter name, and both dates."; errEl.classList.add("show"); return;
+  if (!carId || !startDate || !endDate) {
+    errEl.textContent = "Please fill in car and both dates."; errEl.classList.add("show"); return;
   }
   if (endDate < startDate) {
     errEl.textContent = "Return date can't be before pick-up date."; errEl.classList.add("show"); return;
@@ -255,8 +287,18 @@ async function saveBooking() {
   }
 
   setSync("saving");
+
+  // If a new customer was typed in, save them to the register first
+  if (!customerId) {
+    const ref = await addDoc(collection(db, "customers"), {
+      companyId: ctx.companyId, name: renter, phone, email: "", license: "", notes: "",
+      createdAt: new Date().toISOString()
+    });
+    customerId = ref.id;
+  }
+
   await addDoc(collection(db, "bookings"), {
-    companyId: ctx.companyId, carId, renter, phone, startDate, endDate,
+    companyId: ctx.companyId, carId, customerId, renter, phone, startDate, endDate,
     status: "open", createdAt: new Date().toISOString()
   });
   document.getElementById("booking-modal").classList.remove("open");

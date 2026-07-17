@@ -1,10 +1,13 @@
-// Fleet page — car inventory & quick rent/return
+// Fleet page — car inventory whose status is derived from bookings.
+// A car is "rented" when a booking covers today; walk-in rentals create bookings.
 import { db, auth, signInWithEmailAndPassword, requireAuth, setCompanyLabel, setSync, wireLogout } from "./firebase-init.js";
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let cars = [];
+let bookings = [];
+let customers = [];
 let filter = "all";
-let rentingId = null;
+let rentingCarId = null;
 let ctx = null;
 
 // ---------- Login handling ----------
@@ -42,16 +45,66 @@ async function doLogin() {
   setCompanyLabel(ctx.companyName);
   wireLogout();
   wireUi();
-  startListening();
-})();
 
-function startListening() {
-  const q = query(collection(db, "cars"), where("companyId", "==", ctx.companyId));
-  onSnapshot(q, (snap) => {
+  onSnapshot(query(collection(db, "cars"), where("companyId", "==", ctx.companyId)), (snap) => {
     cars = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     setSync("live");
     render();
   }, () => setSync("error"));
+
+  onSnapshot(query(collection(db, "bookings"), where("companyId", "==", ctx.companyId)), (snap) => {
+    bookings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  });
+
+  onSnapshot(query(collection(db, "customers"), where("companyId", "==", ctx.companyId)), (snap) => {
+    customers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  });
+})();
+
+// ---------- Helpers ----------
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+function esc(s) {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function formatDate(d) {
+  if (!d) return "—";
+  const p = d.split("-");
+  return `${p[2]}/${p[1]}/${p[0]}`;
+}
+
+function overlaps(aStart, aEnd, bStart, bEnd) {
+  return aStart <= bEnd && bStart <= aEnd;
+}
+
+// The booking that has this car out right now: started on/before today
+// and not yet marked returned (includes overdue ones past their end date).
+function currentBooking(carId) {
+  const t = todayStr();
+  const open = bookings
+    .filter(b => b.carId === carId && b.status !== "completed" && b.startDate <= t)
+    .sort((a, b) => a.endDate.localeCompare(b.endDate));
+  return open[0] || null;
+}
+
+// Earliest future reservation for this car
+function nextUpcoming(carId) {
+  const t = todayStr();
+  return bookings
+    .filter(b => b.carId === carId && b.status !== "completed" && b.startDate > t)
+    .sort((a,b) => a.startDate.localeCompare(b.startDate))[0] || null;
+}
+
+// Derived status for a car: "rented" | "overdue" | "available"
+function carStatus(car) {
+  const b = currentBooking(car.id);
+  if (!b) return "available";
+  return b.endDate < todayStr() ? "overdue" : "rented";
 }
 
 // ---------- UI wiring ----------
@@ -61,6 +114,7 @@ function wireUi() {
   document.getElementById("add-car-btn").addEventListener("click", openAddModal);
   document.getElementById("save-car-btn").addEventListener("click", addCar);
   document.getElementById("confirm-rent-btn").addEventListener("click", confirmRent);
+  document.getElementById("r-customer").addEventListener("change", toggleRentNewCustomer);
 
   document.querySelectorAll("#filters .tab").forEach(t => t.addEventListener("click", () => {
     filter = t.dataset.f;
@@ -77,7 +131,6 @@ function wireUi() {
     if (e.target === o) o.classList.remove("open");
   }));
 
-  // Event delegation for card buttons
   document.getElementById("car-list").addEventListener("click", (e) => {
     const btn = e.target.closest("button");
     if (!btn) return;
@@ -88,64 +141,65 @@ function wireUi() {
   });
 }
 
-function esc(s) {
-  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-function formatDate(d) {
-  if (!d) return "—";
-  const p = d.split("-");
-  return `${p[2]}/${p[1]}/${p[0]}`;
-}
-
 // ---------- Render ----------
 function render() {
   const search = document.getElementById("search").value.toLowerCase();
   const sort = document.getElementById("sortBy").value;
-  const available = cars.filter(c => c.status === "available").length;
-  const rented = cars.filter(c => c.status === "rented").length;
+
+  const withStatus = cars.map(c => ({ ...c, _status: carStatus(c), _booking: currentBooking(c.id) }));
+  const available = withStatus.filter(c => c._status === "available").length;
+  const out = withStatus.length - available;
 
   document.getElementById("stats").innerHTML = `
     <div class="stat"><div class="stat-label">Total cars</div><div class="stat-val">${cars.length}</div></div>
     <div class="stat"><div class="stat-label">Available</div><div class="stat-val green">${available}</div></div>
-    <div class="stat"><div class="stat-label">Rented out</div><div class="stat-val amber">${rented}</div></div>
+    <div class="stat"><div class="stat-label">Rented out</div><div class="stat-val amber">${out}</div></div>
   `;
 
-  let list = cars.filter(c => {
-    const mf = filter === "all" || c.status === filter;
-    const ms = `${c.make} ${c.model} ${c.plate} ${c.renter || ""}`.toLowerCase().includes(search);
+  let list = withStatus.filter(c => {
+    const status = c._status === "overdue" ? "rented" : c._status; // overdue counts as rented for filtering
+    const mf = filter === "all" || status === filter;
+    const renterName = c._booking ? c._booking.renter : "";
+    const ms = `${c.make} ${c.model} ${c.plate} ${renterName}`.toLowerCase().includes(search);
     return mf && ms;
   });
 
   if (sort === "name") list.sort((a,b) => (a.make+a.model).localeCompare(b.make+b.model));
-  else list.sort((a,b) => a.status.localeCompare(b.status));
+  else list.sort((a,b) => a._status.localeCompare(b._status));
 
   const el = document.getElementById("car-list");
   if (list.length === 0) { el.innerHTML = '<div class="empty">No cars found. Add your first car with the button above.</div>'; return; }
 
-  el.innerHTML = list.map(c => `
-    <div class="item-card ${c.status}">
+  el.innerHTML = list.map(c => {
+    const s = c._status;
+    const b = c._booking;
+    const up = s === "available" ? nextUpcoming(c.id) : null;
+    return `
+    <div class="item-card ${s === "overdue" ? "overdue" : s}">
       <div class="card-top">
         <div>
           <div class="card-title">${esc(c.year)} ${esc(c.make)} ${esc(c.model)}</div>
           <div class="card-sub">${esc(c.plate)}</div>
         </div>
-        <span class="badge ${c.status}">${c.status === "available" ? "Available" : "Rented"}</span>
+        <span class="badge ${s === "overdue" ? "overdue" : s}">${s === "available" ? "Available" : s === "overdue" ? "Overdue" : "Rented"}</span>
       </div>
-      ${c.status === "rented" ? `
+      ${b ? `
       <div class="card-details">
-        <span>Renter: <strong>${esc(c.renter) || "—"}</strong></span>
-        <span>Phone: <strong>${esc(c.phone) || "—"}</strong></span>
-        <span>Return: <strong>${formatDate(c.returnDate)}</strong></span>
+        <span>Renter: <strong>${esc(b.renter) || "—"}</strong></span>
+        <span>Phone: <strong>${esc(b.phone) || "—"}</strong></span>
+        <span>Return: <strong>${formatDate(b.endDate)}</strong></span>
+      </div>` : up ? `
+      <div class="card-details">
+        <span>Next booking: <strong>${formatDate(up.startDate)}</strong> (${esc(up.renter)})</span>
       </div>` : ""}
       <div class="card-actions">
-        ${c.status === "available"
-          ? `<button class="btn" data-act="rent" data-id="${c.id}">Mark as rented</button>`
+        ${s === "available"
+          ? `<button class="btn" data-act="rent" data-id="${c.id}">Rent out now</button>`
           : `<button class="btn" data-act="return" data-id="${c.id}">Mark as returned</button>`}
         <button class="btn danger" data-act="remove" data-id="${c.id}">Remove</button>
       </div>
-    </div>
-  `).join("");
+    </div>`;
+  }).join("");
 }
 
 // ---------- Actions ----------
@@ -161,33 +215,89 @@ async function addCar() {
   const plate = document.getElementById("a-plate").value.trim();
   if (!make || !model) { alert("Please enter at least a make and model."); return; }
   setSync("saving");
-  await addDoc(collection(db, "cars"), {
-    companyId: ctx.companyId, make, model, year, plate,
-    status: "available", renter: "", phone: "", returnDate: ""
-  });
+  await addDoc(collection(db, "cars"), { companyId: ctx.companyId, make, model, year, plate });
   document.getElementById("add-modal").classList.remove("open");
 }
 
-function openRentModal(id) {
-  rentingId = id;
+function toggleRentNewCustomer() {
+  const isNew = document.getElementById("r-customer").value === "__new__";
+  document.getElementById("rent-new-customer-fields").style.display = isNew ? "block" : "none";
+}
+
+function openRentModal(carId) {
+  rentingCarId = carId;
+
+  const csel = document.getElementById("r-customer");
+  csel.innerHTML = customers
+    .slice()
+    .sort((a,b) => a.name.localeCompare(b.name))
+    .map(c => `<option value="${c.id}">${esc(c.name)}${c.phone ? " · " + esc(c.phone) : ""}</option>`)
+    .join("") + `<option value="__new__">+ New customer...</option>`;
+  csel.value = customers.length ? csel.options[0].value : "__new__";
+  toggleRentNewCustomer();
+
   ["r-name","r-phone","r-date"].forEach(i => document.getElementById(i).value = "");
+  document.getElementById("rent-error").classList.remove("show");
   document.getElementById("rent-modal").classList.add("open");
 }
 
 async function confirmRent() {
-  if (!rentingId) return;
-  const renter = document.getElementById("r-name").value.trim();
-  const phone = document.getElementById("r-phone").value.trim();
-  const returnDate = document.getElementById("r-date").value;
+  if (!rentingCarId) return;
+  const errEl = document.getElementById("rent-error");
+  errEl.classList.remove("show");
+
+  const startDate = todayStr();
+  const endDate = document.getElementById("r-date").value;
+  const customerChoice = document.getElementById("r-customer").value;
+
+  let customerId, renter, phone;
+  if (customerChoice === "__new__") {
+    renter = document.getElementById("r-name").value.trim();
+    phone = document.getElementById("r-phone").value.trim();
+    if (!renter) { errEl.textContent = "Enter the customer's name."; errEl.classList.add("show"); return; }
+  } else {
+    const c = customers.find(x => x.id === customerChoice);
+    if (!c) { errEl.textContent = "Pick a customer."; errEl.classList.add("show"); return; }
+    customerId = c.id; renter = c.name; phone = c.phone || "";
+  }
+
+  if (!endDate) { errEl.textContent = "Choose a return date."; errEl.classList.add("show"); return; }
+  if (endDate < startDate) { errEl.textContent = "Return date can't be in the past."; errEl.classList.add("show"); return; }
+
+  // Conflict check against existing reservations for this car
+  const clash = bookings.find(b =>
+    b.carId === rentingCarId && b.status !== "completed" && overlaps(startDate, endDate, b.startDate, b.endDate)
+  );
+  if (clash) {
+    errEl.textContent = `This car is booked ${formatDate(clash.startDate)} – ${formatDate(clash.endDate)} (${clash.renter}). Choose an earlier return date or another car.`;
+    errEl.classList.add("show");
+    return;
+  }
+
   setSync("saving");
-  await updateDoc(doc(db, "cars", rentingId), { status: "rented", renter, phone, returnDate });
+
+  if (!customerId) {
+    const ref = await addDoc(collection(db, "customers"), {
+      companyId: ctx.companyId, name: renter, phone, email: "", license: "", notes: "",
+      createdAt: new Date().toISOString()
+    });
+    customerId = ref.id;
+  }
+
+  await addDoc(collection(db, "bookings"), {
+    companyId: ctx.companyId, carId: rentingCarId, customerId, renter, phone, startDate, endDate,
+    status: "open", createdAt: new Date().toISOString()
+  });
+
   document.getElementById("rent-modal").classList.remove("open");
-  rentingId = null;
+  rentingCarId = null;
 }
 
-async function markReturned(id) {
+async function markReturned(carId) {
+  const b = currentBooking(carId);
+  if (!b) return;
   setSync("saving");
-  await updateDoc(doc(db, "cars", id), { status: "available", renter: "", phone: "", returnDate: "" });
+  await updateDoc(doc(db, "bookings", b.id), { status: "completed" });
 }
 
 async function removeCar(id) {

@@ -39,6 +39,7 @@
     <nav>
       <a href="index.html" class="active">Fleet</a>
       <a href="bookings.html">Bookings</a>
+      <a href="customers.html">Customers</a>
     </nav>
   </header>
 
@@ -79,12 +80,16 @@
   </div>
 </div>
 
-<!-- Rent Modal -->
+<!-- Rent Modal (walk-in rental: creates a booking starting today) -->
 <div class="overlay" id="rent-modal">
   <div class="modal">
     <h2>Rent out car</h2>
-    <div class="field"><label>Renter name</label><input id="r-name" placeholder="Full name"></div>
-    <div class="field"><label>Phone number</label><input id="r-phone" placeholder="e.g. 5712 3456"></div>
+    <div class="form-error" id="rent-error"></div>
+    <div class="field"><label>Customer</label><select id="r-customer"></select></div>
+    <div id="rent-new-customer-fields" style="display:none;">
+      <div class="field"><label>New customer name</label><input id="r-name" placeholder="Full name"></div>
+      <div class="field"><label>Phone number</label><input id="r-phone" placeholder="e.g. 5712 3456"></div>
+    </div>
     <div class="field"><label>Return date</label><input id="r-date" type="date"></div>
     <div class="modal-actions">
       <button class="btn" data-close="rent-modal">Cancel</button>
