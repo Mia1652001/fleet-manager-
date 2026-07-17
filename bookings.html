@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bookings — Fleet Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="boot" id="boot">Loading...</div>
+
+<div id="app" style="display:none;">
+  <header>
+    <div class="header-top">
+      <div>
+        <h1>Fleet <em>Manager</em></h1>
+        <div class="header-company" id="company-label">—</div>
+      </div>
+      <div class="header-right">
+        <div class="sync-status"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">Live</span></div>
+        <button class="btn-logout" id="logout-btn">Sign out</button>
+      </div>
+    </div>
+    <nav>
+      <a href="index.html">Fleet</a>
+      <a href="bookings.html" class="active">Bookings</a>
+    </nav>
+  </header>
+
+  <div class="main">
+    <div class="stats" id="stats"></div>
+
+    <div class="toolbar">
+      <input type="text" id="search" placeholder="Search booking by car or renter...">
+      <button class="btn-primary" id="new-booking-btn">+ New booking</button>
+    </div>
+
+    <!-- Calendar -->
+    <div class="cal-header">
+      <div class="cal-title" id="cal-title">—</div>
+      <div class="cal-nav">
+        <button class="btn" id="cal-prev">‹ Prev</button>
+        <button class="btn" id="cal-today">Today</button>
+        <button class="btn" id="cal-next">Next ›</button>
+      </div>
+    </div>
+    <div class="calendar" id="calendar"></div>
+
+    <!-- Booking list -->
+    <div class="filter-row" id="filters">
+      <button class="tab active" data-f="all">All</button>
+      <button class="tab" data-f="active-b">Active</button>
+      <button class="tab" data-f="upcoming">Upcoming</button>
+      <button class="tab" data-f="overdue">Overdue</button>
+      <button class="tab" data-f="completed">Completed</button>
+    </div>
+
+    <div class="card-list" id="booking-list"><div class="loading-screen">Loading bookings...</div></div>
+  </div>
+</div>
+
+<!-- New Booking Modal -->
+<div class="overlay" id="booking-modal">
+  <div class="modal">
+    <h2>New booking</h2>
+    <div class="form-error" id="booking-error"></div>
+    <div class="field"><label>Car</label><select id="b-car"></select></div>
+    <div class="field"><label>Renter name</label><input id="b-name" placeholder="Full name"></div>
+    <div class="field"><label>Phone number</label><input id="b-phone" placeholder="e.g. 5712 3456"></div>
+    <div class="field"><label>Pick-up date</label><input id="b-start" type="date"></div>
+    <div class="field"><label>Return date</label><input id="b-end" type="date"></div>
+    <div class="modal-actions">
+      <button class="btn" data-close="booking-modal">Cancel</button>
+      <button class="btn-primary" id="save-booking-btn">Create booking</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/bookings.js"></script>
+</body>
+</html>
