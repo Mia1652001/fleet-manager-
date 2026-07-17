@@ -146,13 +146,22 @@ async function saveCustomer() {
 
   if (!data.name) { errEl.textContent = "Please enter at least a name."; errEl.classList.add("show"); return; }
 
+  const btn = document.getElementById("save-customer-btn");
+  btn.disabled = true; btn.textContent = "Saving...";
   setSync("saving");
-  if (editingId) {
-    await updateDoc(doc(db, "customers", editingId), data);
-  } else {
-    await addDoc(collection(db, "customers"), { companyId: ctx.companyId, createdAt: new Date().toISOString(), ...data });
+  try {
+    if (editingId) {
+      await updateDoc(doc(db, "customers", editingId), data);
+    } else {
+      await addDoc(collection(db, "customers"), { companyId: ctx.companyId, createdAt: new Date().toISOString(), ...data });
+    }
+    document.getElementById("customer-modal").classList.remove("open");
+  } catch (e) {
+    errEl.textContent = "Couldn't save (" + (e.code || e.message || "unknown error") + "). Try again.";
+    errEl.classList.add("show");
+    setSync("error");
   }
-  document.getElementById("customer-modal").classList.remove("open");
+  btn.disabled = false; btn.textContent = "Save";
 }
 
 async function deleteCustomer(id) {

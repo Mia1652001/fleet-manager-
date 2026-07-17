@@ -274,23 +274,32 @@ async function confirmRent() {
     return;
   }
 
+  const btn = document.getElementById("confirm-rent-btn");
+  btn.disabled = true; btn.textContent = "Saving...";
   setSync("saving");
 
-  if (!customerId) {
-    const ref = await addDoc(collection(db, "customers"), {
-      companyId: ctx.companyId, name: renter, phone, email: "", license: "", notes: "",
-      createdAt: new Date().toISOString()
+  try {
+    if (!customerId) {
+      const ref = await addDoc(collection(db, "customers"), {
+        companyId: ctx.companyId, name: renter, phone, email: "", license: "", notes: "",
+        createdAt: new Date().toISOString()
+      });
+      customerId = ref.id;
+    }
+
+    await addDoc(collection(db, "bookings"), {
+      companyId: ctx.companyId, carId: rentingCarId, customerId, renter, phone, startDate, endDate,
+      status: "open", createdAt: new Date().toISOString()
     });
-    customerId = ref.id;
+
+    document.getElementById("rent-modal").classList.remove("open");
+    rentingCarId = null;
+  } catch (e) {
+    errEl.textContent = "Couldn't save the rental (" + (e.code || e.message || "unknown error") + "). Check your connection and try again.";
+    errEl.classList.add("show");
+    setSync("error");
   }
-
-  await addDoc(collection(db, "bookings"), {
-    companyId: ctx.companyId, carId: rentingCarId, customerId, renter, phone, startDate, endDate,
-    status: "open", createdAt: new Date().toISOString()
-  });
-
-  document.getElementById("rent-modal").classList.remove("open");
-  rentingCarId = null;
+  btn.disabled = false; btn.textContent = "Confirm rental";
 }
 
 async function markReturned(carId) {

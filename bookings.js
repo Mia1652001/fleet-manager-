@@ -7,6 +7,7 @@ let cars = [];
 let customers = [];
 let filter = "all";
 let ctx = null;
+let editingBookingId = null; // null = creating new
 let calYear, calMonth; // currently displayed month
 
 (async function init() {
@@ -81,7 +82,7 @@ function overlaps(aStart, aEnd, bStart, bEnd) {
 // ---------- UI wiring ----------
 function wireUi() {
   document.getElementById("search").addEventListener("input", render);
-  document.getElementById("new-booking-btn").addEventListener("click", openBookingModal);
+  document.getElementById("new-booking-btn").addEventListener("click", () => openBookingModal(null));
   document.getElementById("save-booking-btn").addEventListener("click", saveBooking);
   document.getElementById("b-customer").addEventListener("change", toggleNewCustomerFields);
 
@@ -113,6 +114,7 @@ function wireUi() {
     if (!btn) return;
     const id = btn.dataset.id;
     if (btn.dataset.act === "complete") completeBooking(id);
+    else if (btn.dataset.act === "edit") openBookingModal(id);
     else if (btn.dataset.act === "delete") deleteBooking(id);
   });
 }
@@ -211,7 +213,8 @@ function renderList() {
         <span>Phone: <strong>${esc(b.phone) || "—"}</strong></span>
       </div>
       <div class="card-actions">
-        ${s !== "completed" ? `<button class="btn" data-act="complete" data-id="${b.id}">Mark returned</button>` : ""}
+        ${s !== "completed" ? `<button class="btn" data-act="complete" data-id="${b.id}">Mark returned</button>
+        <button class="btn" data-act="edit" data-id="${b.id}">Edit</button>` : ""}
         <button class="btn danger" data-act="delete" data-id="${b.id}">Delete</button>
       </div>
     </div>`;
@@ -219,7 +222,10 @@ function renderList() {
 }
 
 // ---------- Actions ----------
-function openBookingModal() {
+function openBookingModal(bookingId) {
+  editingBookingId = bookingId || null;
+  const editing = editingBookingId ? bookings.find(b => b.id === editingBookingId) : null;
+  document.getElementById("booking-modal-title").textContent = editing ? "Edit booking" : "New booking";
   const sel = document.getElementById("b-car");
   if (cars.length === 0) { alert("Add at least one car in the Fleet page first."); return; }
   sel.innerHTML = cars
@@ -239,6 +245,21 @@ function openBookingModal() {
   toggleNewCustomerFields();
 
   ["b-name","b-phone","b-start","b-end"].forEach(i => document.getElementById(i).value = "");
+
+  if (editing) {
+    sel.value = editing.carId;
+    document.getElementById("b-start").value = editing.startDate;
+    document.getElementById("b-end").value = editing.endDate;
+    if (editing.customerId && customers.some(c => c.id === editing.customerId)) {
+      csel.value = editing.customerId;
+    } else {
+      csel.value = "__new__";
+      document.getElementById("b-name").value = editing.renter || "";
+      document.getElementById("b-phone").value = editing.phone || "";
+    }
+    toggleNewCustomerFields();
+  }
+
   document.getElementById("booking-error").classList.remove("show");
   document.getElementById("booking-modal").classList.add("open");
 }
@@ -276,9 +297,9 @@ async function saveBooking() {
     errEl.textContent = "Return date can't be before pick-up date."; errEl.classList.add("show"); return;
   }
 
-  // Conflict check: same car, overlapping dates, not completed
+  // Conflict check: same car, overlapping dates, not completed, not this booking itself
   const clash = bookings.find(b =>
-    b.carId === carId && b.status !== "completed" && overlaps(startDate, endDate, b.startDate, b.endDate)
+    b.id !== editingBookingId && b.carId === carId && b.status !== "completed" && overlaps(startDate, endDate, b.startDate, b.endDate)
   );
   if (clash) {
     errEl.textContent = `This car is already booked ${formatDate(clash.startDate)} – ${formatDate(clash.endDate)} (${clash.renter}). Choose different dates or another car.`;
@@ -286,22 +307,36 @@ async function saveBooking() {
     return;
   }
 
+  const btn = document.getElementById("save-booking-btn");
+  btn.disabled = true; btn.textContent = "Saving...";
   setSync("saving");
 
-  // If a new customer was typed in, save them to the register first
-  if (!customerId) {
-    const ref = await addDoc(collection(db, "customers"), {
-      companyId: ctx.companyId, name: renter, phone, email: "", license: "", notes: "",
-      createdAt: new Date().toISOString()
-    });
-    customerId = ref.id;
-  }
+  try {
+    // If a new customer was typed in, save them to the register first
+    if (!customerId) {
+      const ref = await addDoc(collection(db, "customers"), {
+        companyId: ctx.companyId, name: renter, phone, email: "", license: "", notes: "",
+        createdAt: new Date().toISOString()
+      });
+      customerId = ref.id;
+    }
 
-  await addDoc(collection(db, "bookings"), {
-    companyId: ctx.companyId, carId, customerId, renter, phone, startDate, endDate,
-    status: "open", createdAt: new Date().toISOString()
-  });
-  document.getElementById("booking-modal").classList.remove("open");
+    if (editingBookingId) {
+      await updateDoc(doc(db, "bookings", editingBookingId), { carId, customerId, renter, phone, startDate, endDate });
+    } else {
+      await addDoc(collection(db, "bookings"), {
+        companyId: ctx.companyId, carId, customerId, renter, phone, startDate, endDate,
+        status: "open", createdAt: new Date().toISOString()
+      });
+    }
+    document.getElementById("booking-modal").classList.remove("open");
+    editingBookingId = null;
+  } catch (e) {
+    errEl.textContent = "Couldn't save the booking (" + (e.code || e.message || "unknown error") + "). Check your connection and try again.";
+    errEl.classList.add("show");
+    setSync("error");
+  }
+  btn.disabled = false; btn.textContent = "Save booking";
 }
 
 async function completeBooking(id) {
