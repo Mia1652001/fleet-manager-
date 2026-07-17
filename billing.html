@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Billing — Fleet Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="boot" id="boot">Loading...</div>
+
+<div id="app" style="display:none;">
+  <header>
+    <div class="header-top">
+      <div>
+        <h1>Fleet <em>Manager</em></h1>
+        <div class="header-company" id="company-label">—</div>
+      </div>
+      <div class="header-right">
+        <div class="sync-status"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">Live</span></div>
+        <button class="btn-logout" id="logout-btn">Sign out</button>
+      </div>
+    </div>
+    <nav>
+      <a href="index.html">Fleet</a>
+      <a href="bookings.html">Bookings</a>
+      <a href="customers.html">Customers</a>
+      <a href="billing.html" class="active">Billing</a>
+    </nav>
+  </header>
+
+  <div class="main">
+    <div class="stats" id="stats"></div>
+
+    <div class="toolbar">
+      <input type="text" id="search" placeholder="Search by customer or car...">
+    </div>
+
+    <div class="filter-row" id="filters">
+      <button class="tab active" data-f="unpaid">Unpaid</button>
+      <button class="tab" data-f="paid">Paid</button>
+      <button class="tab" data-f="all">All</button>
+    </div>
+
+    <div class="card-list" id="invoice-list"><div class="loading-screen">Loading invoices...</div></div>
+  </div>
+</div>
+
+<script type="module" src="billing.js"></script>
+</body>
+</html>

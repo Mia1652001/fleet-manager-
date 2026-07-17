@@ -40,6 +40,7 @@
       <a href="index.html" class="active">Fleet</a>
       <a href="bookings.html">Bookings</a>
       <a href="customers.html">Customers</a>
+      <a href="billing.html">Billing</a>
     </nav>
   </header>
 
@@ -65,17 +66,18 @@
   </div>
 </div>
 
-<!-- Add Car Modal -->
+<!-- Add / Edit Car Modal -->
 <div class="overlay" id="add-modal">
   <div class="modal">
-    <h2>Add new car</h2>
+    <h2 id="car-modal-title">Add new car</h2>
     <div class="field"><label>Make</label><input id="a-make" placeholder="e.g. Toyota"></div>
     <div class="field"><label>Model</label><input id="a-model" placeholder="e.g. Corolla"></div>
     <div class="field"><label>Year</label><input id="a-year" placeholder="e.g. 2023" type="number"></div>
     <div class="field"><label>Plate number</label><input id="a-plate" placeholder="e.g. ABC-1234"></div>
+    <div class="field"><label>Daily rate</label><input id="a-rate" placeholder="e.g. 1500" type="number" min="0"></div>
     <div class="modal-actions">
       <button class="btn" data-close="add-modal">Cancel</button>
-      <button class="btn-primary" id="save-car-btn">Add car</button>
+      <button class="btn-primary" id="save-car-btn">Save car</button>
     </div>
   </div>
 </div>

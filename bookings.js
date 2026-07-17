@@ -321,11 +321,14 @@ async function saveBooking() {
       customerId = ref.id;
     }
 
+    const bookedCar = cars.find(x => x.id === carId);
+    const dailyRate = bookedCar?.dailyRate || 0;
     if (editingBookingId) {
-      await updateDoc(doc(db, "bookings", editingBookingId), { carId, customerId, renter, phone, startDate, endDate });
+      await updateDoc(doc(db, "bookings", editingBookingId), { carId, customerId, renter, phone, startDate, endDate, dailyRate });
     } else {
       await addDoc(collection(db, "bookings"), {
         companyId: ctx.companyId, carId, customerId, renter, phone, startDate, endDate,
+        dailyRate, paid: false,
         status: "open", createdAt: new Date().toISOString()
       });
     }

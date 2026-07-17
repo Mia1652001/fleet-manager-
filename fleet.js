@@ -8,6 +8,7 @@ let bookings = [];
 let customers = [];
 let filter = "all";
 let rentingCarId = null;
+let editingCarId = null; // null = adding
 let ctx = null;
 
 // ---------- Login handling ----------
@@ -111,8 +112,8 @@ function carStatus(car) {
 function wireUi() {
   document.getElementById("search").addEventListener("input", render);
   document.getElementById("sortBy").addEventListener("change", render);
-  document.getElementById("add-car-btn").addEventListener("click", openAddModal);
-  document.getElementById("save-car-btn").addEventListener("click", addCar);
+  document.getElementById("add-car-btn").addEventListener("click", () => openCarModal(null));
+  document.getElementById("save-car-btn").addEventListener("click", saveCar);
   document.getElementById("confirm-rent-btn").addEventListener("click", confirmRent);
   document.getElementById("r-customer").addEventListener("change", toggleRentNewCustomer);
 
@@ -137,6 +138,7 @@ function wireUi() {
     const id = btn.dataset.id;
     if (btn.dataset.act === "rent") openRentModal(id);
     else if (btn.dataset.act === "return") markReturned(id);
+    else if (btn.dataset.act === "editcar") openCarModal(id);
     else if (btn.dataset.act === "remove") removeCar(id);
   });
 }
@@ -179,7 +181,7 @@ function render() {
       <div class="card-top">
         <div>
           <div class="card-title">${esc(c.year)} ${esc(c.make)} ${esc(c.model)}</div>
-          <div class="card-sub">${esc(c.plate)}</div>
+          <div class="card-sub">${esc(c.plate)}${c.dailyRate ? " · " + esc(c.dailyRate) + "/day" : ""}</div>
         </div>
         <span class="badge ${s === "overdue" ? "overdue" : s}">${s === "available" ? "Available" : s === "overdue" ? "Overdue" : "Rented"}</span>
       </div>
@@ -196,6 +198,7 @@ function render() {
         ${s === "available"
           ? `<button class="btn" data-act="rent" data-id="${c.id}">Rent out now</button>`
           : `<button class="btn" data-act="return" data-id="${c.id}">Mark as returned</button>`}
+        <button class="btn" data-act="editcar" data-id="${c.id}">Edit</button>
         <button class="btn danger" data-act="remove" data-id="${c.id}">Remove</button>
       </div>
     </div>`;
@@ -203,20 +206,41 @@ function render() {
 }
 
 // ---------- Actions ----------
-function openAddModal() {
-  ["a-make","a-model","a-year","a-plate"].forEach(id => document.getElementById(id).value = "");
+function openCarModal(id) {
+  editingCarId = id;
+  const c = id ? cars.find(x => x.id === id) : null;
+  document.getElementById("car-modal-title").textContent = c ? "Edit car" : "Add new car";
+  document.getElementById("a-make").value = c?.make || "";
+  document.getElementById("a-model").value = c?.model || "";
+  document.getElementById("a-year").value = c?.year || "";
+  document.getElementById("a-plate").value = c?.plate || "";
+  document.getElementById("a-rate").value = c?.dailyRate ?? "";
   document.getElementById("add-modal").classList.add("open");
 }
 
-async function addCar() {
+async function saveCar() {
   const make = document.getElementById("a-make").value.trim();
   const model = document.getElementById("a-model").value.trim();
   const year = document.getElementById("a-year").value.trim();
   const plate = document.getElementById("a-plate").value.trim();
+  const dailyRate = parseFloat(document.getElementById("a-rate").value) || 0;
   if (!make || !model) { alert("Please enter at least a make and model."); return; }
+  const btn = document.getElementById("save-car-btn");
+  btn.disabled = true; btn.textContent = "Saving...";
   setSync("saving");
-  await addDoc(collection(db, "cars"), { companyId: ctx.companyId, make, model, year, plate });
-  document.getElementById("add-modal").classList.remove("open");
+  try {
+    if (editingCarId) {
+      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate });
+    } else {
+      await addDoc(collection(db, "cars"), { companyId: ctx.companyId, make, model, year, plate, dailyRate });
+    }
+    document.getElementById("add-modal").classList.remove("open");
+    editingCarId = null;
+  } catch (e) {
+    alert("Couldn't save the car (" + (e.code || e.message) + "). Try again.");
+    setSync("error");
+  }
+  btn.disabled = false; btn.textContent = "Save car";
 }
 
 function toggleRentNewCustomer() {
@@ -287,8 +311,10 @@ async function confirmRent() {
       customerId = ref.id;
     }
 
+    const rentedCar = cars.find(x => x.id === rentingCarId);
     await addDoc(collection(db, "bookings"), {
       companyId: ctx.companyId, carId: rentingCarId, customerId, renter, phone, startDate, endDate,
+      dailyRate: rentedCar?.dailyRate || 0, paid: false,
       status: "open", createdAt: new Date().toISOString()
     });
 
