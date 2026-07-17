@@ -117,6 +117,15 @@ function wireUi() {
   document.getElementById("confirm-rent-btn").addEventListener("click", confirmRent);
   document.getElementById("r-customer").addEventListener("change", toggleRentNewCustomer);
 
+  // Rate auto-calculation: type one, the other two follow (week = 7 days, month = 30 days)
+  const rd = document.getElementById("a-rate");
+  const rw = document.getElementById("a-rate-week");
+  const rm = document.getElementById("a-rate-month");
+  const r2 = x => Math.round(x * 100) / 100;
+  rd.addEventListener("input", () => { const v = parseFloat(rd.value); if (!isNaN(v)) { rw.value = r2(v * 7); rm.value = r2(v * 30); } });
+  rw.addEventListener("input", () => { const v = parseFloat(rw.value); if (!isNaN(v)) { rd.value = r2(v / 7); rm.value = r2((v / 7) * 30); } });
+  rm.addEventListener("input", () => { const v = parseFloat(rm.value); if (!isNaN(v)) { rd.value = r2(v / 30); rw.value = r2((v / 30) * 7); } });
+
   document.querySelectorAll("#filters .tab").forEach(t => t.addEventListener("click", () => {
     filter = t.dataset.f;
     document.querySelectorAll("#filters .tab").forEach(x => x.classList.remove("active"));
@@ -185,6 +194,10 @@ function render() {
         </div>
         <span class="badge ${s === "overdue" ? "overdue" : s}">${s === "available" ? "Available" : s === "overdue" ? "Overdue" : "Rented"}</span>
       </div>
+      ${c.weeklyRate || c.monthlyRate ? `
+      <div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;">
+        <span>Rates: <strong>${esc(c.dailyRate || 0)}</strong>/day · <strong>${esc(c.weeklyRate || 0)}</strong>/week · <strong>${esc(c.monthlyRate || 0)}</strong>/month</span>
+      </div>` : ""}
       ${b ? `
       <div class="card-details">
         <span>Renter: <strong>${esc(b.renter) || "—"}</strong></span>
@@ -215,6 +228,8 @@ function openCarModal(id) {
   document.getElementById("a-year").value = c?.year || "";
   document.getElementById("a-plate").value = c?.plate || "";
   document.getElementById("a-rate").value = c?.dailyRate ?? "";
+  document.getElementById("a-rate-week").value = c?.weeklyRate ?? "";
+  document.getElementById("a-rate-month").value = c?.monthlyRate ?? "";
   document.getElementById("add-modal").classList.add("open");
 }
 
@@ -223,16 +238,22 @@ async function saveCar() {
   const model = document.getElementById("a-model").value.trim();
   const year = document.getElementById("a-year").value.trim();
   const plate = document.getElementById("a-plate").value.trim();
-  const dailyRate = parseFloat(document.getElementById("a-rate").value) || 0;
+  let dailyRate = parseFloat(document.getElementById("a-rate").value) || 0;
+  const weeklyIn = parseFloat(document.getElementById("a-rate-week").value) || 0;
+  const monthlyIn = parseFloat(document.getElementById("a-rate-month").value) || 0;
+  if (!dailyRate && weeklyIn) dailyRate = Math.round((weeklyIn / 7) * 100) / 100;
+  if (!dailyRate && monthlyIn) dailyRate = Math.round((monthlyIn / 30) * 100) / 100;
+  const weeklyRate = weeklyIn || Math.round(dailyRate * 7 * 100) / 100;
+  const monthlyRate = monthlyIn || Math.round(dailyRate * 30 * 100) / 100;
   if (!make || !model) { alert("Please enter at least a make and model."); return; }
   const btn = document.getElementById("save-car-btn");
   btn.disabled = true; btn.textContent = "Saving...";
   setSync("saving");
   try {
     if (editingCarId) {
-      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate });
+      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate, weeklyRate, monthlyRate });
     } else {
-      await addDoc(collection(db, "cars"), { companyId: ctx.companyId, make, model, year, plate, dailyRate });
+      await addDoc(collection(db, "cars"), { companyId: ctx.companyId, make, model, year, plate, dailyRate, weeklyRate, monthlyRate });
     }
     document.getElementById("add-modal").classList.remove("open");
     editingCarId = null;
@@ -274,10 +295,11 @@ async function confirmRent() {
   const endDate = document.getElementById("r-date").value;
   const customerChoice = document.getElementById("r-customer").value;
 
-  let customerId, renter, phone;
+  let customerId, renter, phone, email;
   if (customerChoice === "__new__") {
     renter = document.getElementById("r-name").value.trim();
     phone = document.getElementById("r-phone").value.trim();
+    email = document.getElementById("r-email").value.trim();
     if (!renter) { errEl.textContent = "Enter the customer's name."; errEl.classList.add("show"); return; }
   } else {
     const c = customers.find(x => x.id === customerChoice);
@@ -305,7 +327,7 @@ async function confirmRent() {
   try {
     if (!customerId) {
       const ref = await addDoc(collection(db, "customers"), {
-        companyId: ctx.companyId, name: renter, phone, email: "", license: "", notes: "",
+        companyId: ctx.companyId, name: renter, phone, email: email || "", license: "", notes: "",
         createdAt: new Date().toISOString()
       });
       customerId = ref.id;
