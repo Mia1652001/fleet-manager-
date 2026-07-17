@@ -67,9 +67,30 @@ function rateFor(b) {
   return c?.dailyRate || 0;
 }
 
+// Rental total before any deposit is applied
+function rentalTotal(b) {
+  return rentalDays(b) * rateFor(b);
+}
+
+// Advance part-payment already collected (reduces the balance owed)
+function advancePaid(b) {
+  return typeof b.advancePaid === "number" ? b.advancePaid : 0;
+}
+
+// Balance still owed = rental total minus advance already paid (never below 0)
+function balanceFor(b) {
+  return Math.max(0, rentalTotal(b) - advancePaid(b));
+}
+
+// Refundable security deposit currently held (only while status is "held")
+function securityHeld(b) {
+  return (b.securityDeposit && b.securityStatus === "held") ? b.securityDeposit : 0;
+}
+
+// Legacy helper name kept for the mark-paid record: the balance being settled
 function amountFor(b) {
   if (b.paid && typeof b.paidAmount === "number") return b.paidAmount;
-  return rentalDays(b) * rateFor(b);
+  return balanceFor(b);
 }
 
 // Only bookings that have started (or finished) are billable — future reservations aren't invoices yet
@@ -80,6 +101,14 @@ function isBillable(b) {
 // ---------- UI ----------
 function wireUi() {
   document.getElementById("search").addEventListener("input", render);
+
+  document.getElementById("save-deposit-btn").addEventListener("click", saveDeposits);
+  document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => {
+    document.getElementById(b.dataset.close).classList.remove("open");
+  }));
+  document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e => {
+    if (e.target === o) o.classList.remove("open");
+  }));
 
   document.querySelectorAll("#filters .tab").forEach(t => t.addEventListener("click", () => {
     filter = t.dataset.f;
@@ -106,6 +135,12 @@ function wireUi() {
         });
       } else if (btn.dataset.act === "markunpaid") {
         await updateDoc(doc(db, "bookings", id), { paid: false, paidAmount: null, paidAt: null });
+      } else if (btn.dataset.act === "deposits") {
+        openDepositModal(id); btn.disabled = false; return;
+      } else if (btn.dataset.act === "refund") {
+        await updateDoc(doc(db, "bookings", id), { securityStatus: "refunded" });
+      } else if (btn.dataset.act === "keep") {
+        await updateDoc(doc(db, "bookings", id), { securityStatus: "kept" });
       }
     } catch (err) {
       alert("Couldn't update (" + (err.code || err.message) + "). Try again.");
@@ -129,10 +164,13 @@ function render() {
     .filter(b => b.paid && (b.paidAt || "").startsWith(monthPrefix))
     .reduce((sum, b) => sum + amountFor(b), 0);
 
+  const depositsHeld = billable.reduce((sum, b) => sum + securityHeld(b), 0);
+
   document.getElementById("stats").innerHTML = `
     <div class="stat"><div class="stat-label">Outstanding</div><div class="stat-val red">${formatAmount(outstanding)}</div></div>
     <div class="stat"><div class="stat-label">Unpaid invoices</div><div class="stat-val amber">${unpaid.length}</div></div>
     <div class="stat"><div class="stat-label">Received this month</div><div class="stat-val green">${formatAmount(paidThisMonth)}</div></div>
+    <div class="stat"><div class="stat-label">Deposits held</div><div class="stat-val blue">${formatAmount(depositsHeld)}</div></div>
   `;
 
   let list = billable.filter(b => {
@@ -153,28 +191,85 @@ function render() {
   el.innerHTML = list.map(b => {
     const days = rentalDays(b);
     const rate = rateFor(b);
-    const amount = amountFor(b);
+    const total = rentalTotal(b);
+    const adv = advancePaid(b);
+    const balance = balanceFor(b);
     const noRate = rate === 0;
+    const sec = b.securityDeposit || 0;
+    const secStatus = b.securityStatus || "held";
     return `
     <div class="item-card ${b.paid ? "completed" : "upcoming"}">
       <div class="card-top">
         <div>
-          <div class="card-title">${esc(b.renter)} — ${formatAmount(amount)}</div>
+          <div class="card-title">${esc(b.renter)} — ${formatAmount(b.paid ? total : balance)}${b.paid ? "" : " owed"}</div>
           <div class="card-sub">${esc(carLabel(b.carId))}</div>
         </div>
         <span class="badge ${b.paid ? "available" : "overdue"}">${b.paid ? "Paid" : "Unpaid"}</span>
       </div>
       <div class="card-details">
         <span>Period: <strong>${formatDate(b.startDate)} – ${formatDate(b.endDate)}</strong></span>
-        <span>${days} day${days === 1 ? "" : "s"} × <strong>${formatAmount(rate)}</strong>/day</span>
+        <span>${days} day${days === 1 ? "" : "s"} × <strong>${formatAmount(rate)}</strong>/day = <strong>${formatAmount(total)}</strong></span>
+        ${adv > 0 ? `<span>Advance paid: <strong>-${formatAmount(adv)}</strong></span>` : ""}
+        ${adv > 0 && !b.paid ? `<span>Balance: <strong>${formatAmount(balance)}</strong></span>` : ""}
         ${b.paid && b.paidAt ? `<span>Paid on: <strong>${formatDate(b.paidAt.slice(0,10))}</strong></span>` : ""}
         ${noRate ? `<span style="color:var(--red-text);">No daily rate set on this car — edit the car in Fleet to set one</span>` : ""}
       </div>
+      ${sec > 0 ? `
+      <div class="card-details" style="margin-top:6px;">
+        <span>Security deposit: <strong>${formatAmount(sec)}</strong></span>
+        <span>Status: <strong>${secStatus === "held" ? "Held (refundable)" : secStatus === "refunded" ? "Refunded" : "Kept"}</strong></span>
+      </div>` : ""}
       <div class="card-actions">
         ${b.paid
           ? `<button class="btn" data-act="markunpaid" data-id="${b.id}">Mark as unpaid</button>`
-          : `<button class="btn" data-act="markpaid" data-id="${b.id}">Mark as paid</button>`}
+          : `<button class="btn" data-act="markpaid" data-id="${b.id}">Mark balance paid</button>`}
+        <button class="btn" data-act="deposits" data-id="${b.id}">Deposits</button>
+        ${sec > 0 && secStatus === "held" ? `
+          <button class="btn" data-act="refund" data-id="${b.id}">Refund deposit</button>
+          <button class="btn" data-act="keep" data-id="${b.id}">Keep deposit</button>` : ""}
       </div>
     </div>`;
   }).join("");
 }
+
+
+// ---------- Deposit editing ----------
+let depositBookingId = null;
+
+function openDepositModal(id) {
+  depositBookingId = id;
+  const b = bookings.find(x => x.id === id);
+  document.getElementById("dep-advance").value = b?.advancePaid || "";
+  document.getElementById("dep-security").value = b?.securityDeposit || "";
+  document.getElementById("deposit-error").classList.remove("show");
+  document.getElementById("deposit-modal").classList.add("open");
+}
+
+async function saveDeposits() {
+  if (!depositBookingId) return;
+  const errEl = document.getElementById("deposit-error");
+  errEl.classList.remove("show");
+  const advance = parseFloat(document.getElementById("dep-advance").value) || 0;
+  const security = parseFloat(document.getElementById("dep-security").value) || 0;
+  if (advance < 0 || security < 0) { errEl.textContent = "Amounts can't be negative."; errEl.classList.add("show"); return; }
+
+  const b = bookings.find(x => x.id === depositBookingId);
+  const btn = document.getElementById("save-deposit-btn");
+  btn.disabled = true; btn.textContent = "Saving...";
+  setSync("saving");
+  try {
+    const update = { advancePaid: advance, securityDeposit: security };
+    // Preserve existing security status; default new security deposits to "held"
+    if (security > 0 && !b.securityStatus) update.securityStatus = "held";
+    if (security === 0) update.securityStatus = null;
+    await updateDoc(doc(db, "bookings", depositBookingId), update);
+    document.getElementById("deposit-modal").classList.remove("open");
+    depositBookingId = null;
+  } catch (e) {
+    errEl.textContent = "Couldn't save (" + (e.code || e.message) + "). Try again.";
+    errEl.classList.add("show");
+    setSync("error");
+  }
+  btn.disabled = false; btn.textContent = "Save deposits";
+}
+
