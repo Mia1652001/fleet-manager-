@@ -260,7 +260,7 @@ function openRentModal(carId) {
   csel.value = customers.length ? csel.options[0].value : "__new__";
   toggleRentNewCustomer();
 
-  ["r-name","r-phone","r-date"].forEach(i => document.getElementById(i).value = "");
+  ["r-name","r-phone","r-email","r-date"].forEach(i => document.getElementById(i).value = "");
   document.getElementById("rent-error").classList.remove("show");
   document.getElementById("rent-modal").classList.add("open");
 }

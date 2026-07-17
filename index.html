@@ -75,6 +75,9 @@
     <div class="field"><label>Year</label><input id="a-year" placeholder="e.g. 2023" type="number"></div>
     <div class="field"><label>Plate number</label><input id="a-plate" placeholder="e.g. ABC-1234"></div>
     <div class="field"><label>Daily rate</label><input id="a-rate" placeholder="e.g. 1500" type="number" min="0"></div>
+    <div class="field"><label>Weekly rate</label><input id="a-rate-week" placeholder="auto-calculated" type="number" min="0"></div>
+    <div class="field"><label>Monthly rate</label><input id="a-rate-month" placeholder="auto-calculated" type="number" min="0"></div>
+    <div style="font-size:11px;color:var(--muted);margin:-6px 0 14px;">Enter any one rate — the other two are calculated (week = 7 days, month = 30 days). Billing uses the daily rate.</div>
     <div class="modal-actions">
       <button class="btn" data-close="add-modal">Cancel</button>
       <button class="btn-primary" id="save-car-btn">Save car</button>
@@ -91,6 +94,7 @@
     <div id="rent-new-customer-fields" style="display:none;">
       <div class="field"><label>New customer name</label><input id="r-name" placeholder="Full name"></div>
       <div class="field"><label>Phone number</label><input id="r-phone" placeholder="e.g. 5712 3456"></div>
+      <div class="field"><label>Email</label><input id="r-email" type="email" placeholder="e.g. jean@email.com"></div>
     </div>
     <div class="field"><label>Return date</label><input id="r-date" type="date"></div>
     <div class="modal-actions">

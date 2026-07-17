@@ -244,7 +244,7 @@ function openBookingModal(bookingId) {
   csel.value = customers.length ? csel.options[0].value : "__new__";
   toggleNewCustomerFields();
 
-  ["b-name","b-phone","b-start","b-end"].forEach(i => document.getElementById(i).value = "");
+  ["b-name","b-phone","b-email","b-start","b-end"].forEach(i => document.getElementById(i).value = "");
 
   if (editing) {
     sel.value = editing.carId;
@@ -256,6 +256,7 @@ function openBookingModal(bookingId) {
       csel.value = "__new__";
       document.getElementById("b-name").value = editing.renter || "";
       document.getElementById("b-phone").value = editing.phone || "";
+      document.getElementById("b-email").value = "";
     }
     toggleNewCustomerFields();
   }
@@ -278,10 +279,11 @@ async function saveBooking() {
   const startDate = document.getElementById("b-start").value;
   const endDate = document.getElementById("b-end").value;
 
-  let customerId, renter, phone;
+  let customerId, renter, phone, email;
   if (customerChoice === "__new__") {
     renter = document.getElementById("b-name").value.trim();
     phone = document.getElementById("b-phone").value.trim();
+    email = document.getElementById("b-email").value.trim();
     if (!renter) { errEl.textContent = "Enter the new customer's name."; errEl.classList.add("show"); return; }
   } else {
     const c = customers.find(x => x.id === customerChoice);
@@ -315,7 +317,7 @@ async function saveBooking() {
     // If a new customer was typed in, save them to the register first
     if (!customerId) {
       const ref = await addDoc(collection(db, "customers"), {
-        companyId: ctx.companyId, name: renter, phone, email: "", license: "", notes: "",
+        companyId: ctx.companyId, name: renter, phone, email: email || "", license: "", notes: "",
         createdAt: new Date().toISOString()
       });
       customerId = ref.id;
