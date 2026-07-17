@@ -101,11 +101,20 @@ function nextUpcoming(carId) {
     .sort((a,b) => a.startDate.localeCompare(b.startDate))[0] || null;
 }
 
-// Derived status for a car: "rented" | "overdue" | "available"
+// Derived status: "service" (out of service) | "rented" | "overdue" | "available"
 function carStatus(car) {
+  if (car.outOfService) return "service";
   const b = currentBooking(car.id);
   if (!b) return "available";
   return b.endDate < todayStr() ? "overdue" : "rented";
+}
+
+// Is a car's next service due within 14 days (or overdue)?
+function serviceDueSoon(car) {
+  if (!car.nextServiceDate) return false;
+  const t = todayStr();
+  const soon = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+  return car.nextServiceDate <= soon; // due within 2 weeks or already past
 }
 
 // ---------- UI wiring ----------
@@ -159,17 +168,20 @@ function render() {
 
   const withStatus = cars.map(c => ({ ...c, _status: carStatus(c), _booking: currentBooking(c.id) }));
   const available = withStatus.filter(c => c._status === "available").length;
-  const out = withStatus.length - available;
+  const service = withStatus.filter(c => c._status === "service").length;
+  const rented = withStatus.filter(c => c._status === "rented" || c._status === "overdue").length;
 
   document.getElementById("stats").innerHTML = `
     <div class="stat"><div class="stat-label">Total cars</div><div class="stat-val">${cars.length}</div></div>
     <div class="stat"><div class="stat-label">Available</div><div class="stat-val green">${available}</div></div>
-    <div class="stat"><div class="stat-label">Rented out</div><div class="stat-val amber">${out}</div></div>
+    <div class="stat"><div class="stat-label">Rented out</div><div class="stat-val amber">${rented}</div></div>
+    <div class="stat"><div class="stat-label">In service</div><div class="stat-val red">${service}</div></div>
   `;
 
   let list = withStatus.filter(c => {
     const status = c._status === "overdue" ? "rented" : c._status; // overdue counts as rented for filtering
     const mf = filter === "all" || status === filter;
+    void status;
     const renterName = c._booking ? c._booking.renter : "";
     const ms = `${c.make} ${c.model} ${c.plate} ${renterName}`.toLowerCase().includes(search);
     return mf && ms;
@@ -186,14 +198,15 @@ function render() {
     const b = c._booking;
     const up = s === "available" ? nextUpcoming(c.id) : null;
     return `
-    <div class="item-card ${s === "overdue" ? "overdue" : s}">
+    <div class="item-card ${s === "overdue" ? "overdue" : s === "service" ? "overdue" : s}">
       <div class="card-top">
         <div>
           <div class="card-title">${esc(c.year)} ${esc(c.make)} ${esc(c.model)}</div>
           <div class="card-sub">${esc(c.plate)}${c.dailyRate ? " · " + esc(c.dailyRate) + "/day" : ""}</div>
         </div>
-        <span class="badge ${s === "overdue" ? "overdue" : s}">${s === "available" ? "Available" : s === "overdue" ? "Overdue" : "Rented"}</span>
+        <span class="badge ${s === "overdue" ? "overdue" : s === "service" ? "overdue" : s}">${s === "available" ? "Available" : s === "overdue" ? "Overdue" : s === "service" ? "In service" : "Rented"}</span>
       </div>
+      ${serviceDueSoon(c) && s !== "service" ? `<div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;"><span style="color:var(--amber-text);">⚠ Service due ${formatDate(c.nextServiceDate)}</span></div>` : ""}
       ${c.weeklyRate || c.monthlyRate ? `
       <div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;">
         <span>Rates: <strong>${esc(c.dailyRate || 0)}</strong>/day · <strong>${esc(c.weeklyRate || 0)}</strong>/week · <strong>${esc(c.monthlyRate || 0)}</strong>/month</span>
@@ -210,6 +223,8 @@ function render() {
       <div class="card-actions">
         ${s === "available"
           ? `<button class="btn" data-act="rent" data-id="${c.id}">Rent out now</button>`
+          : s === "service"
+          ? ""
           : `<button class="btn" data-act="return" data-id="${c.id}">Mark as returned</button>`}
         <button class="btn" data-act="editcar" data-id="${c.id}">Edit</button>
         <button class="btn danger" data-act="remove" data-id="${c.id}">Remove</button>
@@ -270,6 +285,8 @@ function toggleRentNewCustomer() {
 }
 
 function openRentModal(carId) {
+  const car = cars.find(x => x.id === carId);
+  if (car && car.outOfService) { alert("This car is out of service. Put it back in service (Maintenance page) before renting."); return; }
   rentingCarId = carId;
 
   const csel = document.getElementById("r-customer");
