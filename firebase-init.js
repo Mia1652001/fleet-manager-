@@ -19,10 +19,11 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 // Safari and some restrictive networks block Firestore's default streaming
 // connection (WebChannel), which shows up as "Could not reach Cloud Firestore
-// backend". Auto-detect long polling falls back to a compatible method when
-// that happens, while still using the fast path where it works.
+// backend". Forcing long polling uses a plain-HTTP method that works
+// everywhere, at a small cost in update latency.
 export const db = initializeFirestore(app, {
-  experimentalAutoDetectLongPolling: true
+  experimentalForceLongPolling: true,
+  useFetchStreams: false
 });
 
 export { signInWithEmailAndPassword, signOut };
