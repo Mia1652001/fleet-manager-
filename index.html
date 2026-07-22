@@ -45,6 +45,7 @@
       </div>
       <div class="header-right">
         <div class="sync-status"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">Live</span></div>
+        <button class="btn-logout" id="export-btn">Export data</button>
         <button class="btn-logout" id="logout-btn">Sign out</button>
       </div>
     </div>
@@ -256,6 +257,26 @@
       </div>
     </section>
 
+  </div>
+
+  <!-- Export / backup -->
+  <div class="overlay" id="export-modal">
+    <div class="modal">
+      <h2>Export your data</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1.2rem;line-height:1.5;">
+        Save a copy of everything in this company's account. Keep backups somewhere safe —
+        deleted records cannot be recovered otherwise.
+      </p>
+      <div class="card-actions" style="margin-top:0;flex-direction:column;align-items:stretch;gap:8px;">
+        <button class="btn" id="export-json">Full backup (.json) — everything, for restoring</button>
+        <button class="btn" id="export-bookings-csv">Bookings &amp; invoices (.csv) — opens in Excel</button>
+        <button class="btn" id="export-customers-csv">Customers (.csv) — opens in Excel</button>
+        <button class="btn" id="export-cars-csv">Cars (.csv) — opens in Excel</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="export-close">Close</button>
+      </div>
+    </div>
   </div>
 </div>
 

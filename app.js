@@ -4,7 +4,7 @@
 
 import { db, auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setSync } from "./firebase-init.js";
 import { collection, query, where, onSnapshot, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, notifyDataChange } from "./store.js";
+import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor } from "./store.js";
 
 import * as fleet from "./view-fleet.js";
 import * as bookings from "./view-bookings.js";
@@ -111,6 +111,7 @@ function startApp() {
       v.mod.mount(v.root);
     }
 
+    wireExport();
     wireNav();
     showView(currentViewFromHash());
   }
@@ -175,4 +176,105 @@ function showView(name) {
   // Views render from data already in memory — nothing is refetched.
   VIEWS[name].mod.render();
   window.scrollTo(0, 0);
+}
+
+
+// ---------- Export / backup ----------
+// Everything is built in the browser from data already loaded, so exporting
+// costs no extra database reads.
+
+function wireExport() {
+  const modal = document.getElementById("export-modal");
+  document.getElementById("export-btn").addEventListener("click", () => modal.classList.add("open"));
+  document.getElementById("export-close").addEventListener("click", () => modal.classList.remove("open"));
+  modal.addEventListener("click", e => { if (e.target === modal) modal.classList.remove("open"); });
+
+  document.getElementById("export-json").addEventListener("click", exportJson);
+  document.getElementById("export-bookings-csv").addEventListener("click", exportBookingsCsv);
+  document.getElementById("export-customers-csv").addEventListener("click", exportCustomersCsv);
+  document.getElementById("export-cars-csv").addEventListener("click", exportCarsCsv);
+}
+
+function stamp() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+function download(filename, text, mime) {
+  const blob = new Blob([text], { type: mime + ";charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function safeName() {
+  return (state.ctx.companyName || "company").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+}
+
+function exportJson() {
+  const data = {
+    exportedAt: new Date().toISOString(),
+    company: { id: state.ctx.companyId, name: state.ctx.companyName },
+    cars: state.cars,
+    bookings: state.bookings,
+    customers: state.customers
+  };
+  download(`fleet-backup-${safeName()}-${stamp()}.json`, JSON.stringify(data, null, 2), "application/json");
+}
+
+// Wraps a value so commas, quotes and line breaks survive in a spreadsheet
+function csvCell(v) {
+  const s = String(v ?? "");
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function toCsv(headers, rows) {
+  return [headers.join(","), ...rows.map(r => r.map(csvCell).join(","))].join("\n");
+}
+
+function exportBookingsCsv() {
+  const headers = ["Customer","Phone","Car","Pick-up","Return","Days","Daily rate","Rental total","Advance paid","Balance","Security deposit","Deposit status","Paid","Paid on","Status"];
+  const rows = state.bookings
+    .slice()
+    .sort((a,b) => b.startDate.localeCompare(a.startDate))
+    .map(b => [
+      b.renter || "", b.phone || "", bookingCarLabel(b),
+      b.startDate || "", b.endDate || "",
+      rentalDays(b), rateFor(b), rentalTotal(b),
+      advancePaid(b), balanceFor(b),
+      b.securityDeposit || 0, b.securityStatus || "",
+      b.paid ? "Yes" : "No", b.paidAt ? b.paidAt.slice(0,10) : "",
+      b.status === "completed" ? "Completed" : "Open"
+    ]);
+  download(`bookings-${safeName()}-${stamp()}.csv`, toCsv(headers, rows), "text/csv");
+}
+
+function exportCustomersCsv() {
+  const headers = ["Name","Phone","Email","License","Notes","Rentals"];
+  const rows = state.customers
+    .slice()
+    .sort((a,b) => (a.name || "").localeCompare(b.name || ""))
+    .map(c => [
+      c.name || "", c.phone || "", c.email || "", c.license || "", c.notes || "",
+      state.bookings.filter(b => b.customerId === c.id).length
+    ]);
+  download(`customers-${safeName()}-${stamp()}.csv`, toCsv(headers, rows), "text/csv");
+}
+
+function exportCarsCsv() {
+  const headers = ["Year","Make","Model","Plate","Daily rate","Weekly rate","Monthly rate","Mileage","Next service","Service at (km)","Out of service","Maintenance notes"];
+  const rows = state.cars
+    .slice()
+    .sort((a,b) => (a.make + a.model).localeCompare(b.make + b.model))
+    .map(c => [
+      c.year || "", c.make || "", c.model || "", c.plate || "",
+      c.dailyRate || 0, c.weeklyRate || 0, c.monthlyRate || 0,
+      c.mileage || "", c.nextServiceDate || "", c.serviceMileage || "",
+      c.outOfService ? "Yes" : "No", c.notes_maint || ""
+    ]);
+  download(`cars-${safeName()}-${stamp()}.csv`, toCsv(headers, rows), "text/csv");
 }

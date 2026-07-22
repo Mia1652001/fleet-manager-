@@ -52,6 +52,11 @@ export function bookingCarLabel(b) {
   return "Car no longer in fleet";
 }
 
+// The customer record behind a booking (may be missing if deleted)
+export function customerForBooking(b) {
+  return state.customers.find(c => c.id === b.customerId) || null;
+}
+
 // Bookings for a car that are not finished (active or upcoming)
 export function openBookingsForCar(carId) {
   return state.bookings.filter(b => b.carId === carId && b.status !== "completed");

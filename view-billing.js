@@ -3,7 +3,7 @@
 import { db, setSync } from "./firebase-init.js";
 import { updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
-  state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel,
+  state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking,
   rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, securityHeld,
   settledAmount, isBillable,
   el, val, setVal, openModal, closeModal, showError
@@ -41,6 +41,8 @@ export function mount(container) {
     if (!b) return;
 
     if (btn.dataset.act === "deposits") { openDepositModal(id); return; }
+    if (btn.dataset.act === "email") { contactByEmail(b); return; }
+    if (btn.dataset.act === "sms") { contactBySms(b); return; }
 
     btn.disabled = true;
     setSync("saving");
@@ -137,6 +139,8 @@ export function render() {
           ? `<button class="btn" data-act="markunpaid" data-id="${b.id}">Mark as unpaid</button>`
           : `<button class="btn" data-act="markpaid" data-id="${b.id}">Mark balance paid</button>`}
         <button class="btn" data-act="deposits" data-id="${b.id}">Deposits</button>
+        ${!b.paid && customerForBooking(b)?.email ? `<button class="btn" data-act="email" data-id="${b.id}">Email reminder</button>` : ""}
+        ${!b.paid && (b.phone || customerForBooking(b)?.phone) ? `<button class="btn" data-act="sms" data-id="${b.id}">SMS reminder</button>` : ""}
         ${sec > 0 && secStatus === "held" ? `
           <button class="btn" data-act="refund" data-id="${b.id}">Refund deposit</button>
           <button class="btn" data-act="keep" data-id="${b.id}">Keep deposit</button>` : ""}
@@ -180,4 +184,49 @@ async function saveDeposits() {
     setSync("error");
   }
   btn.disabled = false; btn.textContent = "Save deposits";
+}
+
+
+// ---------- Payment reminders ----------
+// These open the staff member's own email or messaging app with the message
+// already written, so it can be edited before sending. Nothing is sent
+// automatically and no extra service is needed.
+
+function reminderText(b) {
+  const company = state.ctx.companyName || "our team";
+  const owed = formatAmount(balanceFor(b));
+  const lines = [
+    `Dear ${b.renter || "customer"},`,
+    "",
+    `This is a friendly reminder about your car rental with ${company}.`,
+    "",
+    `Vehicle: ${bookingCarLabel(b)}`,
+    `Rental period: ${formatDate(b.startDate)} to ${formatDate(b.endDate)}`,
+    `Amount outstanding: ${owed}`,
+    "",
+    "Please get in touch to arrange payment. If you have already paid, kindly ignore this message.",
+    "",
+    "Thank you,",
+    company
+  ];
+  return lines.join("\n");
+}
+
+function contactByEmail(b) {
+  const c = customerForBooking(b);
+  const to = c?.email || "";
+  if (!to) { alert("No email address saved for this customer. Add one on the Customers view."); return; }
+  const subject = `Payment reminder - car rental ${formatDate(b.startDate)}`;
+  window.location.href =
+    `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(reminderText(b))}`;
+}
+
+function contactBySms(b) {
+  const c = customerForBooking(b);
+  const to = (b.phone || c?.phone || "").replace(/\s+/g, "");
+  if (!to) { alert("No phone number saved for this customer."); return; }
+  const short =
+    `Reminder from ${state.ctx.companyName || "us"}: ${formatAmount(balanceFor(b))} outstanding for your rental ` +
+    `(${formatDate(b.startDate)} - ${formatDate(b.endDate)}). Please contact us to arrange payment. Thank you.`;
+  window.location.href = `sms:${to}?&body=${encodeURIComponent(short)}`;
 }
