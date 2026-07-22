@@ -70,7 +70,7 @@ export function render() {
     <div class="stat"><div class="stat-label">Total cars</div><div class="stat-val">${state.cars.length}</div></div>
     <div class="stat"><div class="stat-label">Available</div><div class="stat-val green">${available}</div></div>
     <div class="stat"><div class="stat-label">Rented out</div><div class="stat-val amber">${rented}</div></div>
-    <div class="stat"><div class="stat-label">In service</div><div class="stat-val red">${service}</div></div>
+    <div class="stat"><div class="stat-label">Out of service</div><div class="stat-val red">${service}</div></div>
   `;
 
   let list = withStatus.filter(c => {
@@ -102,7 +102,7 @@ export function render() {
           <div class="card-title">${esc(c.year)} ${esc(c.make)} ${esc(c.model)}</div>
           <div class="card-sub">${esc(c.plate)}${c.dailyRate ? " · " + esc(c.dailyRate) + "/day" : ""}</div>
         </div>
-        <span class="badge ${cls}">${s === "available" ? "Available" : s === "overdue" ? "Overdue" : s === "service" ? "In service" : "Rented"}</span>
+        <span class="badge ${cls}">${s === "available" ? "Available" : s === "overdue" ? "Overdue" : s === "service" ? "Out of service" : "Rented"}</span>
       </div>
       ${serviceDue(c) && s !== "service" ? `<div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;"><span style="color:var(--amber-text);">⚠ Service due ${formatDate(c.nextServiceDate)}</span></div>` : ""}
       ${(c.weeklyRate || c.monthlyRate) ? `
@@ -208,7 +208,7 @@ function toggleRentNewCustomer() {
 function openRentModal(carId) {
   const car = state.cars.find(x => x.id === carId);
   if (car && car.outOfService) {
-    alert("This car is out of service. Put it back in service (Maintenance) before renting.");
+    alert("This car is out of service. Put it back in service on the Maintenance view before renting it out.");
     return;
   }
   rentingCarId = carId;
