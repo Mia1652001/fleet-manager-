@@ -2,7 +2,7 @@
   "name": "Fleet Manager",
   "short_name": "Fleet",
   "description": "Car rental fleet, bookings, customers, billing and maintenance.",
-  "start_url": "./index.html",
+  "start_url": "./app.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
