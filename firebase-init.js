@@ -4,7 +4,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, initializeFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDgNxoaK9q3nxKKV7vg2pIzmtLFPDl5Lkk",
@@ -21,10 +21,23 @@ export const auth = getAuth(app);
 // connection (WebChannel), which shows up as "Could not reach Cloud Firestore
 // backend". Forcing long polling uses a plain-HTTP method that works
 // everywhere, at a small cost in update latency.
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-  useFetchStreams: false
-});
+// On-device cache: pages open showing the last known data immediately, then
+// update in the background. Falls back to a memory-only cache if the browser
+// blocks local storage (e.g. private browsing), so the app still works.
+let _db;
+try {
+  _db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    experimentalForceLongPolling: true,
+    useFetchStreams: false
+  });
+} catch (e) {
+  _db = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+    useFetchStreams: false
+  });
+}
+export const db = _db;
 
 export { signInWithEmailAndPassword, signOut };
 
