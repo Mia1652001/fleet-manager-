@@ -1,7 +1,7 @@
 // Fleet page — car inventory whose status is derived from bookings.
 // A car is "rented" when a booking covers today; walk-in rentals create bookings.
 import { db, auth, signInWithEmailAndPassword, requireAuth, setCompanyLabel, setSync, wireLogout } from "./firebase-init.js";
-import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let cars = [];
 let bookings = [];
@@ -21,10 +21,40 @@ async function doLogin() {
   if (!email || !password) { errEl.textContent = "Enter your email and password."; errEl.classList.add("show"); return; }
   btn.disabled = true; btn.textContent = "Signing in...";
   try {
-    await signInWithEmailAndPassword(auth, email, password);
-    window.location.reload();
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+
+    // Load the company profile directly instead of reloading the page.
+    // (A page reload here relied on the browser keeping the session, which
+    // Safari's privacy protections can interfere with.)
+    let snap;
+    try {
+      snap = await getDoc(doc(db, "users", cred.user.uid));
+    } catch (readErr) {
+      errEl.textContent = "Signed in, but couldn't reach the database (" + (readErr.code || readErr.message) + ").";
+      errEl.classList.add("show");
+      btn.disabled = false; btn.textContent = "Sign in";
+      return;
+    }
+
+    if (!snap.exists() || !snap.data().companyId) {
+      errEl.textContent = "This account isn't linked to a company yet. Contact your administrator.";
+      errEl.classList.add("show");
+      btn.disabled = false; btn.textContent = "Sign in";
+      return;
+    }
+
+    ctx = {
+      user: cred.user,
+      companyId: snap.data().companyId,
+      companyName: snap.data().companyName || snap.data().companyId
+    };
+    startApp();
   } catch (e) {
-    errEl.textContent = "Incorrect email or password.";
+    const code = e.code || "";
+    errEl.textContent =
+      code.includes("wrong-password") || code.includes("user-not-found") || code.includes("invalid-credential")
+        ? "Incorrect email or password."
+        : "Couldn't sign in (" + (code || e.message) + ").";
     errEl.classList.add("show");
     btn.disabled = false; btn.textContent = "Sign in";
   }
@@ -42,6 +72,14 @@ async function doLogin() {
     return;
   }
 
+  startApp();
+})();
+
+// Shows the app and starts live data listeners. Called either on page load
+// (already signed in) or straight after a successful sign-in.
+function startApp() {
+  document.getElementById("boot").style.display = "none";
+  document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
   setCompanyLabel(ctx.companyName);
   wireLogout();
@@ -61,7 +99,7 @@ async function doLogin() {
   onSnapshot(query(collection(db, "customers"), where("companyId", "==", ctx.companyId)), (snap) => {
     customers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   });
-})();
+}
 
 // ---------- Helpers ----------
 function todayStr() {
