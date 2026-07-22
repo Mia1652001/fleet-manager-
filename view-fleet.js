@@ -3,7 +3,7 @@ import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, todayStr, overlaps,
-  currentBooking, nextUpcoming, carStatus, serviceDue,
+  currentBooking, nextUpcoming, carStatus, serviceDue, openBookingsForCar,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
@@ -181,7 +181,19 @@ async function saveCar() {
 }
 
 async function removeCar(id) {
-  if (!confirm("Remove this car from the fleet?")) return;
+  const open = openBookingsForCar(id);
+  if (open.length > 0) {
+    alert(
+      `This car has ${open.length} booking(s) that aren't finished yet.\n\n` +
+      "Mark them returned (or delete them) on the Bookings view before removing the car."
+    );
+    return;
+  }
+  const past = state.bookings.filter(b => b.carId === id).length;
+  const msg = past > 0
+    ? `Remove this car from the fleet?\n\nIts ${past} past rental(s) stay in Billing and customer history, listed as "removed from fleet".`
+    : "Remove this car from the fleet?";
+  if (!confirm(msg)) return;
   setSync("saving");
   try { await deleteDoc(doc(db, "cars", id)); }
   catch (e) { alert("Couldn't remove (" + (e.code || e.message) + ")."); setSync("error"); }
@@ -259,6 +271,7 @@ async function confirmRent() {
     await addDoc(collection(db, "bookings"), {
       companyId: state.ctx.companyId, carId: rentingCarId, customerId, renter, phone,
       startDate, endDate, dailyRate: car?.dailyRate || 0, paid: false,
+      carName: car ? `${car.year || ""} ${car.make} ${car.model} (${car.plate || "no plate"})`.trim() : "",
       status: "open", createdAt: new Date().toISOString()
     });
     closeModal(root, "rent-modal");

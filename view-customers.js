@@ -2,7 +2,7 @@
 import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
-  state, onDataChange, esc, formatDate, carLabel,
+  state, onDataChange, esc, formatDate, bookingCarLabel,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
@@ -150,7 +150,7 @@ function openHistory(id) {
       <div class="item-card ${b.status === "completed" ? "completed" : ""}">
         <div class="card-top">
           <div>
-            <div class="card-title" style="font-size:1rem;">${esc(carLabel(b.carId))}</div>
+            <div class="card-title" style="font-size:1rem;">${esc(bookingCarLabel(b))}</div>
             <div class="card-sub">${formatDate(b.startDate)} – ${formatDate(b.endDate)}</div>
           </div>
           <span class="badge ${b.status === "completed" ? "completed" : "active-b"}">${b.status === "completed" ? "Completed" : "Open"}</span>

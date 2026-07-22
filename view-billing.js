@@ -3,7 +3,7 @@
 import { db, setSync } from "./firebase-init.js";
 import { updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
-  state, onDataChange, esc, formatDate, formatAmount, carLabel,
+  state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel,
   rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, securityHeld,
   settledAmount, isBillable,
   el, val, setVal, openModal, closeModal, showError
@@ -91,7 +91,7 @@ export function render() {
 
   let list = billable.filter(b => {
     const mf = filter === "all" || (filter === "paid" ? b.paid : !b.paid);
-    const ms = `${b.renter || ""} ${carLabel(b.carId)}`.toLowerCase().includes(search);
+    const ms = `${b.renter || ""} ${bookingCarLabel(b)}`.toLowerCase().includes(search);
     return mf && ms;
   });
   list.sort((a, b) => (a.paid - b.paid) || b.startDate.localeCompare(a.startDate));
@@ -115,7 +115,7 @@ export function render() {
       <div class="card-top">
         <div>
           <div class="card-title">${esc(b.renter)} — ${formatAmount(b.paid ? total : balance)}${b.paid ? "" : " owed"}</div>
-          <div class="card-sub">${esc(carLabel(b.carId))}</div>
+          <div class="card-sub">${esc(bookingCarLabel(b))}</div>
         </div>
         <span class="badge ${b.paid ? "available" : "overdue"}">${b.paid ? "Paid" : "Unpaid"}</span>
       </div>

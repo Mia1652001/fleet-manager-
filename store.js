@@ -43,6 +43,20 @@ export function carLabel(carId) {
   return c ? `${c.year || ""} ${c.make} ${c.model} (${c.plate || "no plate"})`.trim() : "Unknown car";
 }
 
+// Label for a booking's car. Falls back to the name saved on the booking when
+// the car itself has since been removed from the fleet, so history survives.
+export function bookingCarLabel(b) {
+  const c = state.cars.find(x => x.id === b.carId);
+  if (c) return `${c.year || ""} ${c.make} ${c.model} (${c.plate || "no plate"})`.trim();
+  if (b.carName) return `${b.carName} (removed from fleet)`;
+  return "Car no longer in fleet";
+}
+
+// Bookings for a car that are not finished (active or upcoming)
+export function openBookingsForCar(carId) {
+  return state.bookings.filter(b => b.carId === carId && b.status !== "completed");
+}
+
 export function overlaps(aStart, aEnd, bStart, bEnd) {
   return aStart <= bEnd && bStart <= aEnd;
 }

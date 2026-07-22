@@ -2,7 +2,7 @@
 import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
-  state, onDataChange, esc, formatDate, todayStr, overlaps, carLabel, bookingState,
+  state, onDataChange, esc, formatDate, todayStr, overlaps, bookingCarLabel, bookingState,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
@@ -121,7 +121,7 @@ function renderList() {
   let list = state.bookings.filter(b => {
     const s = bookingState(b);
     const mf = filter === "all" ? s !== "completed" : s === filter;
-    const ms = `${carLabel(b.carId)} ${b.renter || ""}`.toLowerCase().includes(search);
+    const ms = `${bookingCarLabel(b)} ${b.renter || ""}`.toLowerCase().includes(search);
     return mf && ms;
   });
 
@@ -141,7 +141,7 @@ function renderList() {
       <div class="card-top">
         <div>
           <div class="card-title">${esc(b.renter)}</div>
-          <div class="card-sub">${esc(carLabel(b.carId))}</div>
+          <div class="card-sub">${esc(bookingCarLabel(b))}</div>
         </div>
         <span class="badge ${s}">${stateLabel(s)}</span>
       </div>
@@ -254,13 +254,14 @@ async function saveBooking() {
 
     const car = state.cars.find(x => x.id === carId);
     const dailyRate = car?.dailyRate || 0;
+    const carName = car ? `${car.year || ""} ${car.make} ${car.model} (${car.plate || "no plate"})`.trim() : "";
 
     if (editingBookingId) {
-      await updateDoc(doc(db, "bookings", editingBookingId), { carId, customerId, renter, phone, startDate, endDate, dailyRate });
+      await updateDoc(doc(db, "bookings", editingBookingId), { carId, customerId, renter, phone, startDate, endDate, dailyRate, carName });
     } else {
       await addDoc(collection(db, "bookings"), {
         companyId: state.ctx.companyId, carId, customerId, renter, phone, startDate, endDate,
-        dailyRate, paid: false, status: "open", createdAt: new Date().toISOString()
+        dailyRate, carName, paid: false, status: "open", createdAt: new Date().toISOString()
       });
     }
     closeModal(root, "booking-modal");
