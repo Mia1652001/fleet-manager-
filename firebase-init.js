@@ -4,7 +4,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, initializeFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDgNxoaK9q3nxKKV7vg2pIzmtLFPDl5Lkk",
@@ -17,7 +17,13 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Safari and some restrictive networks block Firestore's default streaming
+// connection (WebChannel), which shows up as "Could not reach Cloud Firestore
+// backend". Auto-detect long polling falls back to a compatible method when
+// that happens, while still using the fast path where it works.
+export const db = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true
+});
 
 export { signInWithEmailAndPassword, signOut };
 
