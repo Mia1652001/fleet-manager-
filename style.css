@@ -302,3 +302,8 @@ input:focus, select:focus { border-color: var(--text); }
   .cal-dot.active-b { background: var(--green-text); }
   .cal-dot.overdue { background: var(--red-text); }
 }
+
+/* ---------- Single-page view switching ---------- */
+.view { display: none; }
+.view.active { display: block; animation: viewIn 0.12s ease; }
+@keyframes viewIn { from { opacity: 0.6; } to { opacity: 1; } }
