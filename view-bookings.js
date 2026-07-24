@@ -10,6 +10,7 @@ let root = null;
 let filter = "all";
 let editingBookingId = null;
 let calYear, calMonth;
+let planner = "timeline"; // "timeline" | "month"
 
 export function mount(container) {
   root = container;
@@ -21,6 +22,15 @@ export function mount(container) {
   el(root, "new-booking").addEventListener("click", () => openBookingModal(null));
   el(root, "save-booking").addEventListener("click", saveBooking);
   el(root, "b-customer").addEventListener("change", toggleNewCustomer);
+
+  el(root, "view-timeline").addEventListener("click", () => setPlanner("timeline"));
+  el(root, "view-month").addEventListener("click", () => setPlanner("month"));
+
+  // Clicking a booking bar in the timeline opens it for editing
+  el(root, "timeline").addEventListener("click", (e) => {
+    const bar = e.target.closest("[data-booking]");
+    if (bar) openBookingModal(bar.dataset.booking);
+  });
 
   el(root, "cal-prev").addEventListener("click", () => shiftMonth(-1));
   el(root, "cal-next").addEventListener("click", () => shiftMonth(1));
@@ -70,8 +80,19 @@ function stateLabel(s) {
 export function render() {
   if (!root) return;
   renderStats();
-  renderCalendar();
+  if (planner === "timeline") renderTimeline(); else renderCalendar();
   renderList();
+}
+
+function setPlanner(which) {
+  planner = which;
+  el(root, "view-timeline").classList.toggle("active", which === "timeline");
+  el(root, "view-month").classList.toggle("active", which === "month");
+  el(root, "timeline-wrap").style.display = which === "timeline" ? "block" : "none";
+  el(root, "calendar").style.display = which === "month" ? "grid" : "none";
+  const legend = root.querySelector(".tl-legend");
+  if (legend) legend.style.display = which === "timeline" ? "flex" : "none";
+  render();
 }
 
 function renderStats() {
@@ -83,6 +104,109 @@ function renderStats() {
     <div class="stat"><div class="stat-label">Overdue</div><div class="stat-val red">${count("overdue")}</div></div>
     <div class="stat"><div class="stat-label">Completed</div><div class="stat-val">${count("completed")}</div></div>
   `;
+}
+
+// ---------- Timeline / fleet planner ----------
+// Cars down the left, days across the top, one bar per rental.
+// This is the layout most rental companies already use on paper or in a
+// spreadsheet, so availability can be read across a whole month at a glance.
+function renderTimeline() {
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  el(root, "cal-title").textContent = `${monthNames[calMonth]} ${calYear}`;
+
+  const wrap = el(root, "timeline-wrap");
+  const grid = el(root, "timeline");
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const t = todayStr();
+  const pad = n => String(n).padStart(2, "0");
+  const dayStr = d => `${calYear}-${pad(calMonth + 1)}-${pad(d)}`;
+
+  if (state.cars.length === 0) {
+    grid.innerHTML = '<div class="tl-empty">No cars yet. Add cars on the Fleet view and they will appear here.</div>';
+    grid.style.gridTemplateColumns = "1fr";
+    return;
+  }
+
+  const cars = state.cars.slice().sort((a, b) =>
+    (a.make + a.model).localeCompare(b.make + b.model));
+
+  grid.style.gridTemplateColumns = `170px repeat(${daysInMonth}, 36px)`;
+
+  const dowShort = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+  let html = `<div class="tl-corner" style="grid-row:1;grid-column:1;">Vehicle</div>`;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(calYear, calMonth, d).getDay();
+    const cls = dayStr(d) === t ? "today" : (dow === 0 || dow === 6) ? "weekend" : "";
+    html += `<div class="tl-daynum ${cls}" style="grid-row:1;grid-column:${d + 1};">
+      <span class="dow">${dowShort[dow]}</span>${d}</div>`;
+  }
+
+  cars.forEach((car, i) => {
+    const row = i + 2;
+    const oos = !!car.outOfService;
+
+    html += `<div class="tl-car ${oos ? "oos" : ""}" style="grid-row:${row};grid-column:1;">
+      <strong>${esc(`${car.make} ${car.model}`)}</strong>
+      <span>${esc(car.plate || "no plate")}</span>
+    </div>`;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = new Date(calYear, calMonth, d).getDay();
+      const cls = dayStr(d) === t ? "today" : (dow === 0 || dow === 6) ? "weekend" : "";
+      html += `<div class="tl-cell ${cls}" style="grid-row:${row};grid-column:${d + 1};"></div>`;
+    }
+
+    if (oos) {
+      html += `<div class="tl-oos-bar" style="grid-row:${row};grid-column:2 / ${daysInMonth + 2};">Out of service</div>`;
+    }
+
+    // Bookings for this car that touch the displayed month
+    const first = dayStr(1);
+    const last = dayStr(daysInMonth);
+    state.bookings
+      .filter(b => b.carId === car.id && b.startDate <= last && b.endDate >= first)
+      .sort((a, b) => a.startDate.localeCompare(b.startDate))
+      .forEach(b => {
+        // Clip the bar to the visible month
+        const startDay = b.startDate < first ? 1 : Number(b.startDate.slice(8, 10));
+        const endDay = b.endDate > last ? daysInMonth : Number(b.endDate.slice(8, 10));
+        if (!(startDay >= 1 && endDay >= startDay)) return;
+
+        const s = bookingState(b);
+        const span = endDay - startDay + 1;
+        const label = span >= 3
+          ? `${esc(b.renter)}`
+          : span === 2 ? esc((b.renter || "").slice(0, 6)) : "";
+        const title = `${b.renter} · ${formatDate(b.startDate)} – ${formatDate(b.endDate)}`;
+
+        html += `<div class="tl-bar ${s}" data-booking="${b.id}" title="${esc(title)}"
+          style="grid-row:${row};grid-column:${startDay + 1} / ${endDay + 2};">${label}</div>`;
+      });
+  });
+
+  grid.innerHTML = html;
+
+  // Scroll so today is visible when looking at the current month
+  const now = new Date();
+  if (now.getFullYear() === calYear && now.getMonth() === calMonth) {
+    wrap.scrollLeft = Math.max(0, (now.getDate() - 3) * 36);
+  } else {
+    wrap.scrollLeft = 0;
+  }
+
+  // Legend, added once, directly after the timeline
+  if (!root.querySelector(".tl-legend")) {
+    const legend = document.createElement("div");
+    legend.className = "tl-legend";
+    legend.innerHTML = `
+      <span><i class="tl-key active-b"></i> Out now</span>
+      <span><i class="tl-key upcoming"></i> Booked ahead</span>
+      <span><i class="tl-key overdue"></i> Overdue</span>
+      <span><i class="tl-key oos"></i> Out of service</span>
+      <span style="opacity:0.7;">Tap a booking to edit it</span>`;
+    wrap.insertAdjacentElement("afterend", legend);
+  }
 }
 
 function renderCalendar() {

@@ -128,12 +128,18 @@
       <div class="cal-header">
         <div class="cal-title" data-el="cal-title">—</div>
         <div class="cal-nav">
+          <button class="tab active" data-el="view-timeline">Timeline</button>
+          <button class="tab" data-el="view-month">Month</button>
+          <span style="width:10px;display:inline-block;"></span>
           <button class="btn" data-el="cal-prev">‹ Prev</button>
           <button class="btn" data-el="cal-today">Today</button>
           <button class="btn" data-el="cal-next">Next ›</button>
         </div>
       </div>
-      <div class="calendar" data-el="calendar"></div>
+      <div class="timeline-wrap" data-el="timeline-wrap">
+        <div class="timeline" data-el="timeline"></div>
+      </div>
+      <div class="calendar" data-el="calendar" style="display:none;"></div>
       <div class="filter-row" data-el="filters">
         <button class="tab active" data-f="all">All</button>
         <button class="tab" data-f="active-b">Active</button>
