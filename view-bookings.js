@@ -12,11 +12,28 @@ let editingBookingId = null;
 let calYear, calMonth;
 let planner = "timeline"; // "timeline" | "month"
 
+// The timeline shows a rolling window of dates (not tied to calendar months),
+// so it never dumps out a whole month of empty history on a wide screen.
+// It starts a few days before today and scrolls forward from there.
+const TIMELINE_DAYS = 21;
+let timelineAnchor = null; // Date — first visible day in the timeline
+
+function freshAnchor() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 3); // a little history for context, then the road ahead
+  return d;
+}
+function dstr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function mount(container) {
   root = container;
   const now = new Date();
   calYear = now.getFullYear();
   calMonth = now.getMonth();
+  timelineAnchor = freshAnchor();
 
   el(root, "search").addEventListener("input", render);
   el(root, "new-booking").addEventListener("click", () => openBookingModal(null));
@@ -32,11 +49,20 @@ export function mount(container) {
     if (bar) openBookingModal(bar.dataset.booking);
   });
 
-  el(root, "cal-prev").addEventListener("click", () => shiftMonth(-1));
-  el(root, "cal-next").addEventListener("click", () => shiftMonth(1));
+  el(root, "cal-prev").addEventListener("click", () => {
+    if (planner === "timeline") { timelineAnchor.setDate(timelineAnchor.getDate() - 7); render(); }
+    else shiftMonth(-1);
+  });
+  el(root, "cal-next").addEventListener("click", () => {
+    if (planner === "timeline") { timelineAnchor.setDate(timelineAnchor.getDate() + 7); render(); }
+    else shiftMonth(1);
+  });
   el(root, "cal-today").addEventListener("click", () => {
-    const d = new Date();
-    calYear = d.getFullYear(); calMonth = d.getMonth();
+    if (planner === "timeline") { timelineAnchor = freshAnchor(); }
+    else {
+      const d = new Date();
+      calYear = d.getFullYear(); calMonth = d.getMonth();
+    }
     render();
   });
 
@@ -111,15 +137,25 @@ function renderStats() {
 // This is the layout most rental companies already use on paper or in a
 // spreadsheet, so availability can be read across a whole month at a glance.
 function renderTimeline() {
-  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  el(root, "cal-title").textContent = `${monthNames[calMonth]} ${calYear}`;
-
   const wrap = el(root, "timeline-wrap");
   const grid = el(root, "timeline");
-  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
   const t = todayStr();
-  const pad = n => String(n).padStart(2, "0");
-  const dayStr = d => `${calYear}-${pad(calMonth + 1)}-${pad(d)}`;
+
+  // Build the rolling window of dates from the anchor
+  const days = [];
+  for (let i = 0; i < TIMELINE_DAYS; i++) {
+    const d = new Date(timelineAnchor);
+    d.setDate(d.getDate() + i);
+    days.push(d);
+  }
+  const first = dstr(days[0]);
+  const last = dstr(days[days.length - 1]);
+
+  // Title shows the visible range rather than a calendar month, since the
+  // window can straddle two months.
+  const fmt = d => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const yearLabel = days[days.length - 1].getFullYear();
+  el(root, "cal-title").textContent = `${fmt(days[0])} – ${fmt(days[days.length - 1])} ${yearLabel}`;
 
   if (state.cars.length === 0) {
     grid.innerHTML = '<div class="tl-empty">No cars yet. Add cars on the Fleet view and they will appear here.</div>';
@@ -130,17 +166,18 @@ function renderTimeline() {
   const cars = state.cars.slice().sort((a, b) =>
     (a.make + a.model).localeCompare(b.make + b.model));
 
-  grid.style.gridTemplateColumns = `170px repeat(${daysInMonth}, 36px)`;
+  grid.style.gridTemplateColumns = `170px repeat(${TIMELINE_DAYS}, 36px)`;
 
   const dowShort = ["Su","Mo","Tu","We","Th","Fr","Sa"];
   let html = `<div class="tl-corner" style="grid-row:1;grid-column:1;">Vehicle</div>`;
 
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dow = new Date(calYear, calMonth, d).getDay();
-    const cls = dayStr(d) === t ? "today" : (dow === 0 || dow === 6) ? "weekend" : "";
-    html += `<div class="tl-daynum ${cls}" style="grid-row:1;grid-column:${d + 1};">
-      <span class="dow">${dowShort[dow]}</span>${d}</div>`;
-  }
+  days.forEach((d, i) => {
+    const ds = dstr(d);
+    const dow = d.getDay();
+    const cls = ds === t ? "today" : (dow === 0 || dow === 6) ? "weekend" : "";
+    html += `<div class="tl-daynum ${cls}" style="grid-row:1;grid-column:${i + 2};">
+      <span class="dow">${dowShort[dow]}</span>${d.getDate()}</div>`;
+  });
 
   cars.forEach((car, i) => {
     const row = i + 2;
@@ -151,49 +188,41 @@ function renderTimeline() {
       <span>${esc(car.plate || "no plate")}</span>
     </div>`;
 
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dow = new Date(calYear, calMonth, d).getDay();
-      const cls = dayStr(d) === t ? "today" : (dow === 0 || dow === 6) ? "weekend" : "";
-      html += `<div class="tl-cell ${cls}" style="grid-row:${row};grid-column:${d + 1};"></div>`;
-    }
+    days.forEach((d, i2) => {
+      const ds = dstr(d);
+      const dow = d.getDay();
+      const cls = ds === t ? "today" : (dow === 0 || dow === 6) ? "weekend" : "";
+      html += `<div class="tl-cell ${cls}" style="grid-row:${row};grid-column:${i2 + 2};"></div>`;
+    });
 
     if (oos) {
-      html += `<div class="tl-oos-bar" style="grid-row:${row};grid-column:2 / ${daysInMonth + 2};">Out of service</div>`;
+      html += `<div class="tl-oos-bar" style="grid-row:${row};grid-column:2 / ${TIMELINE_DAYS + 2};">Out of service</div>`;
     }
 
-    // Bookings for this car that touch the displayed month
-    const first = dayStr(1);
-    const last = dayStr(daysInMonth);
+    // Bookings for this car that touch the visible window
     state.bookings
       .filter(b => b.carId === car.id && b.startDate <= last && b.endDate >= first)
       .sort((a, b) => a.startDate.localeCompare(b.startDate))
       .forEach(b => {
-        // Clip the bar to the visible month
-        const startDay = b.startDate < first ? 1 : Number(b.startDate.slice(8, 10));
-        const endDay = b.endDate > last ? daysInMonth : Number(b.endDate.slice(8, 10));
-        if (!(startDay >= 1 && endDay >= startDay)) return;
+        // Clip the bar to the visible window, measured in day-offsets from the anchor
+        const startOffset = b.startDate < first ? 0 : Math.round((new Date(b.startDate) - days[0]) / 86400000);
+        const endOffset = b.endDate > last ? TIMELINE_DAYS - 1 : Math.round((new Date(b.endDate) - days[0]) / 86400000);
+        if (!(endOffset >= 0 && startOffset <= TIMELINE_DAYS - 1 && endOffset >= startOffset)) return;
 
         const s = bookingState(b);
-        const span = endDay - startDay + 1;
+        const span = endOffset - startOffset + 1;
         const label = span >= 3
           ? `${esc(b.renter)}`
           : span === 2 ? esc((b.renter || "").slice(0, 6)) : "";
         const title = `${b.renter} · ${formatDate(b.startDate)} – ${formatDate(b.endDate)}`;
 
         html += `<div class="tl-bar ${s}" data-booking="${b.id}" title="${esc(title)}"
-          style="grid-row:${row};grid-column:${startDay + 1} / ${endDay + 2};">${label}</div>`;
+          style="grid-row:${row};grid-column:${startOffset + 2} / ${endOffset + 3};">${label}</div>`;
       });
   });
 
   grid.innerHTML = html;
-
-  // Scroll so today is visible when looking at the current month
-  const now = new Date();
-  if (now.getFullYear() === calYear && now.getMonth() === calMonth) {
-    wrap.scrollLeft = Math.max(0, (now.getDate() - 3) * 36);
-  } else {
-    wrap.scrollLeft = 0;
-  }
+  wrap.scrollLeft = 0; // the window itself is already anchored near today
 
   // Legend, added once, directly after the timeline
   if (!root.querySelector(".tl-legend")) {
