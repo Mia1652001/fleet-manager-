@@ -243,9 +243,9 @@ input:focus, select:focus { border-color: var(--text); }
 .login-card .btn-primary { width: 100%; margin-top: 6px; padding: 10px; }
 
 /* ---------- Calendar ---------- */
-.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
-.cal-title { font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 400; }
-.cal-nav { display: flex; gap: 6px; }
+.cal-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 1rem; }
+.cal-title { font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 400; white-space: nowrap; }
+.cal-nav { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 2rem; }
 
@@ -294,6 +294,13 @@ input:focus, select:focus { border-color: var(--text); }
   .cal-booking { display: none; }
   .cal-day .cal-dots { display: flex; gap: 2px; margin-top: 4px; flex-wrap: wrap; }
   nav { overflow-x: auto; }
+
+  /* Stack the date range above the controls instead of squeezing both
+     into one row, which forced the title to wrap letter by letter. */
+  .cal-header { flex-direction: column; align-items: stretch; }
+  .cal-title { font-size: 1.05rem; white-space: normal; }
+  .cal-nav { justify-content: flex-start; }
+  .cal-nav .tab, .cal-nav .btn { font-size: 10px; padding: 6px 10px; }
 }
 
 .cal-dots { display: none; }

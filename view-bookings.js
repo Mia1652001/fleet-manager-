@@ -166,7 +166,10 @@ function renderTimeline() {
   const cars = state.cars.slice().sort((a, b) =>
     (a.make + a.model).localeCompare(b.make + b.model));
 
-  grid.style.gridTemplateColumns = `170px repeat(${TIMELINE_DAYS}, 36px)`;
+  // minmax lets columns stretch to fill a wide screen instead of leaving
+  // dead space after the window, while still enforcing a usable minimum
+  // width (and staying horizontally scrollable) on narrow ones.
+  grid.style.gridTemplateColumns = `170px repeat(${TIMELINE_DAYS}, minmax(36px, 1fr))`;
 
   const dowShort = ["Su","Mo","Tu","We","Th","Fr","Sa"];
   let html = `<div class="tl-corner" style="grid-row:1;grid-column:1;">Vehicle</div>`;
