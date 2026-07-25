@@ -544,3 +544,97 @@ input:focus, select:focus { border-color: var(--text); }
   .field-row { flex-direction: column; gap: 0; }
   .tl-bar-start, .tl-bar-end { display: none; }
 }
+
+/* ---------- Deliveries schedule ---------- */
+.day-group { margin-bottom: 1.5rem; }
+
+.day-head {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--text);
+  padding: 7px 12px;
+  border-radius: 4px 4px 0 0;
+}
+
+.job-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  padding: 10px 12px;
+}
+
+.job-row:last-child { border-radius: 0 0 4px 4px; }
+.job-row.done { opacity: 0.5; }
+.job-row.late { background: #fdf6f6; }
+
+.job-tick {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  cursor: pointer;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--green-text);
+  line-height: 1;
+  padding: 0;
+}
+
+.job-tick:hover { border-color: var(--text); }
+.job-row.done .job-tick { background: var(--green-bg); border-color: #cfe3cf; }
+
+.job-time {
+  font-size: 12px;
+  width: 44px;
+  flex-shrink: 0;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+
+.job-kind {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  width: 64px;
+  text-align: center;
+}
+
+.job-kind.delivery { background: var(--amber-bg); color: var(--amber-text); }
+.job-kind.recovery { background: var(--green-bg); color: var(--green-text); }
+.job-kind.task     { background: var(--blue-bg);  color: var(--blue-text); }
+
+.job-main { flex: 1; min-width: 0; }
+.job-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.job-row.done .job-title { text-decoration: line-through; }
+.job-sub { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.job-staff { color: var(--text); }
+
+.job-flag {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--red-bg);
+  color: var(--red-text);
+  padding: 3px 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.job-edit { flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  .job-row { flex-wrap: wrap; gap: 8px; }
+  .job-main { flex-basis: 100%; order: 5; }
+  .job-kind { width: auto; }
+  .job-sub { white-space: normal; }
+}

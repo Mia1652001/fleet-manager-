@@ -6,7 +6,8 @@ export const state = {
   ctx: null,        // { user, companyId, companyName }
   cars: [],
   bookings: [],
-  customers: []
+  customers: [],
+  tasks: []     // manually added jobs, e.g. "follow up agency"
 };
 
 // Views register a render function; app.js calls this whenever data changes.
@@ -198,6 +199,89 @@ export function pickupLabel(b) {
 // Compact label for the right of a timeline bar: "City delivery 19:30"
 export function dropoffLabel(b) {
   return [b.dropoffLocation || "", endTime(b)].filter(Boolean).join(" ").trim();
+}
+
+// ---------- Delivery / recovery schedule ----------
+// Every booking implies two jobs: hand the car over, and get it back. Those
+// are generated from the booking itself rather than stored separately, so the
+// schedule can never drift out of step with the bookings.
+//
+// A recovery being done is the same fact as the booking being finished, so the
+// two are deliberately one flag (booking.status === "completed"). Hand-overs
+// get their own `pickupDone` marker, which is purely operational.
+
+export function deliveryDone(b) { return b.pickupDone === true; }
+export function recoveryDone(b) { return b.status === "completed"; }
+
+function bookingJobs(b) {
+  const carText = bookingCarLabel(b);
+  return [
+    {
+      id: `${b.id}:out`,
+      kind: "delivery",
+      bookingId: b.id,
+      date: b.startDate,
+      time: startTime(b),
+      car: carText,
+      location: b.pickupLocation || "",
+      customer: b.renter || "",
+      staff: b.deliveredBy || b.managedBy || "",
+      notes: b.notes || "",
+      done: deliveryDone(b)
+    },
+    {
+      id: `${b.id}:in`,
+      kind: "recovery",
+      bookingId: b.id,
+      date: b.endDate,
+      time: endTime(b),
+      car: carText,
+      location: b.dropoffLocation || "",
+      customer: b.renter || "",
+      staff: b.deliveredBy || b.managedBy || "",
+      notes: b.notes || "",
+      done: recoveryDone(b)
+    }
+  ];
+}
+
+function manualJob(t) {
+  return {
+    id: `task:${t.id}`,
+    kind: "task",
+    taskId: t.id,
+    date: t.date,
+    time: t.time || "",
+    car: "",
+    location: "",
+    customer: t.text || "",
+    staff: t.staff || "",
+    notes: "",
+    done: t.done === true
+  };
+}
+
+// Returns jobs within [from, to], plus anything overdue and still not done —
+// an unfinished job from last week must not quietly disappear.
+export function buildSchedule({ from, to, includeDone }) {
+  const t = todayStr();
+  let jobs = [];
+  state.bookings.forEach(b => { jobs = jobs.concat(bookingJobs(b)); });
+  state.tasks.forEach(x => { jobs.push(manualJob(x)); });
+
+  jobs = jobs.filter(j => {
+    if (!j.date) return false;
+    const inRange = (!from || j.date >= from) && (!to || j.date <= to);
+    const lateAndOpen = j.date < t && !j.done;
+    if (!includeDone && j.done) return false;
+    return inRange || lateAndOpen;
+  });
+
+  jobs.forEach(j => { j.overdue = j.date < t && !j.done; });
+
+  jobs.sort((a, b) =>
+    a.date.localeCompare(b.date) || (a.time || "99").localeCompare(b.time || "99"));
+  return jobs;
 }
 
 // ---------- Small DOM helpers ----------

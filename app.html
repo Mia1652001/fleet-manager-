@@ -55,6 +55,7 @@
       <a href="#customers" data-view="customers">Customers</a>
       <a href="#billing" data-view="billing">Billing</a>
       <a href="#maintenance" data-view="maintenance">Maintenance</a>
+      <a href="#deliveries" data-view="deliveries">Deliveries</a>
     </nav>
   </header>
 
@@ -290,6 +291,48 @@
           <div class="modal-actions">
             <button class="btn" data-close="maint-modal">Cancel</button>
             <button class="btn-primary" data-el="save-maint">Save</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- DELIVERIES ---------- -->
+    <section class="view" id="view-deliveries">
+      <div class="stats" data-el="stats"></div>
+
+      <div class="toolbar">
+        <input type="text" data-el="search" placeholder="Search car, customer, location or staff...">
+        <button class="btn-primary" data-el="add-task">+ Add task</button>
+      </div>
+
+      <div class="filter-row" data-el="filters">
+        <button class="tab active" data-f="today">Today</button>
+        <button class="tab" data-f="week">Next 7 days</button>
+        <button class="tab" data-f="month">Next 30 days</button>
+        <button class="tab" data-f="all">Everything ahead</button>
+      </div>
+
+      <div class="filter-row">
+        <button class="tab" data-el="toggle-done">Show completed</button>
+      </div>
+
+      <div data-el="list"><div class="loading-screen">Loading schedule...</div></div>
+
+      <!-- Manual task -->
+      <div class="overlay" data-el="task-modal">
+        <div class="modal">
+          <h2 data-el="task-modal-title">Add task</h2>
+          <div class="form-error" data-el="task-error"></div>
+          <div class="field"><label>What needs doing</label><input data-el="t-text" placeholder="e.g. Follow up Evasion Car Rental"></div>
+          <div class="field-row">
+            <div class="field"><label>Date</label><input data-el="t-date" type="date"></div>
+            <div class="field"><label>Time (optional)</label><input data-el="t-time" type="time"></div>
+          </div>
+          <div class="field"><label>Assigned to</label><input data-el="t-staff" placeholder="Staff name"></div>
+          <div class="modal-actions">
+            <button class="btn danger" data-el="delete-task" style="display:none;">Delete</button>
+            <button class="btn" data-close="task-modal">Cancel</button>
+            <button class="btn-primary" data-el="save-task">Save task</button>
           </div>
         </div>
       </div>

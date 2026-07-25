@@ -11,13 +11,15 @@ import * as bookings from "./view-bookings.js";
 import * as customers from "./view-customers.js";
 import * as billing from "./view-billing.js";
 import * as maintenance from "./view-maintenance.js";
+import * as deliveries from "./view-deliveries.js";
 
 const VIEWS = {
   fleet: { mod: fleet, root: null },
   bookings: { mod: bookings, root: null },
   customers: { mod: customers, root: null },
   billing: { mod: billing, root: null },
-  maintenance: { mod: maintenance, root: null }
+  maintenance: { mod: maintenance, root: null },
+  deliveries: { mod: deliveries, root: null }
 };
 
 let started = false;
@@ -102,7 +104,7 @@ function startApp() {
     document.getElementById("logout-btn").addEventListener("click", async () => {
       stopListeners();
       await signOut(auth);
-      state.ctx = null; state.cars = []; state.bookings = []; state.customers = [];
+      state.ctx = null; state.cars = []; state.bookings = []; state.customers = []; state.tasks = [];
     });
 
     // Mount every view once. They stay in the DOM; navigation just shows/hides.
@@ -137,6 +139,11 @@ function startListeners() {
 
   unsubs.push(onSnapshot(query(collection(db, "customers"), where("companyId", "==", cid)), snap => {
     state.customers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    notifyDataChange();
+  }, () => setSync("error")));
+
+  unsubs.push(onSnapshot(query(collection(db, "tasks"), where("companyId", "==", cid)), snap => {
+    state.tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     notifyDataChange();
   }, () => setSync("error")));
 }
