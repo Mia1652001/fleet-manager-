@@ -638,3 +638,11 @@ input:focus, select:focus { border-color: var(--text); }
   .job-kind { width: auto; }
   .job-sub { white-space: normal; }
 }
+
+/* Draw the eye to a validation message that may have been scrolled past */
+.form-error.flash { animation: errFlash 0.9s ease; }
+@keyframes errFlash {
+  0%   { transform: translateY(-4px); box-shadow: 0 0 0 0 rgba(138,32,32,0.35); }
+  35%  { box-shadow: 0 0 0 5px rgba(138,32,32,0.12); }
+  100% { transform: none; box-shadow: 0 0 0 0 rgba(138,32,32,0); }
+}

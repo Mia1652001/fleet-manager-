@@ -309,6 +309,19 @@ export function closeModal(root, name) {
 export function showError(root, name, msg) {
   const e = el(root, name);
   if (!e) return;
-  if (msg) { e.textContent = msg; e.classList.add("show"); }
-  else { e.classList.remove("show"); }
+  if (!msg) { e.classList.remove("show"); return; }
+
+  e.textContent = msg;
+  e.classList.add("show");
+
+  // Modals are long enough to scroll, so a message at the top can sit out of
+  // sight while the user is looking at a field further down — which reads as
+  // "nothing happened". Bring it into view and flash it.
+  const modal = e.closest(".modal");
+  if (modal && modal.scrollTop > 0) {
+    modal.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  e.classList.remove("flash");
+  void e.offsetWidth;          // restart the animation
+  e.classList.add("flash");
 }

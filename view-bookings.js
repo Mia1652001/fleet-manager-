@@ -42,6 +42,11 @@ export function mount(container) {
   el(root, "save-booking").addEventListener("click", saveBooking);
   el(root, "b-customer").addEventListener("change", toggleNewCustomer);
 
+  // Only ever adjusts the return, never the pick-up, so the change is
+  // predictable: the user's own input is left alone.
+  ["b-start", "b-start-time", "b-end", "b-end-time"].forEach(n =>
+    el(root, n).addEventListener("change", keepReturnAfterPickup));
+
   el(root, "view-timeline").addEventListener("click", () => setPlanner("timeline"));
   el(root, "view-month").addEventListener("click", () => setPlanner("month"));
 
@@ -361,6 +366,23 @@ function renderList() {
 }
 
 // ---------- Create / edit ----------
+function keepReturnAfterPickup() {
+  const sd = val(root, "b-start"), st = val(root, "b-start-time");
+  let ed = val(root, "b-end"), et = val(root, "b-end-time");
+  if (!sd || !st) return;
+
+  // Return date before pick-up: pull it up to the pick-up day
+  if (ed && ed < sd) { setVal(root, "b-end", sd); ed = sd; }
+  if (!ed) return;
+
+  // Same day but the return time is not after the pick-up: push it later
+  if (ed === sd && et && et <= st) {
+    const [h, m] = st.split(":").map(Number);
+    const later = h + 2 <= 23 ? `${String(h + 2).padStart(2, "0")}:${String(m).padStart(2, "0")}` : "23:59";
+    setVal(root, "b-end-time", later);
+  }
+}
+
 function toggleNewCustomer() {
   const v = el(root, "b-customer").value;
   el(root, "b-new-fields").style.display = v === "__new__" ? "block" : "none";
@@ -461,7 +483,9 @@ async function saveBooking() {
   const endAt = `${endDate}T${endTimeVal}`;
 
   if (endAt <= startAt) {
-    showError(root, "booking-error", "The return must be after the pick-up. Check the dates and times.");
+    showError(root, "booking-error", startDate === endDate
+      ? `Same-day rental: the return time (${endTimeVal}) must be later than the pick-up time (${startTimeVal}).`
+      : "The return must be after the pick-up. Check the dates and times.");
     return;
   }
 

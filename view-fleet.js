@@ -22,6 +22,9 @@ export function mount(container) {
   el(root, "confirm-rent").addEventListener("click", confirmRent);
   el(root, "r-customer").addEventListener("change", toggleRentNewCustomer);
 
+  ["r-start-time", "r-date", "r-end-time"].forEach(n =>
+    el(root, n).addEventListener("change", keepRentReturnAfterPickup));
+
   // Rate auto-calculation
   const rd = el(root, "c-rate"), rw = el(root, "c-rate-week"), rm = el(root, "c-rate-month");
   const r2 = x => Math.round(x * 100) / 100;
@@ -200,6 +203,24 @@ async function removeCar(id) {
 }
 
 // ---------- Walk-in rental ----------
+// A walk-in starts now, so a same-day return needs a time later than now.
+// Adjust the return rather than making the user work the rule out from an error.
+function keepRentReturnAfterPickup() {
+  const today = todayStr();
+  const st = val(root, "r-start-time");
+  let ed = val(root, "r-date"), et = val(root, "r-end-time");
+  if (!st) return;
+
+  if (ed && ed < today) { setVal(root, "r-date", today); ed = today; }
+  if (!ed) return;
+
+  if (ed === today && et && et <= st) {
+    const [h, m] = st.split(":").map(Number);
+    const later = h + 2 <= 23 ? `${String(h + 2).padStart(2, "0")}:${String(m).padStart(2, "0")}` : "23:59";
+    setVal(root, "r-end-time", later);
+  }
+}
+
 function toggleRentNewCustomer() {
   const isNew = el(root, "r-customer").value === "__new__";
   el(root, "r-new-fields").style.display = isNew ? "block" : "none";
@@ -259,7 +280,9 @@ async function confirmRent() {
   const endAt = `${endDate}T${endTimeVal}`;
 
   if (endAt <= startAt) {
-    showError(root, "rent-error", "The return must be after the pick-up. Check the date and time.");
+    showError(root, "rent-error", startDate === endDate
+      ? `Same-day rental: the return time (${endTimeVal}) must be later than the pick-up time (${startTimeVal}).`
+      : "The return must be after the pick-up. Check the date and time.");
     return;
   }
 
