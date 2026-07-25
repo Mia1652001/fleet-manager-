@@ -2,7 +2,7 @@
 import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
-  state, onDataChange, esc, formatDate, todayStr, overlaps,
+  state, onDataChange, esc, formatDate, todayStr, findClash, describeInterval,
   currentBooking, nextUpcoming, carStatus, serviceDue, openBookingsForCar,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
@@ -221,7 +221,12 @@ function openRentModal(carId) {
   csel.value = state.customers.length ? csel.options[0].value : "__new__";
   toggleRentNewCustomer();
 
-  ["r-name", "r-phone", "r-email", "r-date"].forEach(n => setVal(root, n, ""));
+  ["r-name", "r-phone", "r-email", "r-date", "r-pickup"].forEach(n => setVal(root, n, ""));
+  // A walk-in is happening now, so default the pick-up time to the current
+  // time rather than midday — this matters for same-day turnarounds.
+  const now = new Date();
+  setVal(root, "r-start-time", `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`);
+  setVal(root, "r-end-time", "12:00");
   showError(root, "rent-error", null);
   openModal(root, "rent-modal");
 }
@@ -247,12 +252,22 @@ async function confirmRent() {
   }
 
   if (!endDate) { showError(root, "rent-error", "Choose a return date."); return; }
-  if (endDate < startDate) { showError(root, "rent-error", "Return date can't be in the past."); return; }
 
-  const clash = state.bookings.find(b =>
-    b.carId === rentingCarId && b.status !== "completed" && overlaps(startDate, endDate, b.startDate, b.endDate));
+  const startTimeVal = val(root, "r-start-time") || "12:00";
+  const endTimeVal = val(root, "r-end-time") || "12:00";
+  const startAt = `${startDate}T${startTimeVal}`;
+  const endAt = `${endDate}T${endTimeVal}`;
+
+  if (endAt <= startAt) {
+    showError(root, "rent-error", "The return must be after the pick-up. Check the date and time.");
+    return;
+  }
+
+  const clash = findClash({ carId: rentingCarId, startAt, endAt });
   if (clash) {
-    showError(root, "rent-error", `This car is booked ${formatDate(clash.startDate)} – ${formatDate(clash.endDate)} (${clash.renter}). Choose an earlier return date or another car.`);
+    showError(root, "rent-error",
+      `This car is already out ${describeInterval(clash)} (${clash.renter}). ` +
+      `Choose an earlier return, or another car.`);
     return;
   }
 
@@ -274,8 +289,8 @@ async function confirmRent() {
       carName: car ? `${car.year || ""} ${car.make} ${car.model} (${car.plate || "no plate"})`.trim() : "",
       // Walk-ins default to midday; times and locations can be refined on the
       // Bookings view if the company needs them recorded precisely.
-      startTime: "12:00", endTime: "12:00",
-      pickupLocation: "", dropoffLocation: "",
+      startTime: startTimeVal, endTime: endTimeVal,
+      pickupLocation: val(root, "r-pickup"), dropoffLocation: "",
       totalPrice: null, managedBy: "", deliveredBy: "", notes: "",
       status: "open", createdAt: new Date().toISOString()
     });

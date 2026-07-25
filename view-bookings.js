@@ -2,7 +2,8 @@
 import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
-  state, onDataChange, esc, formatDate, formatAmount, todayStr, overlaps, bookingCarLabel, bookingState,
+  state, onDataChange, esc, formatDate, formatAmount, todayStr, bookingCarLabel, bookingState,
+  findClash, describeInterval, sharesStartHandover, sharesEndHandover,
   startTime, endTime, pickupLabel, dropoffLabel, rentalTotal,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
@@ -175,7 +176,10 @@ function renderTimeline() {
   // minmax lets columns stretch to fill a wide screen instead of leaving
   // dead space after the window, while still enforcing a usable minimum
   // width (and staying horizontally scrollable) on narrow ones.
-  grid.style.gridTemplateColumns = `170px repeat(${TIMELINE_DAYS}, minmax(36px, 1fr))`;
+  // Two half-columns per day: a whole rental fills both, and on a handover day
+  // the outgoing rental takes the first half and the incoming one the second,
+  // so same-day turnarounds read clearly instead of overlapping.
+  grid.style.gridTemplateColumns = `170px repeat(${TIMELINE_DAYS * 2}, minmax(18px, 1fr))`;
 
   const dowShort = ["Su","Mo","Tu","We","Th","Fr","Sa"];
   let html = `<div class="tl-corner" style="grid-row:1;grid-column:1;">Vehicle</div>`;
@@ -184,7 +188,7 @@ function renderTimeline() {
     const ds = dstr(d);
     const dow = d.getDay();
     const cls = ds === t ? "today" : (dow === 0 || dow === 6) ? "weekend" : "";
-    html += `<div class="tl-daynum ${cls}" style="grid-row:1;grid-column:${i + 2};">
+    html += `<div class="tl-daynum ${cls}" style="grid-row:1;grid-column:${i * 2 + 2} / span 2;">
       <span class="dow">${dowShort[dow]}</span>${d.getDate()}</div>`;
   });
 
@@ -203,11 +207,11 @@ function renderTimeline() {
       const cls = ds === t ? "today" : (dow === 0 || dow === 6) ? "weekend" : "";
       html += `<div class="tl-cell addable ${cls}" data-add-car="${car.id}" data-add-date="${ds}"
         title="Add a booking for this car on ${formatDate(ds)}"
-        style="grid-row:${row};grid-column:${i2 + 2};"></div>`;
+        style="grid-row:${row};grid-column:${i2 * 2 + 2} / span 2;"></div>`;
     });
 
     if (oos) {
-      html += `<div class="tl-oos-bar" style="grid-row:${row};grid-column:2 / ${TIMELINE_DAYS + 2};">Out of service</div>`;
+      html += `<div class="tl-oos-bar" style="grid-row:${row};grid-column:2 / ${TIMELINE_DAYS * 2 + 2};">Out of service</div>`;
     }
 
     // Bookings for this car that touch the visible window
@@ -240,8 +244,15 @@ function renderTimeline() {
           (b.deliveredBy ? `\nDelivered by ${b.deliveredBy}` : "") +
           (b.notes ? `\nNote: ${b.notes}` : "");
 
+        // Give up half a day at either end when another rental hands over
+        // on the same date, so both are visible side by side.
+        const clipStart = sharesStartHandover(b) && b.startDate >= first;
+        const clipEnd = sharesEndHandover(b) && b.endDate <= last;
+        const colStart = startOffset * 2 + 2 + (clipStart ? 1 : 0);
+        const colEnd = endOffset * 2 + 4 - (clipEnd ? 1 : 0);
+
         html += `<div class="tl-bar ${s} ${paidCls}" data-booking="${b.id}" title="${esc(title)}"
-          style="grid-row:${row};grid-column:${startOffset + 2} / ${endOffset + 3};">
+          style="grid-row:${row};grid-column:${colStart} / ${colEnd};">
             ${startTxt ? `<span class="tl-bar-start">${esc(startTxt)}</span>` : ""}
             <span class="tl-bar-name">${b.paid ? "✓ " : ""}${nameTxt}</span>
             ${endTxt ? `<span class="tl-bar-end">${esc(endTxt)}</span>` : ""}
@@ -444,15 +455,21 @@ async function saveBooking() {
   if (!carId || !startDate || !endDate) {
     showError(root, "booking-error", "Please fill in car and both dates."); return;
   }
-  if (endDate < startDate) {
-    showError(root, "booking-error", "Return date can't be before pick-up date."); return;
+  const startTimeVal = val(root, "b-start-time") || "12:00";
+  const endTimeVal = val(root, "b-end-time") || "12:00";
+  const startAt = `${startDate}T${startTimeVal}`;
+  const endAt = `${endDate}T${endTimeVal}`;
+
+  if (endAt <= startAt) {
+    showError(root, "booking-error", "The return must be after the pick-up. Check the dates and times.");
+    return;
   }
 
-  const clash = state.bookings.find(b =>
-    b.id !== editingBookingId && b.carId === carId && b.status !== "completed" &&
-    overlaps(startDate, endDate, b.startDate, b.endDate));
+  const clash = findClash({ carId, startAt, endAt, ignoreId: editingBookingId });
   if (clash) {
-    showError(root, "booking-error", `This car is already booked ${formatDate(clash.startDate)} – ${formatDate(clash.endDate)} (${clash.renter}). Choose different dates or another car.`);
+    showError(root, "booking-error",
+      `This car is already out ${describeInterval(clash)} (${clash.renter}). ` +
+      `Adjust the times or dates, or choose another car.`);
     return;
   }
 

@@ -62,8 +62,48 @@ export function openBookingsForCar(carId) {
   return state.bookings.filter(b => b.carId === carId && b.status !== "completed");
 }
 
+// Date-only overlap, kept for anything that reasons in whole days.
 export function overlaps(aStart, aEnd, bStart, bEnd) {
   return aStart <= bEnd && bStart <= aEnd;
+}
+
+// ---------- Time-aware availability ----------
+// A rental occupies an interval from pick-up date+time to return date+time.
+// Comparing those intervals (rather than whole days) lets a car come back in
+// the morning and go out again the same afternoon, which is normal practice.
+// Sortable "YYYY-MM-DDTHH:MM" strings compare correctly as plain text.
+export function bookingStartAt(b) { return `${b.startDate}T${startTime(b)}`; }
+export function bookingEndAt(b) { return `${b.endDate}T${endTime(b)}`; }
+
+// Strict comparison, so one rental ending exactly when the next begins is
+// allowed rather than reported as a clash.
+export function intervalsOverlap(aStart, aEnd, bStart, bEnd) {
+  return aStart < bEnd && bStart < aEnd;
+}
+
+// Finds the first booking that would clash with the proposed interval.
+// `ignoreId` skips the booking being edited so it never clashes with itself.
+export function findClash({ carId, startAt, endAt, ignoreId = null }) {
+  return state.bookings.find(b =>
+    b.id !== ignoreId &&
+    b.carId === carId &&
+    b.status !== "completed" &&
+    intervalsOverlap(startAt, endAt, bookingStartAt(b), bookingEndAt(b))
+  ) || null;
+}
+
+// Human-readable interval for error messages: "25/07 14:00 – 30/07 12:00"
+export function describeInterval(b) {
+  return `${formatDate(b.startDate)} ${startTime(b)} – ${formatDate(b.endDate)} ${endTime(b)}`;
+}
+
+// True when another booking for the same car hands over on this date, so the
+// timeline can draw the two bars as half-days instead of stacking them.
+export function sharesStartHandover(b) {
+  return state.bookings.some(o => o.id !== b.id && o.carId === b.carId && o.endDate === b.startDate);
+}
+export function sharesEndHandover(b) {
+  return state.bookings.some(o => o.id !== b.id && o.carId === b.carId && o.startDate === b.endDate);
 }
 
 // The booking that has a car out right now (started, not yet returned)
