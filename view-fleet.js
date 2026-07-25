@@ -3,6 +3,7 @@ import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, todayStr, findClash, describeInterval,
+  fillTimeOptions, getTime, setTime, onTimeChange,
   currentBooking, nextUpcoming, carStatus, serviceDue, openBookingsForCar,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
@@ -20,10 +21,13 @@ export function mount(container) {
   el(root, "add-car").addEventListener("click", () => openCarModal(null));
   el(root, "save-car").addEventListener("click", saveCar);
   el(root, "confirm-rent").addEventListener("click", confirmRent);
+  fillTimeOptions(root, "r-start-time");
+  fillTimeOptions(root, "r-end-time");
   el(root, "r-customer").addEventListener("change", toggleRentNewCustomer);
 
-  ["r-start-time", "r-date", "r-end-time"].forEach(n =>
-    el(root, n).addEventListener("change", keepRentReturnAfterPickup));
+  el(root, "r-date").addEventListener("change", keepRentReturnAfterPickup);
+  onTimeChange(root, "r-start-time", keepRentReturnAfterPickup);
+  onTimeChange(root, "r-end-time", keepRentReturnAfterPickup);
 
   // Rate auto-calculation
   const rd = el(root, "c-rate"), rw = el(root, "c-rate-week"), rm = el(root, "c-rate-month");
@@ -207,8 +211,8 @@ async function removeCar(id) {
 // Adjust the return rather than making the user work the rule out from an error.
 function keepRentReturnAfterPickup() {
   const today = todayStr();
-  const st = val(root, "r-start-time");
-  let ed = val(root, "r-date"), et = val(root, "r-end-time");
+  const st = getTime(root, "r-start-time");
+  let ed = val(root, "r-date"), et = getTime(root, "r-end-time");
   if (!st) return;
 
   if (ed && ed < today) { setVal(root, "r-date", today); ed = today; }
@@ -217,7 +221,7 @@ function keepRentReturnAfterPickup() {
   if (ed === today && et && et <= st) {
     const [h, m] = st.split(":").map(Number);
     const later = h + 2 <= 23 ? `${String(h + 2).padStart(2, "0")}:${String(m).padStart(2, "0")}` : "23:59";
-    setVal(root, "r-end-time", later);
+    setTime(root, "r-end-time", later);
   }
 }
 
@@ -246,8 +250,11 @@ function openRentModal(carId) {
   // A walk-in is happening now, so default the pick-up time to the current
   // time rather than midday — this matters for same-day turnarounds.
   const now = new Date();
-  setVal(root, "r-start-time", `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`);
-  setVal(root, "r-end-time", "12:00");
+  // Round the current time down to the nearest five minutes so it matches the
+  // options offered in the dropdown.
+  const mins = Math.floor(now.getMinutes() / 5) * 5;
+  setTime(root, "r-start-time", `${String(now.getHours()).padStart(2,"0")}:${String(mins).padStart(2,"0")}`);
+  setTime(root, "r-end-time", "12:00");
   showError(root, "rent-error", null);
   openModal(root, "rent-modal");
 }
@@ -274,8 +281,8 @@ async function confirmRent() {
 
   if (!endDate) { showError(root, "rent-error", "Choose a return date."); return; }
 
-  const startTimeVal = val(root, "r-start-time") || "12:00";
-  const endTimeVal = val(root, "r-end-time") || "12:00";
+  const startTimeVal = getTime(root, "r-start-time") || "12:00";
+  const endTimeVal = getTime(root, "r-end-time") || "12:00";
   const startAt = `${startDate}T${startTimeVal}`;
   const endAt = `${endDate}T${endTimeVal}`;
 

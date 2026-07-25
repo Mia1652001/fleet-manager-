@@ -5,6 +5,7 @@ import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, todayStr, buildSchedule,
+  fillTimeOptions, getTime, setTime,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
@@ -16,6 +17,7 @@ let editingTaskId = null;
 export function mount(container) {
   root = container;
 
+  fillTimeOptions(root, "t-time");
   el(root, "search").addEventListener("input", render);
   el(root, "add-task").addEventListener("click", () => openTaskModal(null));
   el(root, "save-task").addEventListener("click", saveTask);
@@ -198,7 +200,7 @@ function openTaskModal(id) {
   el(root, "task-modal-title").textContent = t ? "Edit task" : "Add task";
   setVal(root, "t-text", t?.text || "");
   setVal(root, "t-date", t?.date || todayStr());
-  setVal(root, "t-time", t?.time || "");
+  setTime(root, "t-time", t?.time || "12:00");
   setVal(root, "t-staff", t?.staff || "");
   el(root, "delete-task").style.display = t ? "inline-block" : "none";
   showError(root, "task-error", null);
@@ -212,7 +214,7 @@ async function saveTask() {
   if (!text) { showError(root, "task-error", "Describe what needs doing."); return; }
   if (!date) { showError(root, "task-error", "Choose a date."); return; }
 
-  const data = { text, date, time: val(root, "t-time"), staff: val(root, "t-staff") };
+  const data = { text, date, time: getTime(root, "t-time"), staff: val(root, "t-staff") };
 
   const btn = el(root, "save-task");
   btn.disabled = true; btn.textContent = "Saving...";

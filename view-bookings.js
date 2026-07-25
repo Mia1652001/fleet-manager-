@@ -4,6 +4,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstat
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr, bookingCarLabel, bookingState,
   findClash, describeInterval, sharesStartHandover, sharesEndHandover,
+  fillTimeOptions, getTime, setTime, onTimeChange,
   startTime, endTime, pickupLabel, dropoffLabel, rentalTotal,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
@@ -40,12 +41,16 @@ export function mount(container) {
   el(root, "search").addEventListener("input", render);
   el(root, "new-booking").addEventListener("click", () => openBookingModal(null));
   el(root, "save-booking").addEventListener("click", saveBooking);
+  fillTimeOptions(root, "b-start-time");
+  fillTimeOptions(root, "b-end-time");
   el(root, "b-customer").addEventListener("change", toggleNewCustomer);
 
   // Only ever adjusts the return, never the pick-up, so the change is
   // predictable: the user's own input is left alone.
-  ["b-start", "b-start-time", "b-end", "b-end-time"].forEach(n =>
+  ["b-start", "b-end"].forEach(n =>
     el(root, n).addEventListener("change", keepReturnAfterPickup));
+  onTimeChange(root, "b-start-time", keepReturnAfterPickup);
+  onTimeChange(root, "b-end-time", keepReturnAfterPickup);
 
   el(root, "view-timeline").addEventListener("click", () => setPlanner("timeline"));
   el(root, "view-month").addEventListener("click", () => setPlanner("month"));
@@ -367,8 +372,8 @@ function renderList() {
 
 // ---------- Create / edit ----------
 function keepReturnAfterPickup() {
-  const sd = val(root, "b-start"), st = val(root, "b-start-time");
-  let ed = val(root, "b-end"), et = val(root, "b-end-time");
+  const sd = val(root, "b-start"), st = getTime(root, "b-start-time");
+  let ed = val(root, "b-end"), et = getTime(root, "b-end-time");
   if (!sd || !st) return;
 
   // Return date before pick-up: pull it up to the pick-up day
@@ -379,7 +384,7 @@ function keepReturnAfterPickup() {
   if (ed === sd && et && et <= st) {
     const [h, m] = st.split(":").map(Number);
     const later = h + 2 <= 23 ? `${String(h + 2).padStart(2, "0")}:${String(m).padStart(2, "0")}` : "23:59";
-    setVal(root, "b-end-time", later);
+    setTime(root, "b-end-time", later);
   }
 }
 
@@ -415,15 +420,15 @@ function openBookingModal(bookingId, preset) {
    "b-pickup","b-dropoff","b-total","b-managedby","b-deliveredby","b-notes"]
     .forEach(n => setVal(root, n, ""));
   // Sensible default times so staff only change them when it matters
-  setVal(root, "b-start-time", "12:00");
-  setVal(root, "b-end-time", "12:00");
+  setTime(root, "b-start-time", "12:00");
+  setTime(root, "b-end-time", "12:00");
 
   if (editing) {
     sel.value = editing.carId;
     setVal(root, "b-start", editing.startDate);
     setVal(root, "b-end", editing.endDate);
-    setVal(root, "b-start-time", startTime(editing));
-    setVal(root, "b-end-time", endTime(editing));
+    setTime(root, "b-start-time", startTime(editing));
+    setTime(root, "b-end-time", endTime(editing));
     setVal(root, "b-pickup", editing.pickupLocation || "");
     setVal(root, "b-dropoff", editing.dropoffLocation || "");
     setVal(root, "b-total", editing.totalPrice ?? "");
@@ -477,8 +482,8 @@ async function saveBooking() {
   if (!carId || !startDate || !endDate) {
     showError(root, "booking-error", "Please fill in car and both dates."); return;
   }
-  const startTimeVal = val(root, "b-start-time") || "12:00";
-  const endTimeVal = val(root, "b-end-time") || "12:00";
+  const startTimeVal = getTime(root, "b-start-time") || "12:00";
+  const endTimeVal = getTime(root, "b-end-time") || "12:00";
   const startAt = `${startDate}T${startTimeVal}`;
   const endAt = `${endDate}T${endTimeVal}`;
 
@@ -515,8 +520,8 @@ async function saveBooking() {
 
     const totalRaw = val(root, "b-total");
     const details = {
-      startTime: val(root, "b-start-time") || "12:00",
-      endTime: val(root, "b-end-time") || "12:00",
+      startTime: startTimeVal,
+      endTime: endTimeVal,
       pickupLocation: val(root, "b-pickup"),
       dropoffLocation: val(root, "b-dropoff"),
       totalPrice: totalRaw === "" ? null : (parseFloat(totalRaw) || 0),

@@ -284,6 +284,62 @@ export function buildSchedule({ from, to, includeDone }) {
   return jobs;
 }
 
+// ---------- 24-hour time selects ----------
+// Native <input type="time"> renders in whatever format the operating system
+// prefers, which on many machines is 12-hour AM/PM. That makes it impossible
+// to type 14:00, and clashes with the 24-hour times shown everywhere else in
+// the app. Explicit dropdowns remove the ambiguity entirely.
+
+const MINUTE_STEP = 5;
+
+export function fillTimeOptions(root, name) {
+  const h = el(root, `${name}-h`), m = el(root, `${name}-m`);
+  if (!h || !m) return;
+  if (h.options.length === 0) {
+    let out = "";
+    for (let i = 0; i < 24; i++) {
+      const v = String(i).padStart(2, "0");
+      out += `<option value="${v}">${v}</option>`;
+    }
+    h.innerHTML = out;
+  }
+  if (m.options.length === 0) {
+    let out = "";
+    for (let i = 0; i < 60; i += MINUTE_STEP) {
+      const v = String(i).padStart(2, "0");
+      out += `<option value="${v}">${v}</option>`;
+    }
+    m.innerHTML = out;
+  }
+}
+
+export function getTime(root, name) {
+  const h = el(root, `${name}-h`), m = el(root, `${name}-m`);
+  if (!h || !m) return "";
+  return `${h.value}:${m.value}`;
+}
+
+export function setTime(root, name, value) {
+  const h = el(root, `${name}-h`), m = el(root, `${name}-m`);
+  if (!h || !m) return;
+  const [hh, mm] = String(value || "12:00").split(":");
+  h.value = String(Number(hh) || 0).padStart(2, "0");
+  const mv = String(Number(mm) || 0).padStart(2, "0");
+  // An older booking may hold a minute that is not on the step (e.g. 09:07).
+  // Add it rather than snapping, so re-saving never quietly changes the time.
+  if (!Array.from(m.options).some(o => o.value === mv)) {
+    m.insertAdjacentHTML("beforeend", `<option value="${mv}">${mv}</option>`);
+  }
+  m.value = mv;
+}
+
+// Runs a callback when either half of a time pair changes
+export function onTimeChange(root, name, fn) {
+  const h = el(root, `${name}-h`), m = el(root, `${name}-m`);
+  if (h) h.addEventListener("change", fn);
+  if (m) m.addEventListener("change", fn);
+}
+
 // ---------- Small DOM helpers ----------
 // Each view works inside its own container and uses data-el attributes,
 // so element names can repeat across views without clashing.

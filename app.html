@@ -111,12 +111,16 @@
             <div class="field"><label>Email</label><input data-el="r-email" type="email" placeholder="e.g. jean@email.com"></div>
           </div>
           <div class="field-row">
-            <div class="field"><label>Out now at</label><input data-el="r-start-time" type="time"></div>
+            <div class="field"><label>Out now at (24h)</label><div class="time-pair">
+              <select data-el="r-start-time-h"></select><span class="time-sep">:</span><select data-el="r-start-time-m"></select>
+            </div></div>
             <div class="field"><label>Pick-up location</label><input data-el="r-pickup" placeholder="e.g. Office"></div>
           </div>
           <div class="field-row">
             <div class="field"><label>Return date</label><input data-el="r-date" type="date"></div>
-            <div class="field"><label>Time</label><input data-el="r-end-time" type="time"></div>
+            <div class="field"><label>Time (24h)</label><div class="time-pair">
+              <select data-el="r-end-time-h"></select><span class="time-sep">:</span><select data-el="r-end-time-m"></select>
+            </div></div>
           </div>
           <div class="field"><label>Drop-off location</label><input data-el="r-dropoff" placeholder="e.g. Airport (MRU), City pick-up"></div>
           <div class="modal-actions">
@@ -175,13 +179,17 @@
 
           <div class="field-row">
             <div class="field"><label>Pick-up date</label><input data-el="b-start" type="date"></div>
-            <div class="field"><label>Time</label><input data-el="b-start-time" type="time"></div>
+            <div class="field"><label>Time (24h)</label><div class="time-pair">
+              <select data-el="b-start-time-h"></select><span class="time-sep">:</span><select data-el="b-start-time-m"></select>
+            </div></div>
           </div>
           <div class="field"><label>Pick-up location</label><input data-el="b-pickup" placeholder="e.g. Airport (MRU), City delivery"></div>
 
           <div class="field-row">
             <div class="field"><label>Return date</label><input data-el="b-end" type="date"></div>
-            <div class="field"><label>Time</label><input data-el="b-end-time" type="time"></div>
+            <div class="field"><label>Time (24h)</label><div class="time-pair">
+              <select data-el="b-end-time-h"></select><span class="time-sep">:</span><select data-el="b-end-time-m"></select>
+            </div></div>
           </div>
           <div class="field"><label>Drop-off location</label><input data-el="b-dropoff" placeholder="e.g. Airport (MRU), City pick-up"></div>
 
@@ -327,7 +335,9 @@
           <div class="field"><label>What needs doing</label><input data-el="t-text" placeholder="e.g. Follow up Evasion Car Rental"></div>
           <div class="field-row">
             <div class="field"><label>Date</label><input data-el="t-date" type="date"></div>
-            <div class="field"><label>Time (optional)</label><input data-el="t-time" type="time"></div>
+            <div class="field"><label>Time (24h, optional)</label><div class="time-pair">
+              <select data-el="t-time-h"></select><span class="time-sep">:</span><select data-el="t-time-m"></select>
+            </div></div>
           </div>
           <div class="field"><label>Assigned to</label><input data-el="t-staff" placeholder="Staff name"></div>
           <div class="modal-actions">
