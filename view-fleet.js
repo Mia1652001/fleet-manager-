@@ -242,7 +242,7 @@ function openRentModal(carId) {
   csel.value = state.customers.length ? csel.options[0].value : "__new__";
   toggleRentNewCustomer();
 
-  ["r-name", "r-phone", "r-email", "r-date", "r-pickup"].forEach(n => setVal(root, n, ""));
+  ["r-name", "r-phone", "r-email", "r-date", "r-pickup", "r-dropoff"].forEach(n => setVal(root, n, ""));
   // A walk-in is happening now, so default the pick-up time to the current
   // time rather than midday — this matters for same-day turnarounds.
   const now = new Date();
@@ -313,7 +313,7 @@ async function confirmRent() {
       // Walk-ins default to midday; times and locations can be refined on the
       // Bookings view if the company needs them recorded precisely.
       startTime: startTimeVal, endTime: endTimeVal,
-      pickupLocation: val(root, "r-pickup"), dropoffLocation: "",
+      pickupLocation: val(root, "r-pickup"), dropoffLocation: val(root, "r-dropoff"),
       totalPrice: null, managedBy: "", deliveredBy: "", notes: "",
       status: "open", createdAt: new Date().toISOString()
     });

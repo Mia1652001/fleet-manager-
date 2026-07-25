@@ -25,7 +25,7 @@ export function mount(container) {
     showDone = !showDone;
     const btn = el(root, "toggle-done");
     btn.classList.toggle("active", showDone);
-    btn.textContent = showDone ? "Hiding nothing — showing completed" : "Show completed";
+    btn.textContent = showDone ? "Hide completed" : "Show completed";
     render();
   });
 
@@ -61,9 +61,14 @@ function shiftDate(days) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+const DONE_LOOKBACK_DAYS = 7;
+
 function rangeBounds() {
-  const from = todayStr();
-  if (range === "today") return { from, to: from };
+  // Showing completed work is a review action, so reach back a week. Without
+  // this, "Today" plus "show completed" turns up nothing unless a job happened
+  // to be finished today.
+  const from = showDone ? shiftDate(-DONE_LOOKBACK_DAYS) : todayStr();
+  if (range === "today") return { from, to: todayStr() };
   if (range === "week") return { from, to: shiftDate(6) };
   if (range === "month") return { from, to: shiftDate(29) };
   return { from, to: null }; // everything ahead
@@ -71,9 +76,9 @@ function rangeBounds() {
 
 function dayHeading(dateStr) {
   const t = todayStr();
-  const tomorrow = shiftDate(1);
   if (dateStr === t) return `Today · ${formatDate(dateStr)}`;
-  if (dateStr === tomorrow) return `Tomorrow · ${formatDate(dateStr)}`;
+  if (dateStr === shiftDate(1)) return `Tomorrow · ${formatDate(dateStr)}`;
+  if (dateStr === shiftDate(-1)) return `Yesterday · ${formatDate(dateStr)}`;
   const d = new Date(dateStr + "T12:00");
   const weekday = d.toLocaleDateString("en-GB", { weekday: "long" });
   return `${weekday} · ${formatDate(dateStr)}`;
@@ -108,7 +113,9 @@ export function render() {
 
   const listEl = el(root, "list");
   if (jobs.length === 0) {
-    listEl.innerHTML = `<div class="empty">Nothing scheduled here. Jobs appear automatically from bookings — or add your own with "+ Add task".</div>`;
+    listEl.innerHTML = showDone
+      ? `<div class="empty">Nothing completed in the last ${DONE_LOOKBACK_DAYS} days, and nothing outstanding in this range.</div>`
+      : `<div class="empty">Nothing scheduled here. Jobs appear automatically from bookings — or add your own with "+ Add task".</div>`;
     return;
   }
 
