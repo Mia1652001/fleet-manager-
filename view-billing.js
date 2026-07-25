@@ -4,7 +4,7 @@ import { db, setSync } from "./firebase-init.js";
 import { updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking,
-  rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, securityHeld,
+  rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
   settledAmount, isBillable,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
@@ -123,11 +123,13 @@ export function render() {
       </div>
       <div class="card-details">
         <span>Period: <strong>${formatDate(b.startDate)} – ${formatDate(b.endDate)}</strong></span>
-        <span>${days} day${days === 1 ? "" : "s"} × <strong>${formatAmount(rate)}</strong>/day = <strong>${formatAmount(total)}</strong></span>
+        ${hasManualTotal(b)
+          ? `<span>Agreed price: <strong>${formatAmount(total)}</strong> <span style="opacity:0.7;">(${days} day${days === 1 ? "" : "s"})</span></span>`
+          : `<span>${days} day${days === 1 ? "" : "s"} × <strong>${formatAmount(rate)}</strong>/day = <strong>${formatAmount(total)}</strong></span>`}
         ${adv > 0 ? `<span>Advance paid: <strong>-${formatAmount(adv)}</strong></span>` : ""}
         ${adv > 0 && !b.paid ? `<span>Balance: <strong>${formatAmount(balance)}</strong></span>` : ""}
         ${b.paid && b.paidAt ? `<span>Paid on: <strong>${formatDate(b.paidAt.slice(0, 10))}</strong></span>` : ""}
-        ${rate === 0 ? `<span style="color:var(--red-text);">No daily rate set on this car — edit the car in Fleet to set one</span>` : ""}
+        ${(rate === 0 && !hasManualTotal(b)) ? `<span style="color:var(--red-text);">No daily rate set on this car — edit the car in Fleet, or enter a total on the booking</span>` : ""}
       </div>
       ${sec > 0 ? `
       <div class="card-details" style="margin-top:6px;">

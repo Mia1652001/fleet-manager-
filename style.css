@@ -479,3 +479,68 @@ input:focus, select:focus { border-color: var(--text); }
 @media (max-width: 640px) {
   .tl-car strong { max-width: 100px; font-size: 10px; }
 }
+
+
+/* ---------- Side-by-side fields (date + time, staff pairs) ---------- */
+.field-row { display: flex; gap: 10px; }
+.field-row .field { flex: 1; margin-bottom: 14px; }
+.field-row .field:first-child { flex: 1.6; }
+
+/* ---------- Timeline bar detail (times, locations, paid marker) ---------- */
+.tl-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tl-bar-start, .tl-bar-end {
+  font-size: 9px;
+  opacity: 0.85;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tl-bar-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.tl-bar-end { margin-left: auto; }
+
+/* Paid bookings get a solid left marker so payment status is visible
+   at a glance without losing the booking-state colour. */
+.tl-bar.paid { border-left-width: 4px; border-left-style: solid; }
+.tl-bar.paid.active-b  { border-left-color: var(--green-text); }
+.tl-bar.paid.upcoming  { border-left-color: var(--amber-text); }
+.tl-bar.paid.overdue   { border-left-color: var(--red-text); }
+.tl-bar.paid.completed { border-left-color: var(--muted); }
+
+.tl-bar.unpaid { border-left-width: 4px; border-left-style: dotted; border-left-color: rgba(0,0,0,0.25); }
+
+.tl-key.paid { background: var(--green-bg); border-left: 4px solid var(--green-text); }
+.tl-key.unpaid { background: var(--green-bg); border-left: 4px dotted rgba(0,0,0,0.35); }
+
+/* Add-booking affordance on empty timeline cells */
+.tl-cell { position: relative; }
+.tl-cell.addable { cursor: pointer; }
+.tl-cell.addable:hover { background: #e9e3d6; }
+.tl-cell.addable:hover::after {
+  content: "+";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+}
+
+@media (max-width: 640px) {
+  .field-row { flex-direction: column; gap: 0; }
+  .tl-bar-start, .tl-bar-end { display: none; }
+}

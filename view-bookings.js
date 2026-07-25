@@ -2,7 +2,8 @@
 import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
-  state, onDataChange, esc, formatDate, todayStr, overlaps, bookingCarLabel, bookingState,
+  state, onDataChange, esc, formatDate, formatAmount, todayStr, overlaps, bookingCarLabel, bookingState,
+  startTime, endTime, pickupLabel, dropoffLabel, rentalTotal,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
@@ -46,7 +47,12 @@ export function mount(container) {
   // Clicking a booking bar in the timeline opens it for editing
   el(root, "timeline").addEventListener("click", (e) => {
     const bar = e.target.closest("[data-booking]");
-    if (bar) openBookingModal(bar.dataset.booking);
+    if (bar) { openBookingModal(bar.dataset.booking); return; }
+
+    // Clicking an empty day opens a new booking with that car and date
+    // already filled in, so there is no need to pick them again.
+    const cell = e.target.closest("[data-add-car]");
+    if (cell) openBookingModal(null, { carId: cell.dataset.addCar, date: cell.dataset.addDate });
   });
 
   el(root, "cal-prev").addEventListener("click", () => {
@@ -195,7 +201,9 @@ function renderTimeline() {
       const ds = dstr(d);
       const dow = d.getDay();
       const cls = ds === t ? "today" : (dow === 0 || dow === 6) ? "weekend" : "";
-      html += `<div class="tl-cell ${cls}" style="grid-row:${row};grid-column:${i2 + 2};"></div>`;
+      html += `<div class="tl-cell addable ${cls}" data-add-car="${car.id}" data-add-date="${ds}"
+        title="Add a booking for this car on ${formatDate(ds)}"
+        style="grid-row:${row};grid-column:${i2 + 2};"></div>`;
     });
 
     if (oos) {
@@ -214,13 +222,30 @@ function renderTimeline() {
 
         const s = bookingState(b);
         const span = endOffset - startOffset + 1;
-        const label = span >= 3
-          ? `${esc(b.renter)}`
-          : span === 2 ? esc((b.renter || "").slice(0, 6)) : "";
-        const title = `${b.renter} · ${formatDate(b.startDate)} – ${formatDate(b.endDate)}`;
 
-        html += `<div class="tl-bar ${s}" data-booking="${b.id}" title="${esc(title)}"
-          style="grid-row:${row};grid-column:${startOffset + 2} / ${endOffset + 3};">${label}</div>`;
+        // Only show the pick-up / drop-off detail when the bar is wide enough
+        // to read it; narrow bars keep just the name and rely on the tooltip.
+        const showEnds = span >= 4;
+        const startTxt = showEnds ? pickupLabel(b) : "";
+        const endTxt = showEnds ? dropoffLabel(b) : "";
+        const nameTxt = span >= 2 ? esc(b.renter || "") : "";
+
+        const paidCls = b.paid ? "paid" : "unpaid";
+        const title =
+          `${b.renter}\n` +
+          `Out: ${formatDate(b.startDate)} ${startTime(b)}${b.pickupLocation ? " · " + b.pickupLocation : ""}\n` +
+          `Back: ${formatDate(b.endDate)} ${endTime(b)}${b.dropoffLocation ? " · " + b.dropoffLocation : ""}\n` +
+          `${formatAmount(rentalTotal(b))} · ${b.paid ? "Paid" : "Unpaid"}` +
+          (b.managedBy ? `\nManaged by ${b.managedBy}` : "") +
+          (b.deliveredBy ? `\nDelivered by ${b.deliveredBy}` : "") +
+          (b.notes ? `\nNote: ${b.notes}` : "");
+
+        html += `<div class="tl-bar ${s} ${paidCls}" data-booking="${b.id}" title="${esc(title)}"
+          style="grid-row:${row};grid-column:${startOffset + 2} / ${endOffset + 3};">
+            ${startTxt ? `<span class="tl-bar-start">${esc(startTxt)}</span>` : ""}
+            <span class="tl-bar-name">${b.paid ? "✓ " : ""}${nameTxt}</span>
+            ${endTxt ? `<span class="tl-bar-end">${esc(endTxt)}</span>` : ""}
+          </div>`;
       });
   });
 
@@ -236,7 +261,9 @@ function renderTimeline() {
       <span><i class="tl-key upcoming"></i> Booked ahead</span>
       <span><i class="tl-key overdue"></i> Overdue</span>
       <span><i class="tl-key oos"></i> Out of service</span>
-      <span style="opacity:0.7;">Tap a booking to edit it</span>`;
+      <span><i class="tl-key paid"></i> Paid</span>
+      <span><i class="tl-key unpaid"></i> Unpaid</span>
+      <span style="opacity:0.7;">Tap a booking to edit it, or an empty day to add one</span>`;
     wrap.insertAdjacentElement("afterend", legend);
   }
 }
@@ -302,10 +329,17 @@ function renderList() {
         <span class="badge ${s}">${stateLabel(s)}</span>
       </div>
       <div class="card-details">
-        <span>Pick-up: <strong>${formatDate(b.startDate)}</strong></span>
-        <span>Return: <strong>${formatDate(b.endDate)}</strong></span>
-        <span>Phone: <strong>${esc(b.phone) || "—"}</strong></span>
+        <span>Out: <strong>${formatDate(b.startDate)} ${startTime(b)}</strong>${b.pickupLocation ? " · " + esc(b.pickupLocation) : ""}</span>
+        <span>Back: <strong>${formatDate(b.endDate)} ${endTime(b)}</strong>${b.dropoffLocation ? " · " + esc(b.dropoffLocation) : ""}</span>
+        <span>Total: <strong>${formatAmount(rentalTotal(b))}</strong> ${b.paid ? "(paid)" : "(unpaid)"}</span>
+        ${b.phone ? `<span>Phone: <strong>${esc(b.phone)}</strong></span>` : ""}
       </div>
+      ${(b.managedBy || b.deliveredBy || b.notes) ? `
+      <div class="card-details">
+        ${b.managedBy ? `<span>Managed by: <strong>${esc(b.managedBy)}</strong></span>` : ""}
+        ${b.deliveredBy ? `<span>Delivered by: <strong>${esc(b.deliveredBy)}</strong></span>` : ""}
+        ${b.notes ? `<span>Note: <strong>${esc(b.notes)}</strong></span>` : ""}
+      </div>` : ""}
       <div class="card-actions">
         ${s !== "completed" ? `<button class="btn" data-act="complete" data-id="${b.id}">Mark returned</button>
         <button class="btn" data-act="edit" data-id="${b.id}">Edit</button>` : ""}
@@ -317,11 +351,12 @@ function renderList() {
 
 // ---------- Create / edit ----------
 function toggleNewCustomer() {
-  const isNew = el(root, "b-customer").value === "__new__";
-  el(root, "b-new-fields").style.display = isNew ? "block" : "none";
+  const v = el(root, "b-customer").value;
+  el(root, "b-new-fields").style.display = v === "__new__" ? "block" : "none";
+  el(root, "b-quick-fields").style.display = v === "__quick__" ? "block" : "none";
 }
 
-function openBookingModal(bookingId) {
+function openBookingModal(bookingId, preset) {
   if (state.cars.length === 0) { alert("Add at least one car in the Fleet view first."); return; }
 
   editingBookingId = bookingId || null;
@@ -338,22 +373,42 @@ function openBookingModal(bookingId) {
   csel.innerHTML = state.customers.slice()
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(c => `<option value="${c.id}">${esc(c.name)}${c.phone ? " · " + esc(c.phone) : ""}</option>`)
-    .join("") + `<option value="__new__">+ New customer...</option>`;
-  csel.value = state.customers.length ? csel.options[0].value : "__new__";
+    .join("")
+    + `<option value="__new__">+ New customer (save to register)</option>`
+    + `<option value="__quick__">Just type a name (don't save)</option>`;
+  csel.value = state.customers.length ? csel.options[0].value : "__quick__";
 
-  ["b-name", "b-phone", "b-email", "b-start", "b-end"].forEach(n => setVal(root, n, ""));
+  ["b-name","b-phone","b-email","b-quickname","b-start","b-end",
+   "b-pickup","b-dropoff","b-total","b-managedby","b-deliveredby","b-notes"]
+    .forEach(n => setVal(root, n, ""));
+  // Sensible default times so staff only change them when it matters
+  setVal(root, "b-start-time", "12:00");
+  setVal(root, "b-end-time", "12:00");
 
   if (editing) {
     sel.value = editing.carId;
     setVal(root, "b-start", editing.startDate);
     setVal(root, "b-end", editing.endDate);
+    setVal(root, "b-start-time", startTime(editing));
+    setVal(root, "b-end-time", endTime(editing));
+    setVal(root, "b-pickup", editing.pickupLocation || "");
+    setVal(root, "b-dropoff", editing.dropoffLocation || "");
+    setVal(root, "b-total", editing.totalPrice ?? "");
+    setVal(root, "b-managedby", editing.managedBy || "");
+    setVal(root, "b-deliveredby", editing.deliveredBy || "");
+    setVal(root, "b-notes", editing.notes || "");
     if (editing.customerId && state.customers.some(c => c.id === editing.customerId)) {
       csel.value = editing.customerId;
     } else {
-      csel.value = "__new__";
-      setVal(root, "b-name", editing.renter || "");
-      setVal(root, "b-phone", editing.phone || "");
+      csel.value = "__quick__";
+      setVal(root, "b-quickname", editing.renter || "");
     }
+  }
+
+  // Pre-fill from a clicked timeline cell
+  if (!editing && preset) {
+    if (preset.carId) sel.value = preset.carId;
+    if (preset.date) { setVal(root, "b-start", preset.date); setVal(root, "b-end", preset.date); }
   }
 
   toggleNewCustomer();
@@ -370,7 +425,12 @@ async function saveBooking() {
   const endDate = val(root, "b-end");
 
   let customerId, renter, phone, email;
-  if (choice === "__new__") {
+  if (choice === "__quick__") {
+    // A name only — no customer record is created or looked up
+    renter = val(root, "b-quickname");
+    phone = "";
+    if (!renter) { showError(root, "booking-error", "Enter a name for this booking."); return; }
+  } else if (choice === "__new__") {
     renter = val(root, "b-name");
     phone = val(root, "b-phone");
     email = val(root, "b-email");
@@ -412,12 +472,26 @@ async function saveBooking() {
     const dailyRate = car?.dailyRate || 0;
     const carName = car ? `${car.year || ""} ${car.make} ${car.model} (${car.plate || "no plate"})`.trim() : "";
 
+    const totalRaw = val(root, "b-total");
+    const details = {
+      startTime: val(root, "b-start-time") || "12:00",
+      endTime: val(root, "b-end-time") || "12:00",
+      pickupLocation: val(root, "b-pickup"),
+      dropoffLocation: val(root, "b-dropoff"),
+      totalPrice: totalRaw === "" ? null : (parseFloat(totalRaw) || 0),
+      managedBy: val(root, "b-managedby"),
+      deliveredBy: val(root, "b-deliveredby"),
+      notes: val(root, "b-notes")
+    };
+
     if (editingBookingId) {
-      await updateDoc(doc(db, "bookings", editingBookingId), { carId, customerId, renter, phone, startDate, endDate, dailyRate, carName });
+      await updateDoc(doc(db, "bookings", editingBookingId),
+        { carId, customerId: customerId ?? null, renter, phone, startDate, endDate, dailyRate, carName, ...details });
     } else {
       await addDoc(collection(db, "bookings"), {
-        companyId: state.ctx.companyId, carId, customerId, renter, phone, startDate, endDate,
-        dailyRate, carName, paid: false, status: "open", createdAt: new Date().toISOString()
+        companyId: state.ctx.companyId, carId, customerId: customerId ?? null, renter, phone,
+        startDate, endDate, dailyRate, carName, ...details,
+        paid: false, status: "open", createdAt: new Date().toISOString()
       });
     }
     closeModal(root, "booking-modal");

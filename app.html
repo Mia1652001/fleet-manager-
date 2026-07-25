@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fleet Manager</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1a1814">
+<meta name="theme-color" content="#12203a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Fleet">
@@ -160,8 +160,33 @@
             <div class="field"><label>Phone number</label><input data-el="b-phone" placeholder="e.g. 5712 3456"></div>
             <div class="field"><label>Email</label><input data-el="b-email" type="email" placeholder="e.g. jean@email.com"></div>
           </div>
-          <div class="field"><label>Pick-up date</label><input data-el="b-start" type="date"></div>
-          <div class="field"><label>Return date</label><input data-el="b-end" type="date"></div>
+          <div data-el="b-quick-fields" style="display:none;">
+            <div class="field"><label>Name on booking</label><input data-el="b-quickname" placeholder="e.g. Walk-in, or agency name"></div>
+          </div>
+
+          <div class="field-row">
+            <div class="field"><label>Pick-up date</label><input data-el="b-start" type="date"></div>
+            <div class="field"><label>Time</label><input data-el="b-start-time" type="time"></div>
+          </div>
+          <div class="field"><label>Pick-up location</label><input data-el="b-pickup" placeholder="e.g. Airport (MRU), City delivery"></div>
+
+          <div class="field-row">
+            <div class="field"><label>Return date</label><input data-el="b-end" type="date"></div>
+            <div class="field"><label>Time</label><input data-el="b-end-time" type="time"></div>
+          </div>
+          <div class="field"><label>Drop-off location</label><input data-el="b-dropoff" placeholder="e.g. Airport (MRU), City pick-up"></div>
+
+          <div class="field">
+            <label>Total price (leave blank to calculate from daily rate)</label>
+            <input data-el="b-total" type="number" min="0" placeholder="auto">
+          </div>
+
+          <div class="field-row">
+            <div class="field"><label>Managed by</label><input data-el="b-managedby" placeholder="Staff name"></div>
+            <div class="field"><label>Delivered by</label><input data-el="b-deliveredby" placeholder="Staff name"></div>
+          </div>
+
+          <div class="field"><label>Notes for this booking</label><input data-el="b-notes" placeholder="e.g. baby seat, second driver, late flight"></div>
           <div class="modal-actions">
             <button class="btn" data-close="booking-modal">Cancel</button>
             <button class="btn-primary" data-el="save-booking">Save booking</button>

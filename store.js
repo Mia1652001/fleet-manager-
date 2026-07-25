@@ -122,7 +122,16 @@ export function rateFor(b) {
   return c?.dailyRate || 0;
 }
 
-export function rentalTotal(b) { return rentalDays(b) * rateFor(b); }
+// A manually entered total wins over the day-rate calculation, so staff can
+// agree a bespoke price (long rental, negotiated deal) without changing the
+// car's published rate.
+export function hasManualTotal(b) {
+  return typeof b.totalPrice === "number" && b.totalPrice > 0;
+}
+export function rentalTotal(b) {
+  if (hasManualTotal(b)) return b.totalPrice;
+  return rentalDays(b) * rateFor(b);
+}
 export function advancePaid(b) { return typeof b.advancePaid === "number" ? b.advancePaid : 0; }
 export function balanceFor(b) { return Math.max(0, rentalTotal(b) - advancePaid(b)); }
 export function securityHeld(b) {
@@ -134,6 +143,21 @@ export function settledAmount(b) {
 }
 export function isBillable(b) {
   return b.startDate <= todayStr() || b.status === "completed";
+}
+
+// ---------- Times and locations ----------
+// Bookings created before times existed fall back to midday, so nothing
+// displays as blank or shifts a rental to midnight.
+export function startTime(b) { return b.startTime || "12:00"; }
+export function endTime(b) { return b.endTime || "12:00"; }
+
+// Compact label for the left of a timeline bar: "13:00 Airport (MRU)"
+export function pickupLabel(b) {
+  return [startTime(b), b.pickupLocation || ""].filter(Boolean).join(" ").trim();
+}
+// Compact label for the right of a timeline bar: "City delivery 19:30"
+export function dropoffLabel(b) {
+  return [b.dropoffLocation || "", endTime(b)].filter(Boolean).join(" ").trim();
 }
 
 // ---------- Small DOM helpers ----------

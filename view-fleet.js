@@ -272,6 +272,11 @@ async function confirmRent() {
       companyId: state.ctx.companyId, carId: rentingCarId, customerId, renter, phone,
       startDate, endDate, dailyRate: car?.dailyRate || 0, paid: false,
       carName: car ? `${car.year || ""} ${car.make} ${car.model} (${car.plate || "no plate"})`.trim() : "",
+      // Walk-ins default to midday; times and locations can be refined on the
+      // Bookings view if the company needs them recorded precisely.
+      startTime: "12:00", endTime: "12:00",
+      pickupLocation: "", dropoffLocation: "",
+      totalPrice: null, managedBy: "", deliveredBy: "", notes: "",
       status: "open", createdAt: new Date().toISOString()
     });
     closeModal(root, "rent-modal");
