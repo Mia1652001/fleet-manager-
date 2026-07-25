@@ -55,7 +55,7 @@
       <a href="#customers" data-view="customers">Customers</a>
       <a href="#billing" data-view="billing">Billing</a>
       <a href="#maintenance" data-view="maintenance">Maintenance</a>
-      <a href="#deliveries" data-view="deliveries">Deliveries</a>
+      <a href="#tasks" data-view="tasks">Tasks</a>
     </nav>
   </header>
 
@@ -205,6 +205,7 @@
 
           <div class="field"><label>Notes for this booking</label><input data-el="b-notes" placeholder="e.g. baby seat, second driver, late flight"></div>
           <div class="modal-actions">
+            <button class="btn danger" data-el="delete-booking" style="display:none;">Delete booking</button>
             <button class="btn" data-close="booking-modal">Cancel</button>
             <button class="btn-primary" data-el="save-booking">Save booking</button>
           </div>
@@ -305,12 +306,19 @@
       </div>
     </section>
 
-    <!-- ---------- DELIVERIES ---------- -->
-    <section class="view" id="view-deliveries">
+    <!-- ---------- TASKS ---------- -->
+    <section class="view" id="view-tasks">
       <div class="stats" data-el="stats"></div>
 
       <div class="toolbar">
-        <input type="text" data-el="search" placeholder="Search car, customer, location or staff...">
+        <input type="text" data-el="search" placeholder="Search car, customer or location...">
+        <select data-el="staff-filter"><option value="">All staff</option></select>
+        <select data-el="kind-filter">
+          <option value="">All jobs</option>
+          <option value="delivery">Deliveries only</option>
+          <option value="recovery">Recoveries only</option>
+          <option value="task">Manual tasks only</option>
+        </select>
         <button class="btn-primary" data-el="add-task">+ Add task</button>
       </div>
 

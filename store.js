@@ -226,6 +226,8 @@ function bookingJobs(b) {
       location: b.pickupLocation || "",
       customer: b.renter || "",
       staff: b.deliveredBy || b.managedBy || "",
+      managedBy: b.managedBy || "",
+      deliveredBy: b.deliveredBy || "",
       notes: b.notes || "",
       done: deliveryDone(b)
     },
@@ -239,6 +241,8 @@ function bookingJobs(b) {
       location: b.dropoffLocation || "",
       customer: b.renter || "",
       staff: b.deliveredBy || b.managedBy || "",
+      managedBy: b.managedBy || "",
+      deliveredBy: b.deliveredBy || "",
       notes: b.notes || "",
       done: recoveryDone(b)
     }
@@ -256,9 +260,24 @@ function manualJob(t) {
     location: "",
     customer: t.text || "",
     staff: t.staff || "",
+    managedBy: "",
+    deliveredBy: "",
     notes: "",
     done: t.done === true
   };
+}
+
+// Every staff name that appears anywhere, so a filter can be built from the
+// data rather than needing a separate list of employees to maintain.
+export function staffNames() {
+  const set = new Set();
+  state.bookings.forEach(b => {
+    if (b.deliveredBy) set.add(String(b.deliveredBy).trim());
+    if (b.managedBy) set.add(String(b.managedBy).trim());
+  });
+  state.tasks.forEach(t => { if (t.staff) set.add(String(t.staff).trim()); });
+  set.delete("");
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
 }
 
 // Returns jobs within [from, to], plus anything overdue and still not done —

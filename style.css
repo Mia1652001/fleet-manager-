@@ -651,3 +651,9 @@ input:focus, select:focus { border-color: var(--text); }
 .time-pair { display: flex; align-items: center; gap: 5px; }
 .time-pair select { flex: 1; min-width: 0; text-align: center; }
 .time-sep { color: var(--muted); font-size: 13px; }
+
+/* Filter selects sit alongside search in the toolbar */
+.toolbar select { min-width: 130px; }
+@media (max-width: 640px) {
+  .toolbar select { min-width: 0; flex: 1; }
+}

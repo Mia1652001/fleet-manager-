@@ -11,7 +11,7 @@ import * as bookings from "./view-bookings.js";
 import * as customers from "./view-customers.js";
 import * as billing from "./view-billing.js";
 import * as maintenance from "./view-maintenance.js";
-import * as deliveries from "./view-deliveries.js";
+import * as tasks from "./view-tasks.js";
 
 const VIEWS = {
   fleet: { mod: fleet, root: null },
@@ -19,7 +19,7 @@ const VIEWS = {
   customers: { mod: customers, root: null },
   billing: { mod: billing, root: null },
   maintenance: { mod: maintenance, root: null },
-  deliveries: { mod: deliveries, root: null }
+  tasks: { mod: tasks, root: null }
 };
 
 let started = false;

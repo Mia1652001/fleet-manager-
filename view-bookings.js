@@ -41,6 +41,7 @@ export function mount(container) {
   el(root, "search").addEventListener("input", render);
   el(root, "new-booking").addEventListener("click", () => openBookingModal(null));
   el(root, "save-booking").addEventListener("click", saveBooking);
+  el(root, "delete-booking").addEventListener("click", deleteEditingBooking);
   fillTimeOptions(root, "b-start-time");
   fillTimeOptions(root, "b-end-time");
   el(root, "b-customer").addEventListener("change", toggleNewCustomer);
@@ -449,6 +450,8 @@ function openBookingModal(bookingId, preset) {
     if (preset.date) { setVal(root, "b-start", preset.date); setVal(root, "b-end", preset.date); }
   }
 
+  el(root, "delete-booking").style.display = editing ? "inline-block" : "none";
+
   toggleNewCustomer();
   showError(root, "booking-error", null);
   openModal(root, "booking-modal");
@@ -547,6 +550,28 @@ async function saveBooking() {
     setSync("error");
   }
   btn.disabled = false; btn.textContent = "Save booking";
+}
+
+// Deletes the booking currently open in the modal, so a bar tapped on the
+// timeline can be removed without hunting for it in the list below.
+async function deleteEditingBooking() {
+  if (!editingBookingId) return;
+  const b = state.bookings.find(x => x.id === editingBookingId);
+  const who = b ? ` for ${b.renter}` : "";
+  if (!confirm(`Delete this booking${who}?\n\nThis also removes its jobs from the Tasks list and its invoice from Billing.`)) return;
+
+  const btn = el(root, "delete-booking");
+  btn.disabled = true; btn.textContent = "Deleting...";
+  setSync("saving");
+  try {
+    await deleteDoc(doc(db, "bookings", editingBookingId));
+    closeModal(root, "booking-modal");
+    editingBookingId = null;
+  } catch (e) {
+    showError(root, "booking-error", "Couldn't delete (" + (e.code || e.message) + "). Try again.");
+    setSync("error");
+  }
+  btn.disabled = false; btn.textContent = "Delete booking";
 }
 
 async function completeBooking(id) {
