@@ -33,6 +33,12 @@ const ZOOM_LEVELS = {
 
 let zoom = loadPref("timelineZoom", 4);
 
+// The planner is what the desk works from, so the summary figures and the
+// booking list stay closed until asked for. Each person's choice is remembered
+// on their own device.
+let showSummary = loadPref("bookingsShowSummary", false);
+let showList = loadPref("bookingsShowList", false);
+
 function isNarrowScreen() {
   return window.matchMedia("(max-width: 640px)").matches;
 }
@@ -64,6 +70,10 @@ export function mount(container) {
   calYear = now.getFullYear();
   calMonth = now.getMonth();
   timelineAnchor = freshAnchor();
+
+  applyPanels();
+  el(root, "toggle-summary").addEventListener("click", () => togglePanel("summary"));
+  el(root, "toggle-list").addEventListener("click", () => togglePanel("list"));
 
   el(root, "search").addEventListener("input", render);   // redraws planner and list
   el(root, "new-booking").addEventListener("click", () => openBookingModal(null));
@@ -162,9 +172,38 @@ function stateLabel(s) {
 
 export function render() {
   if (!root) return;
-  renderStats();
+  if (showSummary) renderStats();
   if (planner === "timeline") renderTimeline(); else renderCalendar();
-  renderList();
+  updateToggleLabels();
+  // A closed panel is not drawn at all, so a long booking list costs nothing
+  // while it is put away.
+  if (showList) renderList();
+}
+
+// ---------- Collapsible panels ----------
+function applyPanels() {
+  root.classList.toggle("hide-summary", !showSummary);
+  root.classList.toggle("hide-list", !showList);
+  updateToggleLabels();
+}
+
+function togglePanel(which) {
+  if (which === "summary") {
+    showSummary = !showSummary;
+    savePref("bookingsShowSummary", showSummary);
+  } else {
+    showList = !showList;
+    savePref("bookingsShowList", showList);
+  }
+  applyPanels();
+  render();          // fills in whatever was just opened
+}
+
+function updateToggleLabels() {
+  const n = filteredBookings().length;
+  el(root, "toggle-summary").textContent = `${showSummary ? "\u25be" : "\u25b8"} Summary`;
+  el(root, "toggle-list").textContent =
+    `${showList ? "\u25be" : "\u25b8"} Booking list (${n})`;
 }
 
 function setPlanner(which) {
@@ -397,15 +436,20 @@ function renderCalendar() {
   el(root, "calendar").innerHTML = html;
 }
 
-function renderList() {
+// Which bookings the list would show. Shared with the toggle label, so the
+// count on the closed button always matches what opening it reveals.
+function filteredBookings() {
   const search = el(root, "search").value.toLowerCase();
-
-  let list = state.bookings.filter(b => {
+  return state.bookings.filter(b => {
     const s = bookingState(b);
     const mf = filter === "all" ? s !== "completed" : s === filter;
     const ms = `${bookingCarLabel(b)} ${b.renter || ""}`.toLowerCase().includes(search);
     return mf && ms;
   });
+}
+
+function renderList() {
+  let list = filteredBookings();
 
   const order = { overdue: 0, "active-b": 1, upcoming: 2, completed: 3 };
   list.sort((a, b) => (order[bookingState(a)] - order[bookingState(b)]) || a.startDate.localeCompare(b.startDate));

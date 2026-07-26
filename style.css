@@ -1037,3 +1037,28 @@ input:focus, select:focus { border-color: var(--text); }
   max-height: max(380px, calc(100vh - 400px));
   overflow-y: auto;
 }
+
+/* ---------- Collapsible panels on the Bookings view ----------
+   The planner is what the desk actually works from, so the summary figures and
+   the booking list start closed and open on request. Collapsing is done with a
+   class on the section rather than inline styles, so .stats keeps its grid
+   layout and .filter-row its flex layout when reopened. */
+.panel-toggle {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  padding: 6px 13px;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: color 0.12s, border-color 0.12s;
+}
+.panel-toggle:hover { color: var(--text); border-color: var(--text); }
+
+#view-bookings.hide-summary .stats { display: none; }
+#view-bookings.hide-list .filter-row,
+#view-bookings.hide-list .card-list { display: none; }
