@@ -96,9 +96,21 @@ header h1 em { font-style: italic; }
 
 .btn-logout:hover { background: #2a2620; }
 
-nav { display: flex; gap: 2px; }
+nav {
+  display: flex;
+  gap: 2px;
+  /* Seven tabs do not fit a narrow window, so the strip scrolls sideways rather
+     than squeezing every tab down to its longest word. Applied at all widths,
+     not just phones: a part-width desktop window overflows too. */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;             /* the strip is short; a bar would crowd it */
+}
+nav::-webkit-scrollbar { display: none; }
 
 nav a {
+  flex: 0 0 auto;          /* keep the whole label; overflow rather than shrink */
+  white-space: nowrap;
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -301,7 +313,6 @@ input:focus, select:focus { border-color: var(--text); }
   .cal-day { min-height: 48px; padding: 4px; }
   .cal-booking { display: none; }
   .cal-day .cal-dots { display: flex; gap: 2px; margin-top: 4px; flex-wrap: wrap; }
-  nav { overflow-x: auto; }
 
   /* Stack the date range above the controls instead of squeezing both
      into one row, which forced the title to wrap letter by letter. */
@@ -847,7 +858,12 @@ input:focus, select:focus { border-color: var(--text); }
 }
 
 /* ---------- Draggable tabs ---------- */
-#main-nav a { touch-action: pan-y; }
+/* pan-y told the browser to handle vertical panning only and hand every
+   horizontal gesture to the drag-to-reorder code, so the strip could not be
+   swiped sideways on a phone. Reordering is mouse-only now (see app.js), so the
+   browser gets the swipe back. "manipulation" keeps panning and tapping while
+   dropping the double-tap-to-zoom delay, which makes taps feel immediate. */
+#main-nav a { touch-action: manipulation; }
 #main-nav a.tab-dragging {
   opacity: 0.6;
   background: #2a2620;
@@ -1019,8 +1035,7 @@ input:focus, select:focus { border-color: var(--text); }
    1080px. The planner is different: it is a grid, and every extra pixel is
    another slice of calendar visible without scrolling sideways. So the planner
    block alone steps outside the page column, up to 1700px, and never wider
-   than the window. min() makes it self-limiting, so phones are unaffected:
-   there the planner is already as wide as the column and nothing moves. */
+   than the window. min() makes it self-limiting, so phones are unaffected. */
 #view-bookings .cal-header,
 #view-bookings .timeline-wrap,
 #view-bookings .tl-legend,
@@ -1031,26 +1046,20 @@ input:focus, select:focus { border-color: var(--text); }
 }
 
 /* ---------- Frozen dates and vehicle column ----------
-   Both are already position: sticky. The catch is that sticky pins to the
-   nearest scrolling box, and the planner had no height of its own — so
-   scrolling down scrolled the whole page and carried the date row away with
-   it. Giving the planner its own height makes the planner the thing that
-   scrolls: the dates stay pinned to its top edge and the vehicle names to its
-   left edge, both at the same time. max() sets a floor so it stays usable on a
-   short laptop screen or a phone. */
+   Both are already position: sticky, but sticky pins to the nearest scrolling
+   box and the planner had no height of its own, so scrolling down scrolled the
+   whole page and carried the date row with it. Giving the planner its own
+   height makes it the thing that scrolls. */
 #view-bookings .timeline-wrap {
   /* Starting value only. view-bookings.js measures the space actually left
-     below the planner's top edge and sets an exact height, keeping it in step
-     when the window is resized or the Summary panel is opened. */
+     below the planner's top edge and sets an exact height. */
   max-height: max(320px, calc(100vh - 340px));
   overflow-y: auto;
 }
 
 /* ---------- Collapsible panels on the Bookings view ----------
-   The planner is what the desk actually works from, so the summary figures and
-   the booking list start closed and open on request. Collapsing is done with a
-   class on the section rather than inline styles, so .stats keeps its grid
-   layout and .filter-row its flex layout when reopened. */
+   Collapsing uses a class on the section rather than inline styles, so .stats
+   keeps its grid layout and .filter-row its flex layout when reopened. */
 .panel-toggle {
   font-family: 'DM Mono', monospace;
   font-size: 11px;
@@ -1067,8 +1076,7 @@ input:focus, select:focus { border-color: var(--text); }
 }
 .panel-toggle:hover { color: var(--text); border-color: var(--text); }
 
-/* In the toolbar it is one control among several, so it drops the row spacing
-   and matches the height of the search box beside it. */
+/* In the toolbar it is one control among several, so it drops the row spacing. */
 .toolbar .panel-toggle { margin-bottom: 0; }
 
 #view-bookings.hide-summary .stats { display: none; }

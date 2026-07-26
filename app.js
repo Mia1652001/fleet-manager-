@@ -201,6 +201,26 @@ function showView(name) {
   // Views render from data already in memory — nothing is refetched.
   VIEWS[name].mod.render();
   window.scrollTo(0, 0);
+  showActiveTab(name);
+}
+
+// Once the strip scrolls, the tab you just landed on can sit off one edge —
+// after following a link from the dashboard, for instance. This nudges the strip
+// itself, never the page, and only when the tab is actually out of sight.
+// Measured with rectangles rather than offsetLeft, which would be relative to
+// whichever ancestor happens to be positioned.
+function showActiveTab(name) {
+  const nav = document.getElementById("main-nav");
+  const link = nav.querySelector(`a[data-view="${name}"]`);
+  if (!link) return;
+  const strip = nav.getBoundingClientRect();
+  const tab = link.getBoundingClientRect();
+  const pad = 12;
+  if (tab.left < strip.left + pad) {
+    nav.scrollLeft -= (strip.left + pad) - tab.left;
+  } else if (tab.right > strip.right - pad) {
+    nav.scrollLeft += tab.right - (strip.right - pad);
+  }
 }
 
 
@@ -329,6 +349,12 @@ function wireTabDragging() {
   const THRESHOLD = 6;   // small movements are taps, not drags
 
   nav.addEventListener("pointerdown", (e) => {
+    // On a touchscreen this whole feature does more harm than good. A tap almost
+    // always slides more than the six pixels below, so tapping a tab was read as
+    // a drag: it reordered the strip and swallowed the click, which is why tabs
+    // stopped responding on a phone. Touch is for scrolling the strip and tapping
+    // a tab; reordering stays available with a mouse or trackpad.
+    if (e.pointerType === "touch") return;
     const link = e.target.closest("a[data-view]");
     if (!link) return;
     dragEl = link; startX = e.clientX; moved = false;
