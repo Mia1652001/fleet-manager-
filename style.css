@@ -1074,3 +1074,13 @@ input:focus, select:focus { border-color: var(--text); }
 #view-bookings.hide-summary .stats { display: none; }
 #view-bookings.hide-list .filter-row,
 #view-bookings.hide-list .card-list { display: none; }
+
+/* Totals for exactly the invoices listed underneath, so the figures at the top
+   of the Billing page can always be reconciled against what is on screen. */
+.list-total {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: -0.5rem 0 1.1rem;
+  padding: 0 2px;
+}

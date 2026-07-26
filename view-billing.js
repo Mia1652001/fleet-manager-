@@ -9,6 +9,14 @@ import {
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
+// The badge on a card names the same category the tabs sort by, so a card can
+// never be labelled one thing and filed under another.
+const BADGE = {
+  paid:     { cls: "available", text: "Paid" },
+  unpaid:   { cls: "overdue",   text: "Unpaid" },
+  upcoming: { cls: "upcoming",  text: "Not started" }
+};
+
 let root = null;
 let filter = "unpaid";
 let depositBookingId = null;
@@ -73,8 +81,9 @@ export function render() {
   const search = el(root, "search").value.toLowerCase();
   const billable = state.bookings.filter(isBillable);
 
-  const started = billable.filter(hasStarted);
-  const unpaid = started.filter(b => !b.paid);
+  // Same definition the Unpaid tab uses, so the headline count and the number
+  // of cards in that tab are always the same number.
+  const unpaid = billable.filter(b => categoryOf(b) === "unpaid");
   const outstanding = unpaid.reduce((sum, b) => sum + balanceFor(b), 0);
 
   // Money in over the window. settledOn() rather than paidAt directly, so
@@ -98,16 +107,10 @@ export function render() {
     <div class="stat"><div class="stat-label">Deposits held</div><div class="stat-val blue">${formatAmount(depositsHeld)}</div></div>
   `;
 
-  let list = billable.filter(b => {
-    const mf =
-      filter === "all" ? true :
-      filter === "upcoming" ? !hasStarted(b) :
-      filter === "paid" ? b.paid :
-      (!b.paid && hasStarted(b));   // "unpaid" means money actually owed now
-    const ms = `${b.renter || ""} ${bookingCarLabel(b)}`.toLowerCase().includes(search);
-    return mf && ms;
-  });
+  renderTabCounts(search);
+  let list = invoicesFor(filter, search);
   list.sort((a, b) => (a.paid - b.paid) || b.startDate.localeCompare(a.startDate));
+  renderListTotals(list);
 
   const listEl = el(root, "list");
   if (list.length === 0) {
@@ -130,7 +133,7 @@ export function render() {
           <div class="card-title">${esc(b.renter)} — ${formatAmount(b.paid ? total : balance)}${b.paid ? "" : " owed"}</div>
           <div class="card-sub">${esc(bookingCarLabel(b))}</div>
         </div>
-        <span class="badge ${b.paid ? "available" : !hasStarted(b) ? "upcoming" : "overdue"}">${b.paid ? "Paid" : !hasStarted(b) ? "Not started" : "Unpaid"}</span>
+        <span class="badge ${BADGE[categoryOf(b)].cls}">${BADGE[categoryOf(b)].text}</span>
       </div>
       <div class="card-details">
         <span>Period: <strong>${formatDate(b.startDate)} – ${formatDate(b.endDate)}</strong></span>
@@ -140,6 +143,7 @@ export function render() {
         ${adv > 0 ? `<span>Advance paid: <strong>-${formatAmount(adv)}</strong></span>` : ""}
         ${adv > 0 && !b.paid ? `<span>Balance: <strong>${formatAmount(balance)}</strong></span>` : ""}
         ${b.paid && b.paidAt ? `<span>Paid on: <strong>${formatDate(b.paidAt.slice(0, 10))}</strong></span>` : ""}
+        ${b.paid && settledAmount(b) !== total ? `<span>Counted as received: <strong>${formatAmount(settledAmount(b))}</strong> <span style="opacity:0.7;">(the advance came in earlier)</span></span>` : ""}
         ${(rate === 0 && !hasManualTotal(b)) ? `<span style="color:var(--red-text);">No daily rate set on this car — edit the car in Fleet, or enter a total on the booking</span>` : ""}
       </div>
       ${sec > 0 ? `
@@ -160,6 +164,60 @@ export function render() {
       </div>
     </div>`;
   }).join("");
+}
+
+// ---------- Categories ----------
+// One definition, used for the tab counts, the totals line and the list itself,
+// so those three can never drift apart. Every invoice lands in exactly one
+// category, which means the three counts always add up to All. Previously a
+// booking paid in advance of its start date fell into both Paid and Not
+// started, so the counts came to more than the total.
+function categoryOf(b) {
+  if (b.paid) return "paid";                       // money in, whenever it starts
+  return hasStarted(b) ? "unpaid" : "upcoming";    // owed now, or nothing due yet
+}
+
+function matchesSearch(b, search) {
+  return `${b.renter || ""} ${bookingCarLabel(b)}`.toLowerCase().includes(search);
+}
+
+function invoicesFor(f, search) {
+  return state.bookings.filter(isBillable)
+    .filter(b => (f === "all" || categoryOf(b) === f) && matchesSearch(b, search));
+}
+
+// Totals for exactly the invoices listed below — the figure that has to
+// reconcile against what is on screen, whatever filter or search is applied.
+function renderListTotals(list) {
+  const sum = (arr, fn) => arr.reduce((s, b) => s + fn(b), 0);
+  const n = list.length;
+  const count = `${n} invoice${n === 1 ? "" : "s"}`;
+
+  let money;
+  if (filter === "paid") {
+    const received = sum(list, settledAmount);
+    const inWindow = sum(list.filter(b => inPeriod(settledOn(b))), settledAmount);
+    money = `${formatAmount(received)} received in total` +
+      (inWindow !== received ? ` · ${formatAmount(inWindow)} of it in the last ${PERIOD_DAYS} days` : "");
+  } else if (filter === "unpaid") {
+    money = `${formatAmount(sum(list, balanceFor))} owed`;
+  } else if (filter === "upcoming") {
+    money = `${formatAmount(sum(list, rentalTotal))} booked, nothing due yet`;
+  } else {
+    const owed = sum(list.filter(b => categoryOf(b) === "unpaid"), balanceFor);
+    money = `${formatAmount(sum(list, rentalTotal))} in rentals · ${formatAmount(owed)} still owed`;
+  }
+
+  el(root, "list-total").textContent = `${count} · ${money}`;
+}
+
+// The count on each tab is what clicking it will show, search included.
+function renderTabCounts(search) {
+  const labels = { unpaid: "Unpaid", paid: "Paid", upcoming: "Not started", all: "All" };
+  el(root, "filters").querySelectorAll(".tab").forEach(tab => {
+    const f = tab.dataset.f;
+    tab.textContent = `${labels[f] || f} (${invoicesFor(f, search).length})`;
+  });
 }
 
 function openDepositModal(id) {
