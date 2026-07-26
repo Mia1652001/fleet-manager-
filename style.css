@@ -17,6 +17,14 @@
   --blue-text: #2d4a6a;
 }
 
+html {
+  /* iOS Safari enlarges text it judges too small, and does it unevenly —
+     which made booking names balloon while their times stayed tiny.
+     Turning it off keeps every size exactly as specified. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   font-family: 'DM Mono', monospace;
   background: var(--bg);
@@ -392,10 +400,11 @@ input:focus, select:focus { border-color: var(--text); }
 .tl-car strong {
   font-weight: 500;
   font-size: 11px;
+  line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 150px;
+  max-width: 100%;
   display: block;
 }
 
@@ -495,6 +504,7 @@ input:focus, select:focus { border-color: var(--text); }
 
 .tl-bar-start, .tl-bar-end {
   font-size: 9px;
+  line-height: 1.3;
   opacity: 0.85;
   white-space: nowrap;
   flex-shrink: 0;
@@ -507,6 +517,8 @@ input:focus, select:focus { border-color: var(--text); }
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 500;
+  font-size: 10px;      /* stated, not inherited, so nothing can rescale it */
+  line-height: 1.3;
 }
 
 .tl-bar-end { margin-left: auto; }
@@ -542,10 +554,17 @@ input:focus, select:focus { border-color: var(--text); }
 
 @media (max-width: 640px) {
   .field-row { flex-direction: column; gap: 0; }
-  /* Locations stay visible on mobile — just smaller. They clip rather than
-     disappear, and the full detail is still in the tap-and-hold tooltip. */
+
+  /* One consistent scale on a phone: names, times and locations all sized
+     relative to each other rather than left to the browser. */
+  .tl-bar { gap: 4px; padding: 3px 5px; font-size: 9px; }
+  .tl-bar-name { font-size: 9px; }
   .tl-bar-start, .tl-bar-end { font-size: 8px; }
-  .tl-bar { gap: 3px; padding: 3px 4px; }
+  .tl-oos-bar, .tl-service { font-size: 8px; }
+  .tl-car strong { font-size: 10px; }
+  .tl-car span { font-size: 8px; }
+  .tl-daynum { font-size: 9px; }
+  .tl-daynum .dow { font-size: 7px; }
 }
 
 /* ---------- Deliveries schedule ---------- */

@@ -30,7 +30,19 @@ const ZOOM_LEVELS = {
 };
 
 let zoom = loadPref("timelineZoom", 4);
-function zoomCfg() { return ZOOM_LEVELS[zoom] || ZOOM_LEVELS[4]; }
+
+function isNarrowScreen() {
+  return window.matchMedia("(max-width: 640px)").matches;
+}
+
+function zoomCfg() {
+  const cfg = ZOOM_LEVELS[zoom] || ZOOM_LEVELS[4];
+  if (!isNarrowScreen()) return cfg;
+  // On a phone the vehicle column has to stay narrow or it squeezes the
+  // names out of view, and days are capped so several fit on screen at once.
+  return { ...cfg, label: 96, half: Math.min(cfg.half, 12) };
+}
+
 function timelineDays() { return zoomCfg().days; }
 let timelineAnchor = null; // Date — first visible day in the timeline
 
@@ -80,6 +92,15 @@ export function mount(container) {
     if (!sw) return;
     e.preventDefault();
     setSwatch(root, "b-colour", sw.dataset.colour);
+  });
+
+  // Rotating a phone changes which layout applies, so redraw on resize
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (root.classList.contains("active") && planner === "timeline") render();
+    }, 150);
   });
 
   setupCarDragging();
