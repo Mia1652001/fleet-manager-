@@ -50,7 +50,8 @@
       </div>
     </div>
     <nav id="main-nav">
-      <a href="#bookings" data-view="bookings" class="active">Bookings</a>
+      <a href="#dashboard" data-view="dashboard" class="active">Dashboard</a>
+      <a href="#bookings" data-view="bookings">Bookings</a>
       <a href="#tasks" data-view="tasks">Tasks</a>
       <a href="#fleet" data-view="fleet">Fleet</a>
       <a href="#customers" data-view="customers">Customers</a>
@@ -61,8 +62,85 @@
 
   <div class="main">
 
+    <!-- ---------- DASHBOARD ---------- -->
+    <section class="view active" id="view-dashboard">
+      <div class="dash-alerts" data-el="alerts"></div>
+
+      <div class="dash-grid">
+        <div class="dash-card">
+          <div class="dash-head">
+            <h3>Today</h3>
+            <a href="#tasks" class="dash-link">All jobs →</a>
+          </div>
+          <div data-el="today-jobs"></div>
+        </div>
+
+        <div class="dash-card">
+          <div class="dash-head">
+            <h3>Money</h3>
+            <a href="#billing" class="dash-link">Billing →</a>
+          </div>
+          <div class="dash-figures" data-el="money"></div>
+        </div>
+      </div>
+
+      <div class="dash-card dash-wide">
+        <div class="dash-head">
+          <h3>Next two weeks</h3>
+          <a href="#bookings" class="dash-link">Open the planner →</a>
+        </div>
+        <div class="timeline-wrap dash-timeline" data-el="mini-wrap">
+          <div class="timeline" data-el="mini"></div>
+        </div>
+      </div>
+
+      <div class="dash-grid dash-grid-3">
+        <div class="dash-card">
+          <div class="dash-head">
+            <h3>Fleet</h3>
+            <a href="#fleet" class="dash-link">Fleet →</a>
+          </div>
+          <div class="dash-figures" data-el="fleet-figures"></div>
+        </div>
+
+        <div class="dash-card">
+          <div class="dash-head">
+            <h3>Bookings</h3>
+            <a href="#bookings" class="dash-link">Bookings →</a>
+          </div>
+          <div class="dash-figures" data-el="booking-figures"></div>
+        </div>
+
+        <div class="dash-card">
+          <div class="dash-head">
+            <h3>Servicing</h3>
+            <a href="#maintenance" class="dash-link">Maintenance →</a>
+          </div>
+          <div class="dash-figures" data-el="service-figures"></div>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+        <div class="dash-card">
+          <div class="dash-head">
+            <h3>Customers</h3>
+            <a href="#customers" class="dash-link">Customers →</a>
+          </div>
+          <div class="dash-figures" data-el="customer-figures"></div>
+        </div>
+
+        <div class="dash-card">
+          <div class="dash-head">
+            <h3>Unpaid invoices</h3>
+            <a href="#billing" class="dash-link">All invoices →</a>
+          </div>
+          <div data-el="unpaid-list"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ---------- FLEET ---------- -->
-    <section class="view active" id="view-fleet">
+    <section class="view" id="view-fleet">
       <div class="stats" data-el="stats"></div>
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search car, plate, or renter...">

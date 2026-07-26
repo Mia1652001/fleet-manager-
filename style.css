@@ -861,3 +861,146 @@ input:focus, select:focus { border-color: var(--text); }
   text-overflow: ellipsis;
   vertical-align: bottom;
 }
+
+/* ================= Dashboard ================= */
+.dash-alerts { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.5rem; }
+
+.dash-alert {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  text-align: left;
+  padding: 12px 16px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text);
+  transition: background 0.12s;
+}
+.dash-alert:hover { background: var(--bg); }
+.dash-alert.red { border-left-color: var(--red-text); }
+.dash-alert.amber { border-left-color: var(--amber-text); }
+
+.dash-allclear {
+  font-size: 13px;
+  color: var(--green-text);
+  background: var(--green-bg);
+  border: 1px solid #cfe3cf;
+  border-radius: 4px;
+  padding: 12px 16px;
+}
+
+.dash-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 14px; }
+.dash-grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+.dash-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.1rem 1.25rem 1.25rem;
+}
+.dash-wide { margin-bottom: 14px; }
+
+.dash-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+.dash-head h3 {
+  font-family: 'Fraunces', serif;
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+.dash-link {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.dash-link:hover { color: var(--text); }
+
+/* Figures */
+.dash-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px; }
+
+.dash-figure {
+  background: transparent;
+  border: none;
+  padding: 6px 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: 'DM Mono', monospace;
+  border-radius: 3px;
+}
+.dash-figure:hover { background: var(--bg); }
+
+.dash-figure-val {
+  display: block;
+  font-family: 'Fraunces', serif;
+  font-size: 1.7rem;
+  font-weight: 300;
+  line-height: 1.05;
+  color: var(--text);
+}
+.dash-figure-val.green { color: var(--green-text); }
+.dash-figure-val.amber { color: var(--amber-text); }
+.dash-figure-val.red { color: var(--red-text); }
+.dash-figure-val.blue { color: var(--blue-text); }
+
+.dash-figure-label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* Job and invoice rows */
+.dash-job {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  cursor: pointer;
+}
+.dash-job:last-of-type { border-bottom: none; }
+.dash-job:hover { background: var(--bg); }
+.dash-job-time { color: var(--muted); width: 40px; flex-shrink: 0; }
+.dash-job-main { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-dim { color: var(--muted); }
+.dash-amount { font-weight: 500; flex-shrink: 0; }
+
+.dash-more {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 8px 6px 0;
+  text-align: left;
+  width: 100%;
+}
+.dash-more:hover { color: var(--text); }
+
+.dash-empty { font-size: 12px; color: var(--muted); padding: 10px 6px; }
+
+/* The dashboard planner is a glance, not a workspace */
+.dash-timeline { max-height: 340px; overflow-y: auto; margin-bottom: 0; }
+.dash-timeline .tl-car { padding-left: 10px; cursor: pointer; }
+.dash-timeline .tl-bar { cursor: pointer; }
+
+@media (max-width: 640px) {
+  .dash-grid, .dash-grid-3 { grid-template-columns: 1fr; }
+  .dash-figures { grid-template-columns: repeat(2, 1fr); }
+  .dash-figure-val { font-size: 1.4rem; }
+}

@@ -12,8 +12,10 @@ import * as customers from "./view-customers.js";
 import * as billing from "./view-billing.js";
 import * as maintenance from "./view-maintenance.js";
 import * as tasks from "./view-tasks.js";
+import * as dashboard from "./view-dashboard.js";
 
 const VIEWS = {
+  dashboard: { mod: dashboard, root: null },
   fleet: { mod: fleet, root: null },
   bookings: { mod: bookings, root: null },
   customers: { mod: customers, root: null },
@@ -157,10 +159,10 @@ function stopListeners() {
 
 // ---------- Navigation ----------
 function currentViewFromHash() {
-  // Bookings is the first tab and the screen staff live in, so it is where the
-  // app opens when there is no specific view in the address.
-  const name = (location.hash || "#bookings").replace("#", "");
-  return VIEWS[name] ? name : "bookings";
+  // The dashboard is the natural landing screen; the tabs can be dragged into
+  // a different order if someone prefers to start somewhere else.
+  const name = (location.hash || "#dashboard").replace("#", "");
+  return VIEWS[name] ? name : "dashboard";
 }
 
 function wireNav() {
