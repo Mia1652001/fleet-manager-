@@ -50,12 +50,12 @@
       </div>
     </div>
     <nav id="main-nav">
-      <a href="#fleet" data-view="fleet" class="active">Fleet</a>
-      <a href="#bookings" data-view="bookings">Bookings</a>
+      <a href="#bookings" data-view="bookings" class="active">Bookings</a>
+      <a href="#tasks" data-view="tasks">Tasks</a>
+      <a href="#fleet" data-view="fleet">Fleet</a>
       <a href="#customers" data-view="customers">Customers</a>
       <a href="#billing" data-view="billing">Billing</a>
       <a href="#maintenance" data-view="maintenance">Maintenance</a>
-      <a href="#tasks" data-view="tasks">Tasks</a>
     </nav>
   </header>
 
@@ -88,10 +88,25 @@
           <div class="field"><label>Model</label><input data-el="c-model" placeholder="e.g. Corolla"></div>
           <div class="field"><label>Year</label><input data-el="c-year" type="number" placeholder="e.g. 2023"></div>
           <div class="field"><label>Plate number</label><input data-el="c-plate" placeholder="e.g. ABC-1234"></div>
+          <div class="field-row">
+            <div class="field"><label>Category</label>
+              <input data-el="c-category" list="car-categories" placeholder="e.g. CDAR">
+              <datalist id="car-categories">
+                <option value="CDAV"></option><option value="SCAV"></option>
+                <option value="CDAR"></option><option value="IDAR"></option>
+                <option value="CDAH"></option><option value="IFAR"></option>
+                <option value="EDAR"></option><option value="MDAR"></option>
+              </datalist>
+            </div>
+            <div class="field"><label>Colour</label><input data-el="c-colour" placeholder="e.g. silver"></div>
+          </div>
+          <div class="field checkbox-field">
+            <label><input type="checkbox" data-el="c-automatic"> Automatic transmission</label>
+          </div>
           <div class="field"><label>Daily rate</label><input data-el="c-rate" type="number" min="0" placeholder="e.g. 1500"></div>
           <div class="field"><label>Weekly rate</label><input data-el="c-rate-week" type="number" min="0" placeholder="auto-calculated"></div>
           <div class="field"><label>Monthly rate</label><input data-el="c-rate-month" type="number" min="0" placeholder="auto-calculated"></div>
-          <div style="font-size:11px;color:var(--muted);margin:-6px 0 14px;">Enter any one rate — the other two are calculated (week = 7 days, month = 30 days). Billing uses the daily rate.</div>
+          <div style="font-size:11px;color:var(--muted);margin:-6px 0 14px;">Enter any one rate and the others fill in automatically (week = 7 days, month = 30 days). Type over any of them to set your own price — it will be kept. Billing uses the daily rate.</div>
           <div class="modal-actions">
             <button class="btn" data-close="car-modal">Cancel</button>
             <button class="btn-primary" data-el="save-car">Save car</button>
@@ -203,7 +218,13 @@
             <div class="field"><label>Delivered by</label><input data-el="b-deliveredby" placeholder="Staff name"></div>
           </div>
 
-          <div class="field"><label>Notes for this booking</label><input data-el="b-notes" placeholder="e.g. baby seat, second driver, late flight"></div>
+          <div class="field checkbox-field">
+            <label><input type="checkbox" data-el="b-paid"> Marked as paid</label>
+          </div>
+
+          <div class="field"><label>Notes for this booking</label>
+            <textarea data-el="b-notes" rows="4" placeholder="e.g. baby seat, second driver, late flight&#10;Multiple lines are fine."></textarea>
+          </div>
           <div class="modal-actions">
             <button class="btn danger" data-el="delete-booking" style="display:none;">Delete booking</button>
             <button class="btn" data-close="booking-modal">Cancel</button>
@@ -258,6 +279,7 @@
       <div class="filter-row" data-el="filters">
         <button class="tab active" data-f="unpaid">Unpaid</button>
         <button class="tab" data-f="paid">Paid</button>
+        <button class="tab" data-f="upcoming">Not started</button>
         <button class="tab" data-f="all">All</button>
       </div>
       <div class="card-list" data-el="list"><div class="loading-screen">Loading invoices...</div></div>
@@ -318,6 +340,7 @@
           <option value="delivery">Deliveries only</option>
           <option value="recovery">Recoveries only</option>
           <option value="task">Manual tasks only</option>
+          <option value="service">Servicing only</option>
         </select>
         <button class="btn-primary" data-el="add-task">+ Add task</button>
       </div>

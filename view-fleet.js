@@ -5,7 +5,7 @@ import {
   state, onDataChange, esc, formatDate, todayStr, findClash, describeInterval,
   fillTimeOptions, getTime, setTime, onTimeChange,
   currentBooking, nextUpcoming, carStatus, serviceDue, openBookingsForCar,
-  el, val, setVal, openModal, closeModal, showError
+  el, val, setVal, checked, setChecked, openModal, closeModal, showError
 } from "./store.js";
 
 let root = null;
@@ -32,9 +32,19 @@ export function mount(container) {
   // Rate auto-calculation
   const rd = el(root, "c-rate"), rw = el(root, "c-rate-week"), rm = el(root, "c-rate-month");
   const r2 = x => Math.round(x * 100) / 100;
-  rd.addEventListener("input", () => { const v = parseFloat(rd.value); if (!isNaN(v)) { rw.value = r2(v * 7); rm.value = r2(v * 30); } });
-  rw.addEventListener("input", () => { const v = parseFloat(rw.value); if (!isNaN(v)) { rd.value = r2(v / 7); rm.value = r2((v / 7) * 30); } });
-  rm.addEventListener("input", () => { const v = parseFloat(rm.value); if (!isNaN(v)) { rd.value = r2(v / 30); rw.value = r2((v / 30) * 7); } });
+
+  // Typing directly into the weekly or monthly box marks it as deliberate, so
+  // later edits to the daily rate leave that figure alone. Clearing it hands
+  // control back to the automatic calculation.
+  rw.addEventListener("input", () => { rw.dataset.manual = rw.value.trim() ? "1" : ""; });
+  rm.addEventListener("input", () => { rm.dataset.manual = rm.value.trim() ? "1" : ""; });
+
+  rd.addEventListener("input", () => {
+    const v = parseFloat(rd.value);
+    if (isNaN(v)) return;
+    if (!rw.dataset.manual) rw.value = r2(v * 7);
+    if (!rm.dataset.manual) rm.value = r2(v * 30);
+  });
 
   el(root, "filters").addEventListener("click", (e) => {
     const t = e.target.closest(".tab");
@@ -84,7 +94,7 @@ export function render() {
     const status = c._status === "overdue" ? "rented" : c._status;
     const mf = filter === "all" || status === filter;
     const renterName = c._booking ? c._booking.renter : "";
-    const ms = `${c.make} ${c.model} ${c.plate} ${renterName}`.toLowerCase().includes(search);
+    const ms = `${c.make} ${c.model} ${c.plate} ${c.category || ""} ${c.colour || ""} ${renterName}`.toLowerCase().includes(search);
     return mf && ms;
   });
 
@@ -107,7 +117,7 @@ export function render() {
       <div class="card-top">
         <div>
           <div class="card-title">${esc(c.year)} ${esc(c.make)} ${esc(c.model)}</div>
-          <div class="card-sub">${esc(c.plate)}${c.dailyRate ? " · " + esc(c.dailyRate) + "/day" : ""}</div>
+          <div class="card-sub">${esc(c.plate)}${c.category ? " · " + esc(c.category) : ""}${c.colour ? " · " + esc(c.colour) : ""}${c.automatic ? " · auto" : ""}${c.dailyRate ? " · " + esc(c.dailyRate) + "/day" : ""}</div>
         </div>
         <span class="badge ${cls}">${s === "available" ? "Available" : s === "overdue" ? "Overdue" : s === "service" ? "Out of service" : "Rented"}</span>
       </div>
@@ -149,6 +159,14 @@ function openCarModal(id) {
   setVal(root, "c-rate", c?.dailyRate);
   setVal(root, "c-rate-week", c?.weeklyRate);
   setVal(root, "c-rate-month", c?.monthlyRate);
+  setVal(root, "c-category", c?.category || "");
+  setVal(root, "c-colour", c?.colour || "");
+  setChecked(root, "c-automatic", c?.automatic === true);
+
+  // Treat an existing car's weekly/monthly figures as deliberate, so changing
+  // the daily rate later will not silently overwrite them.
+  el(root, "c-rate-week").dataset.manual = c?.weeklyRate ? "1" : "";
+  el(root, "c-rate-month").dataset.manual = c?.monthlyRate ? "1" : "";
   openModal(root, "car-modal");
 }
 
@@ -166,16 +184,20 @@ async function saveCar() {
   if (!dailyRate && monthlyIn) dailyRate = Math.round((monthlyIn / 30) * 100) / 100;
   const weeklyRate = weeklyIn || Math.round(dailyRate * 7 * 100) / 100;
   const monthlyRate = monthlyIn || Math.round(dailyRate * 30 * 100) / 100;
+  const category = val(root, "c-category");
+  const colour = val(root, "c-colour");
+  const automatic = checked(root, "c-automatic");
 
   const btn = el(root, "save-car");
   btn.disabled = true; btn.textContent = "Saving...";
   setSync("saving");
   try {
     if (editingCarId) {
-      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate, weeklyRate, monthlyRate });
+      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate, weeklyRate, monthlyRate, category, colour, automatic });
     } else {
       await addDoc(collection(db, "cars"), {
-        companyId: state.ctx.companyId, make, model, year, plate, dailyRate, weeklyRate, monthlyRate
+        companyId: state.ctx.companyId, make, model, year, plate,
+        dailyRate, weeklyRate, monthlyRate, category, colour, automatic
       });
     }
     closeModal(root, "car-modal");

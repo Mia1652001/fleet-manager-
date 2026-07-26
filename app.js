@@ -155,8 +155,10 @@ function stopListeners() {
 
 // ---------- Navigation ----------
 function currentViewFromHash() {
-  const name = (location.hash || "#fleet").replace("#", "");
-  return VIEWS[name] ? name : "fleet";
+  // Bookings is the first tab and the screen staff live in, so it is where the
+  // app opens when there is no specific view in the address.
+  const name = (location.hash || "#bookings").replace("#", "");
+  return VIEWS[name] ? name : "bookings";
 }
 
 function wireNav() {

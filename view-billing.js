@@ -5,7 +5,7 @@ import { updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/fireb
 import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
-  settledAmount, isBillable,
+  settledAmount, isBillable, hasStarted,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
@@ -73,7 +73,8 @@ export function render() {
   const search = el(root, "search").value.toLowerCase();
   const billable = state.bookings.filter(isBillable);
 
-  const unpaid = billable.filter(b => !b.paid);
+  const started = billable.filter(hasStarted);
+  const unpaid = started.filter(b => !b.paid);
   const outstanding = unpaid.reduce((sum, b) => sum + balanceFor(b), 0);
 
   const now = new Date();
@@ -92,7 +93,11 @@ export function render() {
   `;
 
   let list = billable.filter(b => {
-    const mf = filter === "all" || (filter === "paid" ? b.paid : !b.paid);
+    const mf =
+      filter === "all" ? true :
+      filter === "upcoming" ? !hasStarted(b) :
+      filter === "paid" ? b.paid :
+      (!b.paid && hasStarted(b));   // "unpaid" means money actually owed now
     const ms = `${b.renter || ""} ${bookingCarLabel(b)}`.toLowerCase().includes(search);
     return mf && ms;
   });
@@ -119,7 +124,7 @@ export function render() {
           <div class="card-title">${esc(b.renter)} — ${formatAmount(b.paid ? total : balance)}${b.paid ? "" : " owed"}</div>
           <div class="card-sub">${esc(bookingCarLabel(b))}</div>
         </div>
-        <span class="badge ${b.paid ? "available" : "overdue"}">${b.paid ? "Paid" : "Unpaid"}</span>
+        <span class="badge ${b.paid ? "available" : !hasStarted(b) ? "upcoming" : "overdue"}">${b.paid ? "Paid" : !hasStarted(b) ? "Not started" : "Unpaid"}</span>
       </div>
       <div class="card-details">
         <span>Period: <strong>${formatDate(b.startDate)} – ${formatDate(b.endDate)}</strong></span>

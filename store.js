@@ -182,8 +182,15 @@ export function settledAmount(b) {
   if (b.paid && typeof b.paidAmount === "number") return b.paidAmount;
   return balanceFor(b);
 }
-export function isBillable(b) {
+// Has the rental actually begun? Only started rentals count towards money owed.
+export function hasStarted(b) {
   return b.startDate <= todayStr() || b.status === "completed";
+}
+
+// Every booking has an invoice; future ones are simply marked as not started.
+// (They used to be hidden completely, which made bookings look missing.)
+export function isBillable(b) {
+  return true;
 }
 
 // ---------- Times and locations ----------
@@ -249,6 +256,28 @@ function bookingJobs(b) {
   ];
 }
 
+// A car with a service date due produces its own job, so servicing shows up
+// in the same list as deliveries rather than only on the Maintenance screen.
+function serviceJobs() {
+  return state.cars
+    .filter(c => c.nextServiceDate)
+    .map(c => ({
+      id: `service:${c.id}`,
+      kind: "service",
+      carId: c.id,
+      date: c.nextServiceDate,
+      time: "",
+      car: `${c.year || ""} ${c.make} ${c.model} (${c.plate || "no plate"})`.trim(),
+      location: "",
+      customer: c.notes_maint || "Service due",
+      staff: "",
+      managedBy: "",
+      deliveredBy: "",
+      notes: c.notes_maint || "",
+      done: false
+    }));
+}
+
 function manualJob(t) {
   return {
     id: `task:${t.id}`,
@@ -287,6 +316,7 @@ export function buildSchedule({ from, to, includeDone }) {
   let jobs = [];
   state.bookings.forEach(b => { jobs = jobs.concat(bookingJobs(b)); });
   state.tasks.forEach(x => { jobs.push(manualJob(x)); });
+  jobs = jobs.concat(serviceJobs());
 
   jobs = jobs.filter(j => {
     if (!j.date) return false;
@@ -373,6 +403,15 @@ export function setVal(root, name, v) {
   const e = el(root, name);
   if (e) e.value = v ?? "";
 }
+export function checked(root, name) {
+  const e = el(root, name);
+  return e ? e.checked === true : false;
+}
+export function setChecked(root, name, v) {
+  const e = el(root, name);
+  if (e) e.checked = v === true;
+}
+
 export function openModal(root, name) {
   const m = el(root, name);
   if (m) m.classList.add("open");

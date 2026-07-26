@@ -542,7 +542,10 @@ input:focus, select:focus { border-color: var(--text); }
 
 @media (max-width: 640px) {
   .field-row { flex-direction: column; gap: 0; }
-  .tl-bar-start, .tl-bar-end { display: none; }
+  /* Locations stay visible on mobile — just smaller. They clip rather than
+     disappear, and the full detail is still in the tap-and-hold tooltip. */
+  .tl-bar-start, .tl-bar-end { font-size: 8px; }
+  .tl-bar { gap: 3px; padding: 3px 4px; }
 }
 
 /* ---------- Deliveries schedule ---------- */
@@ -657,3 +660,85 @@ input:focus, select:focus { border-color: var(--text); }
 @media (max-width: 640px) {
   .toolbar select { min-width: 0; flex: 1; }
 }
+
+
+/* ---------- Additions: service marker, car link, checkboxes, day add ---------- */
+.tl-service {
+  align-self: center;
+  margin: 3px 1px;
+  border-radius: 3px;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  padding: 3px 2px;
+  background: var(--blue-bg);
+  color: var(--blue-text);
+  border: 1px dashed #b9c6d8;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.tl-carlink { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--muted); }
+.tl-carlink:hover { color: var(--text); border-bottom-style: solid; }
+
+.tl-car.due span { color: var(--amber-text); }
+.tl-duetag {
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--amber-bg);
+  color: var(--amber-text);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.checkbox-field label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--text);
+  cursor: pointer;
+}
+.checkbox-field input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--text); }
+
+.field textarea {
+  width: 100%;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--text);
+  outline: none;
+  resize: vertical;
+  line-height: 1.5;
+}
+.field textarea:focus { border-color: var(--text); }
+
+.day-head { display: flex; align-items: center; justify-content: space-between; }
+.day-add {
+  background: transparent;
+  border: 1px solid #4a453c;
+  color: var(--bg);
+  border-radius: 3px;
+  width: 20px; height: 20px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: 'DM Mono', monospace;
+  padding: 0;
+}
+.day-add:hover { background: #2a2620; }
+
+.job-tick.disabled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: var(--bg);
+  cursor: default;
+}
+.job-kind.service { background: var(--blue-bg); color: var(--blue-text); }

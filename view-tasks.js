@@ -60,6 +60,10 @@ export function mount(container) {
 
     const edit = e.target.closest("[data-edit-task]");
     if (edit) { openTaskModal(edit.dataset.editTask); return; }
+
+    // "+" on a day heading adds a task already dated to that day
+    const add = e.target.closest("[data-add-on]");
+    if (add) { openTaskModal(null, add.dataset.addOn); return; }
   });
 
   onDataChange(() => { if (root.classList.contains("active")) render(); });
@@ -96,7 +100,7 @@ function dayHeading(dateStr) {
 }
 
 function kindLabel(kind) {
-  return { delivery: "Deliver", recovery: "Recover", task: "Task" }[kind] || kind;
+  return { delivery: "Deliver", recovery: "Recover", task: "Task", service: "Service" }[kind] || kind;
 }
 
 // ---------- Render ----------
@@ -167,14 +171,17 @@ export function render() {
 
   listEl.innerHTML = groups.map(g => `
     <div class="day-group">
-      <div class="day-head">${esc(dayHeading(g.date))}</div>
+      <div class="day-head">
+        <span>${esc(dayHeading(g.date))}</span>
+        <button class="day-add" data-add-on="${g.date}" title="Add a task on this day">+</button>
+      </div>
       ${g.items.map(j => jobRow(j)).join("")}
     </div>
   `).join("");
 }
 
 function jobRow(j) {
-  const ref = j.kind === "task" ? j.taskId : j.bookingId;
+  const ref = j.kind === "task" ? j.taskId : j.kind === "service" ? j.carId : j.bookingId;
   const cls = [
     "job-row",
     j.done ? "done" : "",
@@ -194,8 +201,10 @@ function jobRow(j) {
 
   return `
     <div class="${cls}">
-      <button class="job-tick" data-tick="${j.id}" data-kind="${j.kind}" data-ref="${ref}"
-        title="${j.done ? "Mark as not done" : "Mark as done"}">${j.done ? "✓" : ""}</button>
+      ${j.kind === "service"
+        ? `<span class="job-tick disabled" title="Mark this serviced on the Maintenance view">\u2699</span>`
+        : `<button class="job-tick" data-tick="${j.id}" data-kind="${j.kind}" data-ref="${ref}"
+             title="${j.done ? "Mark as not done" : "Mark as done"}">${j.done ? "\u2713" : ""}</button>`}
       <div class="job-time">${j.time ? esc(j.time) : "—"}</div>
       <div class="job-kind ${j.kind}">${kindLabel(j.kind)}</div>
       <div class="job-main">
@@ -230,12 +239,12 @@ async function toggleDone(jobId, kind, ref) {
   }
 }
 
-function openTaskModal(id) {
+function openTaskModal(id, presetDate) {
   editingTaskId = id || null;
   const t = id ? state.tasks.find(x => x.id === id) : null;
   el(root, "task-modal-title").textContent = t ? "Edit task" : "Add task";
   setVal(root, "t-text", t?.text || "");
-  setVal(root, "t-date", t?.date || todayStr());
+  setVal(root, "t-date", t?.date || presetDate || todayStr());
   setTime(root, "t-time", t?.time || "12:00");
   setVal(root, "t-staff", t?.staff || "");
   el(root, "delete-task").style.display = t ? "inline-block" : "none";

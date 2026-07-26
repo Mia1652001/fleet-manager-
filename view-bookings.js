@@ -3,10 +3,10 @@ import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr, bookingCarLabel, bookingState,
-  findClash, describeInterval, sharesStartHandover, sharesEndHandover,
+  findClash, describeInterval, sharesStartHandover, sharesEndHandover, serviceDue,
   fillTimeOptions, getTime, setTime, onTimeChange,
   startTime, endTime, pickupLabel, dropoffLabel, rentalTotal,
-  el, val, setVal, openModal, closeModal, showError
+  el, val, setVal, checked, setChecked, openModal, closeModal, showError
 } from "./store.js";
 
 let root = null;
@@ -38,7 +38,7 @@ export function mount(container) {
   calMonth = now.getMonth();
   timelineAnchor = freshAnchor();
 
-  el(root, "search").addEventListener("input", render);
+  el(root, "search").addEventListener("input", render);   // redraws planner and list
   el(root, "new-booking").addEventListener("click", () => openBookingModal(null));
   el(root, "save-booking").addEventListener("click", saveBooking);
   el(root, "delete-booking").addEventListener("click", deleteEditingBooking);
@@ -58,6 +58,9 @@ export function mount(container) {
 
   // Clicking a booking bar in the timeline opens it for editing
   el(root, "timeline").addEventListener("click", (e) => {
+    const link = e.target.closest(".tl-carlink");
+    if (link) { location.hash = "#fleet"; return; }
+
     const bar = e.target.closest("[data-booking]");
     if (bar) { openBookingModal(bar.dataset.booking); return; }
 
@@ -181,8 +184,19 @@ function renderTimeline() {
     return;
   }
 
-  const cars = state.cars.slice().sort((a, b) =>
+  const search = el(root, "search").value.trim().toLowerCase();
+  let cars = state.cars.slice().sort((a, b) =>
     (a.make + a.model).localeCompare(b.make + b.model));
+
+  if (search) {
+    // Keep a car if the car itself matches, or if any of its bookings do.
+    cars = cars.filter(c => {
+      const carText = `${c.year || ""} ${c.make} ${c.model} ${c.plate || ""} ${c.category || ""}`.toLowerCase();
+      if (carText.includes(search)) return true;
+      return state.bookings.some(b => b.carId === c.id &&
+        `${b.renter || ""} ${b.pickupLocation || ""} ${b.dropoffLocation || ""}`.toLowerCase().includes(search));
+    });
+  }
 
   // minmax lets columns stretch to fill a wide screen instead of leaving
   // dead space after the window, while still enforcing a usable minimum
@@ -190,6 +204,12 @@ function renderTimeline() {
   // Two half-columns per day: a whole rental fills both, and on a handover day
   // the outgoing rental takes the first half and the incoming one the second,
   // so same-day turnarounds read clearly instead of overlapping.
+  if (cars.length === 0) {
+    grid.innerHTML = '<div class="tl-empty">No cars match that search.</div>';
+    grid.style.gridTemplateColumns = "1fr";
+    return;
+  }
+
   grid.style.gridTemplateColumns = `170px repeat(${TIMELINE_DAYS * 2}, minmax(18px, 1fr))`;
 
   const dowShort = ["Su","Mo","Tu","We","Th","Fr","Sa"];
@@ -207,9 +227,11 @@ function renderTimeline() {
     const row = i + 2;
     const oos = !!car.outOfService;
 
-    html += `<div class="tl-car ${oos ? "oos" : ""}" style="grid-row:${row};grid-column:1;">
-      <strong>${esc(`${car.make} ${car.model}`)}</strong>
-      <span>${esc(car.plate || "no plate")}</span>
+    const due = serviceDue(car);
+    html += `<div class="tl-car ${oos ? "oos" : ""} ${due ? "due" : ""}" style="grid-row:${row};grid-column:1;">
+      <strong><a href="#fleet" class="tl-carlink" data-car="${car.id}"
+        title="Open this car on the Fleet view">${esc(`${car.make} ${car.model}`)}</a></strong>
+      <span>${esc(car.plate || "no plate")}${car.category ? " · " + esc(car.category) : ""}${due ? ' <span class="tl-duetag">service due</span>' : ""}</span>
     </div>`;
 
     days.forEach((d, i2) => {
@@ -223,6 +245,15 @@ function renderTimeline() {
 
     if (oos) {
       html += `<div class="tl-oos-bar" style="grid-row:${row};grid-column:2 / ${TIMELINE_DAYS * 2 + 2};">Out of service</div>`;
+    }
+
+    // Mark the service date itself, if it falls inside the visible window
+    if (car.nextServiceDate && car.nextServiceDate >= first && car.nextServiceDate <= last) {
+      const off = Math.round((new Date(car.nextServiceDate) - days[0]) / 86400000);
+      if (off >= 0 && off < TIMELINE_DAYS) {
+        html += `<div class="tl-service" title="Service due ${formatDate(car.nextServiceDate)}"
+          style="grid-row:${row};grid-column:${off * 2 + 2} / ${off * 2 + 4};">SERVICE</div>`;
+      }
     }
 
     // Bookings for this car that touch the visible window
@@ -415,11 +446,14 @@ function openBookingModal(bookingId, preset) {
     .join("")
     + `<option value="__new__">+ New customer (save to register)</option>`
     + `<option value="__quick__">Just type a name (don't save)</option>`;
-  csel.value = state.customers.length ? csel.options[0].value : "__quick__";
+  // They mostly take a name rather than creating a customer record, so this
+  // is the default; picking a saved customer is still one click away.
+  csel.value = "__quick__";
 
   ["b-name","b-phone","b-email","b-quickname","b-start","b-end",
    "b-pickup","b-dropoff","b-total","b-managedby","b-deliveredby","b-notes"]
     .forEach(n => setVal(root, n, ""));
+  setChecked(root, "b-paid", false);
   // Sensible default times so staff only change them when it matters
   setTime(root, "b-start-time", "12:00");
   setTime(root, "b-end-time", "12:00");
@@ -436,6 +470,7 @@ function openBookingModal(bookingId, preset) {
     setVal(root, "b-managedby", editing.managedBy || "");
     setVal(root, "b-deliveredby", editing.deliveredBy || "");
     setVal(root, "b-notes", editing.notes || "");
+    setChecked(root, "b-paid", editing.paid === true);
     if (editing.customerId && state.customers.some(c => c.id === editing.customerId)) {
       csel.value = editing.customerId;
     } else {
@@ -530,7 +565,8 @@ async function saveBooking() {
       totalPrice: totalRaw === "" ? null : (parseFloat(totalRaw) || 0),
       managedBy: val(root, "b-managedby"),
       deliveredBy: val(root, "b-deliveredby"),
-      notes: val(root, "b-notes")
+      notes: val(root, "b-notes"),
+      paid: checked(root, "b-paid")
     };
 
     if (editingBookingId) {
@@ -540,7 +576,7 @@ async function saveBooking() {
       await addDoc(collection(db, "bookings"), {
         companyId: state.ctx.companyId, carId, customerId: customerId ?? null, renter, phone,
         startDate, endDate, dailyRate, carName, ...details,
-        paid: false, status: "open", createdAt: new Date().toISOString()
+        status: "open", createdAt: new Date().toISOString()
       });
     }
     closeModal(root, "booking-modal");
