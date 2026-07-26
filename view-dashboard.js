@@ -7,6 +7,7 @@ import {
   orderedCars, carStatus, currentBooking, serviceDue,
   bookingState, bookingCarLabel, buildSchedule,
   startTime, endTime, rentalTotal, balanceFor, securityHeld, settledAmount, hasStarted,
+  inPeriod, settledOn, PERIOD_DAYS,
   sharesStartHandover, sharesEndHandover,
   el
 } from "./store.js";
@@ -141,26 +142,24 @@ function renderMoney() {
   const unpaid = started.filter(b => !b.paid);
   const outstanding = unpaid.reduce((s, b) => s + balanceFor(b), 0);
 
-  const now = new Date();
-  const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  // What actually came in this month. This has to be the settled amount, not
-  // the rental total: an advance taken in an earlier month was received then,
-  // not now. Billing counts it the same way, so the two screens agree.
+  // What actually came in. This has to be the settled amount, not the rental
+  // total: an advance taken before the window was received then, not now.
+  // Billing counts it exactly the same way, so the two screens agree.
   const received = state.bookings
-    .filter(b => b.paid && (b.paidAt || "").startsWith(monthPrefix))
+    .filter(b => b.paid && inPeriod(settledOn(b)))
     .reduce((s, b) => s + settledAmount(b), 0);
 
-  // What this month's bookings are worth in total, settled or not
-  const monthValue = state.bookings
-    .filter(b => (b.startDate || "").startsWith(monthPrefix))
+  // What the period's rentals are worth in total, settled or not
+  const booked = state.bookings
+    .filter(b => inPeriod(b.startDate))
     .reduce((s, b) => s + rentalTotal(b), 0);
 
   const deposits = state.bookings.reduce((s, b) => s + securityHeld(b), 0);
 
   el(root, "money").innerHTML =
     figure("Outstanding", formatAmount(outstanding), "red", "billing") +
-    figure("Received this month", formatAmount(received), "green", "billing") +
-    figure("Booked this month", formatAmount(monthValue), "", "bookings") +
+    figure(`Received (${PERIOD_DAYS} days)`, formatAmount(received), "green", "billing") +
+    figure(`Booked (${PERIOD_DAYS} days)`, formatAmount(booked), "", "bookings") +
     figure("Deposits held", formatAmount(deposits), "blue", "billing");
 }
 
@@ -283,15 +282,13 @@ function renderServiceFigures() {
 }
 
 function renderCustomerFigures() {
-  const now = new Date();
-  const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const added = state.customers.filter(c => (c.createdAt || "").startsWith(monthPrefix)).length;
+  const added = state.customers.filter(c => inPeriod(c.createdAt)).length;
   const repeat = state.customers.filter(c =>
     state.bookings.filter(b => b.customerId === c.id).length > 1).length;
 
   el(root, "customer-figures").innerHTML =
     figure("On the register", state.customers.length, "", "customers") +
-    figure("Added this month", added, "blue", "customers") +
+    figure(`Added (${PERIOD_DAYS} days)`, added, "blue", "customers") +
     figure("Repeat renters", repeat, "green", "customers");
 }
 

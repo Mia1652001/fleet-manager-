@@ -5,7 +5,7 @@ import { updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/fireb
 import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
-  settledAmount, isBillable, hasStarted,
+  settledAmount, isBillable, hasStarted, inPeriod, settledOn, PERIOD_DAYS,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
@@ -77,18 +77,24 @@ export function render() {
   const unpaid = started.filter(b => !b.paid);
   const outstanding = unpaid.reduce((sum, b) => sum + balanceFor(b), 0);
 
-  const now = new Date();
-  const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const paidThisMonth = billable
-    .filter(b => b.paid && (b.paidAt || "").startsWith(monthPrefix))
+  // Money in over the window. settledOn() rather than paidAt directly, so
+  // bookings ticked as paid on the booking form are counted too.
+  const received = billable
+    .filter(b => b.paid && inPeriod(settledOn(b)))
     .reduce((sum, b) => sum + settledAmount(b), 0);
+
+  // What the period is worth in rentals, settled or not, by when they started.
+  const booked = billable
+    .filter(b => inPeriod(b.startDate))
+    .reduce((sum, b) => sum + rentalTotal(b), 0);
 
   const depositsHeld = billable.reduce((sum, b) => sum + securityHeld(b), 0);
 
   el(root, "stats").innerHTML = `
     <div class="stat"><div class="stat-label">Outstanding</div><div class="stat-val red">${formatAmount(outstanding)}</div></div>
     <div class="stat"><div class="stat-label">Unpaid invoices</div><div class="stat-val amber">${unpaid.length}</div></div>
-    <div class="stat"><div class="stat-label">Received this month</div><div class="stat-val green">${formatAmount(paidThisMonth)}</div></div>
+    <div class="stat"><div class="stat-label">Booked (${PERIOD_DAYS} days)</div><div class="stat-val">${formatAmount(booked)}</div></div>
+    <div class="stat"><div class="stat-label">Received (${PERIOD_DAYS} days)</div><div class="stat-val green">${formatAmount(received)}</div></div>
     <div class="stat"><div class="stat-label">Deposits held</div><div class="stat-val blue">${formatAmount(depositsHeld)}</div></div>
   `;
 

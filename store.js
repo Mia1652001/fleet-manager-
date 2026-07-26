@@ -182,6 +182,38 @@ export function settledAmount(b) {
   if (b.paid && typeof b.paidAmount === "number") return b.paidAmount;
   return balanceFor(b);
 }
+// ---------- The reporting period ----------
+// Calendar months do not suit this business: rentals routinely start in one
+// month and end in the next, so a month boundary cuts single rentals in half
+// and every figure lurches on the 1st. A rolling window ending today is steady
+// and always covers the same amount of trading.
+export const PERIOD_DAYS = 30;
+
+export function periodStart() {
+  const d = new Date();
+  d.setDate(d.getDate() - (PERIOD_DAYS - 1));   // today counts as day 1
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// True when a date falls inside the window. Accepts a plain date or a full
+// timestamp, so paidAt and startDate can both be passed straight in.
+export function inPeriod(dateStr) {
+  if (!dateStr) return false;
+  const d = String(dateStr).slice(0, 10);
+  return d >= periodStart() && d <= todayStr();
+}
+
+// The day a booking's money came in. Bookings ticked as paid on the booking
+// form before the app recorded a date have no paidAt at all, so fall back to
+// the day the rental ended — or, if it is still out, the day it went out,
+// since that is when cash normally changes hands.
+export function settledOn(b) {
+  if (b.paidAt) return String(b.paidAt).slice(0, 10);
+  const t = todayStr();
+  if (b.endDate && b.endDate <= t) return b.endDate;
+  return b.startDate || "";
+}
+
 // Has the rental actually begun? Only started rentals count towards money owed.
 export function hasStarted(b) {
   return b.startDate <= todayStr() || b.status === "completed";

@@ -142,6 +142,22 @@ export function openBookingModal(bookingId, preset) {
   openModal(root, "booking-modal");
 }
 
+// Ticking "Paid" here has to record when, or Billing cannot tell which period
+// the money belongs to. An existing date is kept, so editing a booking never
+// shifts money into a different period.
+function settlement() {
+  const isPaid = checked(root, "b-paid");
+  const previous = editingBookingId
+    ? state.bookings.find(x => x.id === editingBookingId)
+    : null;
+  if (!isPaid) return { paid: false, paidAt: null, paidAmount: null };
+  return {
+    paid: true,
+    paidAt: previous?.paidAt || new Date().toISOString(),
+    paidAmount: typeof previous?.paidAmount === "number" ? previous.paidAmount : null
+  };
+}
+
 async function saveBooking() {
   showError(root, "booking-error", null);
 
@@ -216,7 +232,7 @@ async function saveBooking() {
       managedBy: val(root, "b-managedby"),
       deliveredBy: val(root, "b-deliveredby"),
       notes: val(root, "b-notes"),
-      paid: checked(root, "b-paid"),
+      ...settlement(),
       barColour: getSwatch(root, "b-colour")
     };
 
