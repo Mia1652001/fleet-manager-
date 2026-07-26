@@ -6,7 +6,7 @@ import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr,
   orderedCars, carStatus, currentBooking, serviceDue,
   bookingState, bookingCarLabel, buildSchedule,
-  startTime, endTime, rentalTotal, balanceFor, securityHeld, hasStarted,
+  startTime, endTime, rentalTotal, balanceFor, securityHeld, settledAmount, hasStarted,
   sharesStartHandover, sharesEndHandover,
   el
 } from "./store.js";
@@ -143,9 +143,12 @@ function renderMoney() {
 
   const now = new Date();
   const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  // What actually came in this month. This has to be the settled amount, not
+  // the rental total: an advance taken in an earlier month was received then,
+  // not now. Billing counts it the same way, so the two screens agree.
   const received = state.bookings
     .filter(b => b.paid && (b.paidAt || "").startsWith(monthPrefix))
-    .reduce((s, b) => s + rentalTotal(b), 0);
+    .reduce((s, b) => s + settledAmount(b), 0);
 
   // What this month's bookings are worth in total, settled or not
   const monthValue = state.bookings

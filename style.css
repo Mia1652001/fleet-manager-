@@ -1008,3 +1008,19 @@ input:focus, select:focus { border-color: var(--text); }
 .dash-range { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 6px; }
 .dash-minnav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .dash-minnav .btn { padding: 4px 9px; font-size: 11px; }
+
+/* ---------- Wider planner on the Bookings view ----------
+   Lists and cards read better in a narrow centred column, so .main stays at
+   1080px. The planner is different: it is a grid, and every extra pixel is
+   another slice of calendar visible without scrolling sideways. So the planner
+   block alone steps outside the page column, up to 1700px, and never wider
+   than the window. min() makes it self-limiting, so phones are unaffected:
+   there the planner is already as wide as the column and nothing moves. */
+#view-bookings .cal-header,
+#view-bookings .timeline-wrap,
+#view-bookings .tl-legend,
+#view-bookings .calendar {
+  --planner-w: min(100vw - 3rem, 1700px);
+  width: var(--planner-w);
+  margin-left: calc(-1 * max(0px, (var(--planner-w) - 100%) / 2));
+}

@@ -25,7 +25,10 @@ const VIEWS = {
   tasks: { mod: tasks, root: null }
 };
 
-let started = false;
+// True once the interface has been wired up. This must never be set back to
+// false: the views stay in the DOM across a sign-out, so wiring them a second
+// time would attach a second copy of every click handler.
+let wired = false;
 let unsubs = [];
 
 // ---------- Boot ----------
@@ -34,7 +37,6 @@ onAuthStateChanged(auth, async (user) => {
 
   if (!user) {
     stopListeners();
-    started = false;
     showLogin();
     return;
   }
@@ -102,8 +104,8 @@ function startApp() {
   document.getElementById("app").style.display = "block";
   document.getElementById("company-label").textContent = state.ctx.companyName;
 
-  if (!started) {
-    started = true;
+  if (!wired) {
+    wired = true;
     document.getElementById("logout-btn").addEventListener("click", async () => {
       stopListeners();
       await signOut(auth);
@@ -125,8 +127,12 @@ function startApp() {
     wireTabDragging();
     wireExport();
     wireNav();
-    showView(currentViewFromHash());
   }
+
+  // Runs on every sign-in, not just the first: if a second person signs in on
+  // the same device without reloading, the screen has to be redrawn from their
+  // company's data rather than left showing the previous person's.
+  showView(currentViewFromHash());
 
   startListeners();
 }
