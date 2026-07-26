@@ -1,4 +1,8 @@
 // Bookings view — calendar and reservations with conflict prevention.
+//
+// The add/edit booking dialog itself lives in booking-form.js, shared with the
+// dashboard planner, so both screens open the same form and validate the same way.
+import { openBookingModal } from "./booking-form.js";
 import { db, setSync } from "./firebase-init.js";
 import { updateDoc, deleteDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
