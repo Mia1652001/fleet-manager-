@@ -264,6 +264,8 @@ function renderTimeline() {
 
   const cfg = zoomCfg();
   grid.style.gridTemplateColumns = `${cfg.label}px repeat(${DAYS * 2}, minmax(${cfg.half}px, 1fr))`;
+  // The sticky renter name pins just past this column, so it needs the width
+  grid.style.setProperty("--tl-label-w", cfg.label + "px");
 
   const dowShort = ["Su","Mo","Tu","We","Th","Fr","Sa"];
   let html = `<div class="tl-corner" style="grid-row:1;grid-column:1;">Vehicle</div>`;
@@ -284,7 +286,7 @@ function renderTimeline() {
     html += `<div class="tl-car ${oos ? "oos" : ""} ${due ? "due" : ""}" data-carrow="${car.id}" style="grid-row:${row};grid-column:1;">
       <span class="tl-grip" data-grip="${car.id}" title="Drag to reorder">⠿</span>
       <strong><a href="#fleet" class="tl-carlink" data-car="${car.id}"
-        title="Open this car on the Fleet view">${esc(`${car.make} ${car.model}`)}</a></strong>
+        title="Open this car on the Fleet view"><span class="car-hl"${car.rowColour ? ` style="background:${car.rowColour}"` : ""}>${esc(`${car.make} ${car.model}`)}</span></a></strong>
       <span>${esc(car.plate || "no plate")}${car.category ? " · " + esc(car.category) : ""}${due ? ' <span class="tl-duetag">service due</span>' : ""}</span>
     </div>`;
 

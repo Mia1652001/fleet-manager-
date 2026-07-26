@@ -5,7 +5,7 @@ import {
   state, onDataChange, esc, formatDate, todayStr, findClash, describeInterval,
   fillTimeOptions, getTime, setTime, onTimeChange,
   currentBooking, nextUpcoming, carStatus, serviceDue, openBookingsForCar,
-  orderedCars,
+  orderedCars, getSwatch, setSwatch,
   el, val, setVal, checked, setChecked, openModal, closeModal, showError
 } from "./store.js";
 
@@ -21,6 +21,13 @@ export function mount(container) {
   el(root, "sort").addEventListener("change", render);
   el(root, "add-car").addEventListener("click", () => openCarModal(null));
   el(root, "save-car").addEventListener("click", saveCar);
+
+  el(root, "c-rowcolour").addEventListener("click", (e) => {
+    const sw = e.target.closest(".swatch");
+    if (!sw) return;
+    e.preventDefault();
+    setSwatch(root, "c-rowcolour", sw.dataset.colour);
+  });
   el(root, "confirm-rent").addEventListener("click", confirmRent);
   fillTimeOptions(root, "r-start-time");
   fillTimeOptions(root, "r-end-time");
@@ -164,6 +171,7 @@ function openCarModal(id) {
   setVal(root, "c-category", c?.category || "");
   setVal(root, "c-colour", c?.colour || "");
   setChecked(root, "c-automatic", c?.automatic === true);
+  setSwatch(root, "c-rowcolour", c?.rowColour || "");
 
   // Treat an existing car's weekly/monthly figures as deliberate, so changing
   // the daily rate later will not silently overwrite them.
@@ -189,17 +197,18 @@ async function saveCar() {
   const category = val(root, "c-category");
   const colour = val(root, "c-colour");
   const automatic = checked(root, "c-automatic");
+  const rowColour = getSwatch(root, "c-rowcolour");
 
   const btn = el(root, "save-car");
   btn.disabled = true; btn.textContent = "Saving...";
   setSync("saving");
   try {
     if (editingCarId) {
-      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate, weeklyRate, monthlyRate, category, colour, automatic });
+      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate, weeklyRate, monthlyRate, category, colour, automatic, rowColour });
     } else {
       await addDoc(collection(db, "cars"), {
         companyId: state.ctx.companyId, make, model, year, plate,
-        dailyRate, weeklyRate, monthlyRate, category, colour, automatic
+        dailyRate, weeklyRate, monthlyRate, category, colour, automatic, rowColour
       });
     }
     closeModal(root, "car-modal");

@@ -435,8 +435,6 @@ input:focus, select:focus { border-color: var(--text); }
   font-size: 10px;
   line-height: 1.3;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   cursor: pointer;
   z-index: 1;
   border: 1px solid transparent;
@@ -519,7 +517,16 @@ input:focus, select:focus { border-color: var(--text); }
   font-weight: 500;
   font-size: 10px;      /* stated, not inherited, so nothing can rescale it */
   line-height: 1.3;
+
+  /* On a long booking the name would scroll off to the left, leaving a blank
+     bar. Sticking it just past the vehicle column keeps it in view for as long
+     as any part of the booking is on screen. */
+  position: sticky;
+  left: calc(var(--tl-label-w, 170px) + 10px);
 }
+
+/* Times and locations give way before the name does */
+.tl-bar-start, .tl-bar-end { min-width: 0; overflow: hidden; }
 
 .tl-bar-end { margin-left: auto; }
 
@@ -840,4 +847,16 @@ input:focus, select:focus { border-color: var(--text); }
   background: #2a2620;
   border-radius: 4px 4px 0 0;
   cursor: grabbing;
+}
+
+
+/* ---------- Car row colour (highlighter behind the name) ---------- */
+.tl-car .car-hl {
+  padding: 1px 5px;
+  border-radius: 3px;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
 }
