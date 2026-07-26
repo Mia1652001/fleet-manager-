@@ -1024,3 +1024,16 @@ input:focus, select:focus { border-color: var(--text); }
   width: var(--planner-w);
   margin-left: calc(-1 * max(0px, (var(--planner-w) - 100%) / 2));
 }
+
+/* ---------- Frozen dates and vehicle column ----------
+   Both are already position: sticky. The catch is that sticky pins to the
+   nearest scrolling box, and the planner had no height of its own — so
+   scrolling down scrolled the whole page and carried the date row away with
+   it. Giving the planner its own height makes the planner the thing that
+   scrolls: the dates stay pinned to its top edge and the vehicle names to its
+   left edge, both at the same time. max() sets a floor so it stays usable on a
+   short laptop screen or a phone. */
+#view-bookings .timeline-wrap {
+  max-height: max(380px, calc(100vh - 400px));
+  overflow-y: auto;
+}

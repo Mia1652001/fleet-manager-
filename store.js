@@ -435,7 +435,8 @@ export function setVal(root, name, v) {
 // legible against dark text, and a limited palette is easier to use as a code.
 export const BAR_COLOURS = [
   "#cfe8cf", "#f7e2b0", "#f5c9c9", "#c9dcf0",
-  "#ddd0ee", "#bfe5df", "#e8dcc0", "#d8d8d8"
+  "#ddd0ee", "#bfe5df", "#e8dcc0", "#d8d8d8",
+  "#5eff3d", "#ffff3d"          // fluorescent green and yellow
 ];
 
 export function getSwatch(root, name) {
