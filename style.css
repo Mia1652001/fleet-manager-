@@ -1092,3 +1092,48 @@ input:focus, select:focus { border-color: var(--text); }
   margin: -0.5rem 0 1.1rem;
   padding: 0 2px;
 }
+
+/* ================= Mobile refinements =================
+   Everything below is inside the phone breakpoint, so desktop is untouched.
+   The dashboard was designed at desktop width and its padding, type sizes and
+   heading rows were all a little oversized once squeezed into ~350px. */
+@media (max-width: 640px) {
+  /* Cards: 22px of the card's inner width was going to padding alone */
+  .dash-card { padding: 1rem 0.9rem 1.1rem; }
+  .dash-grid, .dash-grid-3 { gap: 10px; margin-bottom: 10px; }
+  .dash-wide { margin-bottom: 10px; }
+
+  /* Heading rows carry a title and a set of controls. On a phone they cannot
+     sit side by side, so let them stack instead of squeezing each other. */
+  .dash-head { flex-wrap: wrap; gap: 6px 10px; }
+  .dash-head h3 { font-size: 1rem; }
+  .dash-range { margin-left: 0; display: block; }
+
+  /* Figures: two per row, sized to match */
+  .dash-figures { gap: 8px; }
+  .dash-figure { padding: 4px 0; }
+  .dash-figure-val { font-size: 1.25rem; }
+  .dash-figure-label { font-size: 8px; letter-spacing: 0.07em; }
+
+  /* Alerts and rows */
+  .dash-alerts { gap: 6px; margin-bottom: 1rem; }
+  .dash-alert, .dash-allclear { font-size: 12px; padding: 10px 12px; }
+  .dash-job { gap: 8px; padding: 8px 2px; font-size: 11px; }
+  .dash-job-time { width: 34px; }
+  .dash-empty { font-size: 11px; padding: 8px 2px; }
+
+  /* A phone screen has less room to give a glance-only planner */
+  .dash-timeline { max-height: 260px; }
+
+  /* The Bookings planner breakout is a desktop trick: it assumed .main's 1.5rem
+     padding, but the phone breakpoint sets 0.9rem, which left the planner
+     narrower than every other block on the page. On a phone it simply fills the
+     column like everything else. */
+  #view-bookings .cal-header,
+  #view-bookings .timeline-wrap,
+  #view-bookings .tl-legend,
+  #view-bookings .calendar {
+    width: 100%;
+    margin-left: 0;
+  }
+}

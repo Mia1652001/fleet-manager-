@@ -18,6 +18,15 @@ let anchorOffset = -1;   // days relative to today for the first visible column
 
 function shiftAnchor(days) { anchorOffset += days; render(); }
 
+// The vehicle column and day columns were sized for a desktop card. Inside a
+// phone-width card that left 120px of the ~306px available to the car names,
+// squeezing a fortnight into the rest. Narrower on a phone, unchanged elsewhere.
+function miniColumns() {
+  return window.matchMedia("(max-width: 640px)").matches
+    ? { label: 84, half: 9 }
+    : { label: 120, half: 14 };
+}
+
 export function mount(container) {
   root = container;
 
@@ -45,6 +54,15 @@ export function mount(container) {
   el(root, "mini-prev").addEventListener("click", () => { shiftAnchor(-7); });
   el(root, "mini-next").addEventListener("click", () => { shiftAnchor(7); });
   el(root, "mini-today").addEventListener("click", () => { anchorOffset = -1; render(); });
+
+  // Rotating a phone or resizing changes which column sizes apply, so redraw.
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (root.classList.contains("active")) render();
+    }, 150);
+  });
 
   onDataChange(() => { if (root.classList.contains("active")) render(); });
 }
@@ -197,7 +215,9 @@ function renderMiniTimeline() {
     return;
   }
 
-  grid.style.gridTemplateColumns = `120px repeat(${DASH_DAYS * 2}, minmax(14px, 1fr))`;
+  const cols = miniColumns();
+  grid.style.gridTemplateColumns =
+    `${cols.label}px repeat(${DASH_DAYS * 2}, minmax(${cols.half}px, 1fr))`;
 
   const dow = ["Su","Mo","Tu","We","Th","Fr","Sa"];
   let html = `<div class="tl-corner" style="grid-row:1;grid-column:1;">Vehicle</div>`;
