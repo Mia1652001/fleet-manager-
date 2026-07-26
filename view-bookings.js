@@ -188,7 +188,7 @@ export function render() {
 // (the Summary panel opens and closes, and windows differ). So it is measured:
 // fill everything from the planner's top edge to the bottom of the window.
 const PLANNER_MIN_HEIGHT = 320;   // a short window still gets a usable planner
-const PLANNER_BOTTOM_GAP = 16;    // a hair of breathing room at the window edge
+const PLANNER_BOTTOM_GAP = 4;     // run right down to the window edge
 
 function fitPlannerHeight() {
   const wrap = el(root, "timeline-wrap");

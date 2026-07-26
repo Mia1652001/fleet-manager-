@@ -788,7 +788,12 @@ input:focus, select:focus { border-color: var(--text); }
 }
 
 /* ---------- Drag to reorder cars ---------- */
-.tl-car { position: relative; padding-left: 22px; }
+/* Padding only. This rule used to also set position: relative — to anchor the
+   drag grip — which silently cancelled the position: sticky set further up and
+   stopped the vehicle column freezing when scrolling sideways. A sticky element
+   anchors an absolutely positioned child just as well as a relative one, so the
+   grip is unaffected. */
+.tl-car { padding-left: 22px; }
 
 .tl-grip {
   position: absolute;
@@ -1061,6 +1066,10 @@ input:focus, select:focus { border-color: var(--text); }
   transition: color 0.12s, border-color 0.12s;
 }
 .panel-toggle:hover { color: var(--text); border-color: var(--text); }
+
+/* In the toolbar it is one control among several, so it drops the row spacing
+   and matches the height of the search box beside it. */
+.toolbar .panel-toggle { margin-bottom: 0; }
 
 #view-bookings.hide-summary .stats { display: none; }
 #view-bookings.hide-list .filter-row,
