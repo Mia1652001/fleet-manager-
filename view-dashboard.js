@@ -1,6 +1,7 @@
 // Dashboard — the morning overview. Everything here is derived from data the
 // other views already load, so it costs no extra database reads, and every
 // figure links through to the screen where you would act on it.
+import { openBookingModal } from "./booking-form.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr,
   orderedCars, carStatus, currentBooking, serviceDue,
@@ -12,15 +13,37 @@ import {
 
 let root = null;
 const DASH_DAYS = 14;
+let anchorOffset = -1;   // days relative to today for the first visible column
+
+function shiftAnchor(days) { anchorOffset += days; render(); }
 
 export function mount(container) {
   root = container;
 
-  // Any figure or row can be a shortcut to the page that owns it
+  // The planner here behaves exactly like the one on the Bookings page:
+  // tap a booking to edit it, tap an empty day to create one.
+  el(root, "mini").addEventListener("click", (e) => {
+    const bar = e.target.closest("[data-booking]");
+    if (bar) { openBookingModal(bar.dataset.booking); return; }
+
+    const cell = e.target.closest("[data-add-car]");
+    if (cell) { openBookingModal(null, { carId: cell.dataset.addCar, date: cell.dataset.addDate }); return; }
+
+    const car = e.target.closest("[data-carjump]");
+    if (car) { location.hash = "#fleet"; return; }
+  });
+
+  // Everything else on the dashboard is a shortcut to the page that owns it
   root.addEventListener("click", (e) => {
+    if (e.target.closest("[data-el='mini']")) return;   // planner handled above
     const go = e.target.closest("[data-goto]");
     if (go) { location.hash = "#" + go.dataset.goto; return; }
   });
+
+  // Prev / today / next for the planner window
+  el(root, "mini-prev").addEventListener("click", () => { shiftAnchor(-7); });
+  el(root, "mini-next").addEventListener("click", () => { shiftAnchor(7); });
+  el(root, "mini-today").addEventListener("click", () => { anchorOffset = -1; render(); });
 
   onDataChange(() => { if (root.classList.contains("active")) render(); });
 }
@@ -146,7 +169,7 @@ function renderMiniTimeline() {
   const days = [];
   const anchor = new Date();
   anchor.setHours(0, 0, 0, 0);
-  anchor.setDate(anchor.getDate() - 1);          // a day of context behind
+  anchor.setDate(anchor.getDate() + anchorOffset);
   for (let i = 0; i < DASH_DAYS; i++) {
     const d = new Date(anchor);
     d.setDate(d.getDate() + i);
@@ -177,7 +200,7 @@ function renderMiniTimeline() {
     const row = idx + 2;
     const oos = !!car.outOfService;
 
-    html += `<div class="tl-car" data-goto="bookings" style="grid-row:${row};grid-column:1;">
+    html += `<div class="tl-car" data-carjump="${car.id}" style="grid-row:${row};grid-column:1;">
       <strong><span class="car-hl"${car.rowColour ? ` style="background:${car.rowColour}"` : ""}>${esc(`${car.make} ${car.model}`)}</span></strong>
       <span class="tl-plate">${esc(car.plate || "no plate")}</span>
     </div>`;
@@ -185,11 +208,13 @@ function renderMiniTimeline() {
     days.forEach((d, i) => {
       const ds = dstr(d);
       const cls = ds === t ? "today" : (d.getDay() === 0 || d.getDay() === 6) ? "weekend" : "";
-      html += `<div class="tl-cell ${cls}" data-goto="bookings" style="grid-row:${row};grid-column:${i * 2 + 2} / span 2;"></div>`;
+      html += `<div class="tl-cell addable ${cls}" data-add-car="${car.id}" data-add-date="${ds}"
+        title="Add a booking for this car on ${formatDate(ds)}"
+        style="grid-row:${row};grid-column:${i * 2 + 2} / span 2;"></div>`;
     });
 
     if (oos) {
-      html += `<div class="tl-oos-bar" data-goto="bookings" style="grid-row:${row};grid-column:2 / ${DASH_DAYS * 2 + 2};">Out of service</div>`;
+      html += `<div class="tl-oos-bar" style="grid-row:${row};grid-column:2 / ${DASH_DAYS * 2 + 2};">Out of service</div>`;
     }
 
     state.bookings
@@ -206,7 +231,7 @@ function renderMiniTimeline() {
         const colE = e0 * 2 + 4 - (clipE ? 1 : 0);
         const custom = b.barColour ? `background:${b.barColour};color:#24201a;` : "";
 
-        html += `<div class="tl-bar ${st} ${b.barColour ? "custom" : ""}" data-goto="bookings"
+        html += `<div class="tl-bar ${st} ${b.barColour ? "custom" : ""}" data-booking="${b.id}"
           title="${esc(`${b.renter} · ${formatDate(b.startDate)} ${startTime(b)} – ${formatDate(b.endDate)} ${endTime(b)}`)}"
           style="grid-row:${row};grid-column:${colS} / ${colE};${custom}">
             <span class="tl-bar-name">${esc(b.renter || "")}</span>
@@ -215,6 +240,9 @@ function renderMiniTimeline() {
   });
 
   grid.innerHTML = html;
+
+  const fmt = d => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  el(root, "mini-range").textContent = `${fmt(days[0])} – ${fmt(days[days.length - 1])}`;
 }
 
 // ---------- Figures by page ----------

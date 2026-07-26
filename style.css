@@ -1004,3 +1004,7 @@ input:focus, select:focus { border-color: var(--text); }
   .dash-figures { grid-template-columns: repeat(2, 1fr); }
   .dash-figure-val { font-size: 1.4rem; }
 }
+
+.dash-range { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 6px; }
+.dash-minnav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dash-minnav .btn { padding: 4px 9px; font-size: 11px; }

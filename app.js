@@ -13,6 +13,7 @@ import * as billing from "./view-billing.js";
 import * as maintenance from "./view-maintenance.js";
 import * as tasks from "./view-tasks.js";
 import * as dashboard from "./view-dashboard.js";
+import { mountBookingForm, onBookingChange } from "./booking-form.js";
 
 const VIEWS = {
   dashboard: { mod: dashboard, root: null },
@@ -108,6 +109,11 @@ function startApp() {
       await signOut(auth);
       state.ctx = null; state.cars = []; state.bookings = []; state.customers = []; state.tasks = [];
     });
+
+    // The booking form is shared, so it is mounted once for the whole app
+    mountBookingForm();
+    // Saving from any planner should refresh whatever view is on screen
+    onBookingChange(() => notifyDataChange());
 
     // Mount every view once. They stay in the DOM; navigation just shows/hides.
     for (const [name, v] of Object.entries(VIEWS)) {
