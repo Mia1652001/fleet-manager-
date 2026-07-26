@@ -54,6 +54,13 @@ function zoomCfg() {
 function timelineDays() { return zoomCfg().days; }
 let timelineAnchor = null; // Date — first visible day in the timeline
 
+// Redrawing the planner rebuilds every cell, which loses the scroll position.
+// Most redraws are not the user's doing — a colleague saves a booking, a search
+// term is typed, the window is resized — and being thrown back to today in the
+// middle of reading August is maddening. So the position is put back afterwards,
+// except when the user has actually asked to move the window.
+let reanchored = true;   // the first draw should start at the left
+
 function freshAnchor() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -84,6 +91,8 @@ export function mount(container) {
   zoomEl.addEventListener("input", () => {
     zoom = Number(zoomEl.value);
     savePref("timelineZoom", zoom);
+    // Column widths change, so the old offset would land somewhere arbitrary
+    reanchored = true;
     render();
   });
 
@@ -117,15 +126,17 @@ export function mount(container) {
   });
 
   el(root, "cal-prev").addEventListener("click", () => {
-    if (planner === "timeline") { timelineAnchor.setDate(timelineAnchor.getDate() - 7); render(); }
-    else shiftMonth(-1);
+    if (planner === "timeline") {
+      timelineAnchor.setDate(timelineAnchor.getDate() - 7); reanchored = true; render();
+    } else shiftMonth(-1);
   });
   el(root, "cal-next").addEventListener("click", () => {
-    if (planner === "timeline") { timelineAnchor.setDate(timelineAnchor.getDate() + 7); render(); }
-    else shiftMonth(1);
+    if (planner === "timeline") {
+      timelineAnchor.setDate(timelineAnchor.getDate() + 7); reanchored = true; render();
+    } else shiftMonth(1);
   });
   el(root, "cal-today").addEventListener("click", () => {
-    if (planner === "timeline") { timelineAnchor = freshAnchor(); }
+    if (planner === "timeline") { timelineAnchor = freshAnchor(); reanchored = true; }
     else {
       const d = new Date();
       calYear = d.getFullYear(); calMonth = d.getMonth();
@@ -406,8 +417,17 @@ function renderTimeline() {
       });
   });
 
+  // Both axes: the planner scrolls vertically too now that it has a height.
+  const keepLeft = wrap.scrollLeft;
+  const keepTop = wrap.scrollTop;
   grid.innerHTML = html;
-  wrap.scrollLeft = 0; // the window itself is already anchored near today
+  if (reanchored) {
+    wrap.scrollLeft = 0;   // a new window, so start at its first day
+    reanchored = false;
+  } else {
+    wrap.scrollLeft = keepLeft;
+    wrap.scrollTop = keepTop;
+  }
 
   // Legend, added once, directly after the timeline
   if (!root.querySelector(".tl-legend")) {

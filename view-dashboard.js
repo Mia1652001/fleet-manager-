@@ -111,11 +111,20 @@ function renderAlerts(t) {
 // ---------- Today's deliveries and collections ----------
 function renderTodayJobs() {
   const t = todayStr();
-  const jobs = buildSchedule({ from: t, to: t, includeDone: false });
+  // buildSchedule deliberately hangs on to unfinished jobs from earlier days so
+  // the Tasks list can never lose one. This card is specifically about today and
+  // has room for six rows, so leftovers used to push the day's real work out of
+  // sight. They are counted and linked instead of listed.
+  const all = buildSchedule({ from: t, to: t, includeDone: false });
+  const jobs = all.filter(j => j.date === t);
+  const leftover = all.length - jobs.length;
+  const leftoverLink = leftover > 0
+    ? `<button class="dash-more" data-goto="tasks">+ ${leftover} unfinished from earlier days →</button>`
+    : "";
 
   const box = el(root, "today-jobs");
   if (jobs.length === 0) {
-    box.innerHTML = `<div class="dash-empty">No jobs scheduled today.</div>`;
+    box.innerHTML = `<div class="dash-empty">No jobs scheduled today.</div>` + leftoverLink;
     return;
   }
 
@@ -133,7 +142,8 @@ function renderTodayJobs() {
     </div>`).join("")
     + (jobs.length > shown.length
         ? `<button class="dash-more" data-goto="tasks">+ ${jobs.length - shown.length} more today →</button>`
-        : "");
+        : "")
+    + leftoverLink;
 }
 
 // ---------- Money ----------
