@@ -287,7 +287,7 @@ function renderTimeline() {
       <span class="tl-grip" data-grip="${car.id}" title="Drag to reorder">⠿</span>
       <strong><a href="#fleet" class="tl-carlink" data-car="${car.id}"
         title="Open this car on the Fleet view"><span class="car-hl"${car.rowColour ? ` style="background:${car.rowColour}"` : ""}>${esc(`${car.make} ${car.model}`)}</span></a></strong>
-      <span>${esc(car.plate || "no plate")}${car.category ? " · " + esc(car.category) : ""}${due ? ' <span class="tl-duetag">service due</span>' : ""}</span>
+      <span class="tl-plate">${esc(car.plate || "no plate")}${car.category ? " · " + esc(car.category) : ""}${due ? ' <span class="tl-duetag">service due</span>' : ""}</span>
     </div>`;
 
     days.forEach((d, i2) => {
