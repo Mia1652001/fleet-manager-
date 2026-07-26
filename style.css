@@ -1034,7 +1034,10 @@ input:focus, select:focus { border-color: var(--text); }
    left edge, both at the same time. max() sets a floor so it stays usable on a
    short laptop screen or a phone. */
 #view-bookings .timeline-wrap {
-  max-height: max(380px, calc(100vh - 400px));
+  /* Starting value only. view-bookings.js measures the space actually left
+     below the planner's top edge and sets an exact height, keeping it in step
+     when the window is resized or the Summary panel is opened. */
+  max-height: max(320px, calc(100vh - 340px));
   overflow-y: auto;
 }
 
