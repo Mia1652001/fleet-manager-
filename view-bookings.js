@@ -1,9 +1,10 @@
 // Bookings view — calendar and reservations with conflict prevention.
 import { db, setSync } from "./firebase-init.js";
-import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr, bookingCarLabel, bookingState,
   findClash, describeInterval, sharesStartHandover, sharesEndHandover, serviceDue,
+  orderedCars, loadPref, savePref,
   fillTimeOptions, getTime, setTime, onTimeChange,
   startTime, endTime, pickupLabel, dropoffLabel, rentalTotal,
   el, val, setVal, checked, setChecked, openModal, closeModal, showError
@@ -18,7 +19,19 @@ let planner = "timeline"; // "timeline" | "month"
 // The timeline shows a rolling window of dates (not tied to calendar months),
 // so it never dumps out a whole month of empty history on a wide screen.
 // It starts a few days before today and scrolls forward from there.
-const TIMELINE_DAYS = 21;
+// Each zoom step trades day width for how much of the calendar is visible.
+// Level 4 matches the original layout.
+const ZOOM_LEVELS = {
+  1: { days: 42, half: 9,  label: 90  },
+  2: { days: 35, half: 11, label: 110 },
+  3: { days: 28, half: 14, label: 140 },
+  4: { days: 21, half: 18, label: 170 },
+  5: { days: 14, half: 26, label: 200 }
+};
+
+let zoom = loadPref("timelineZoom", 4);
+function zoomCfg() { return ZOOM_LEVELS[zoom] || ZOOM_LEVELS[4]; }
+function timelineDays() { return zoomCfg().days; }
 let timelineAnchor = null; // Date — first visible day in the timeline
 
 function freshAnchor() {
@@ -52,6 +65,16 @@ export function mount(container) {
     el(root, n).addEventListener("change", keepReturnAfterPickup));
   onTimeChange(root, "b-start-time", keepReturnAfterPickup);
   onTimeChange(root, "b-end-time", keepReturnAfterPickup);
+
+  const zoomEl = el(root, "zoom");
+  zoomEl.value = String(zoom);
+  zoomEl.addEventListener("input", () => {
+    zoom = Number(zoomEl.value);
+    savePref("timelineZoom", zoom);
+    render();
+  });
+
+  setupCarDragging();
 
   el(root, "view-timeline").addEventListener("click", () => setPlanner("timeline"));
   el(root, "view-month").addEventListener("click", () => setPlanner("month"));
@@ -164,7 +187,8 @@ function renderTimeline() {
 
   // Build the rolling window of dates from the anchor
   const days = [];
-  for (let i = 0; i < TIMELINE_DAYS; i++) {
+  const DAYS = timelineDays();
+  for (let i = 0; i < DAYS; i++) {
     const d = new Date(timelineAnchor);
     d.setDate(d.getDate() + i);
     days.push(d);
@@ -185,8 +209,7 @@ function renderTimeline() {
   }
 
   const search = el(root, "search").value.trim().toLowerCase();
-  let cars = state.cars.slice().sort((a, b) =>
-    (a.make + a.model).localeCompare(b.make + b.model));
+  let cars = orderedCars();
 
   if (search) {
     // Keep a car if the car itself matches, or if any of its bookings do.
@@ -210,7 +233,8 @@ function renderTimeline() {
     return;
   }
 
-  grid.style.gridTemplateColumns = `170px repeat(${TIMELINE_DAYS * 2}, minmax(18px, 1fr))`;
+  const cfg = zoomCfg();
+  grid.style.gridTemplateColumns = `${cfg.label}px repeat(${DAYS * 2}, minmax(${cfg.half}px, 1fr))`;
 
   const dowShort = ["Su","Mo","Tu","We","Th","Fr","Sa"];
   let html = `<div class="tl-corner" style="grid-row:1;grid-column:1;">Vehicle</div>`;
@@ -228,7 +252,8 @@ function renderTimeline() {
     const oos = !!car.outOfService;
 
     const due = serviceDue(car);
-    html += `<div class="tl-car ${oos ? "oos" : ""} ${due ? "due" : ""}" style="grid-row:${row};grid-column:1;">
+    html += `<div class="tl-car ${oos ? "oos" : ""} ${due ? "due" : ""}" data-carrow="${car.id}" style="grid-row:${row};grid-column:1;">
+      <span class="tl-grip" data-grip="${car.id}" title="Drag to reorder">⠿</span>
       <strong><a href="#fleet" class="tl-carlink" data-car="${car.id}"
         title="Open this car on the Fleet view">${esc(`${car.make} ${car.model}`)}</a></strong>
       <span>${esc(car.plate || "no plate")}${car.category ? " · " + esc(car.category) : ""}${due ? ' <span class="tl-duetag">service due</span>' : ""}</span>
@@ -244,13 +269,13 @@ function renderTimeline() {
     });
 
     if (oos) {
-      html += `<div class="tl-oos-bar" style="grid-row:${row};grid-column:2 / ${TIMELINE_DAYS * 2 + 2};">Out of service</div>`;
+      html += `<div class="tl-oos-bar" style="grid-row:${row};grid-column:2 / ${DAYS * 2 + 2};">Out of service</div>`;
     }
 
     // Mark the service date itself, if it falls inside the visible window
     if (car.nextServiceDate && car.nextServiceDate >= first && car.nextServiceDate <= last) {
       const off = Math.round((new Date(car.nextServiceDate) - days[0]) / 86400000);
-      if (off >= 0 && off < TIMELINE_DAYS) {
+      if (off >= 0 && off < DAYS) {
         html += `<div class="tl-service" title="Service due ${formatDate(car.nextServiceDate)}"
           style="grid-row:${row};grid-column:${off * 2 + 2} / ${off * 2 + 4};">SERVICE</div>`;
       }
@@ -263,8 +288,8 @@ function renderTimeline() {
       .forEach(b => {
         // Clip the bar to the visible window, measured in day-offsets from the anchor
         const startOffset = b.startDate < first ? 0 : Math.round((new Date(b.startDate) - days[0]) / 86400000);
-        const endOffset = b.endDate > last ? TIMELINE_DAYS - 1 : Math.round((new Date(b.endDate) - days[0]) / 86400000);
-        if (!(endOffset >= 0 && startOffset <= TIMELINE_DAYS - 1 && endOffset >= startOffset)) return;
+        const endOffset = b.endDate > last ? DAYS - 1 : Math.round((new Date(b.endDate) - days[0]) / 86400000);
+        if (!(endOffset >= 0 && startOffset <= DAYS - 1 && endOffset >= startOffset)) return;
 
         const s = bookingState(b);
         const span = endOffset - startOffset + 1;
@@ -621,4 +646,90 @@ async function deleteBooking(id) {
   setSync("saving");
   try { await deleteDoc(doc(db, "bookings", id)); }
   catch (e) { alert("Couldn't delete (" + (e.code || e.message) + ")."); setSync("error"); }
+}
+
+// ---------- Reordering cars in the planner ----------
+// Pointer events rather than HTML5 drag-and-drop, because the latter does not
+// work on touch screens. Dragging starts only from the grip handle, so tapping
+// the car name still follows the link to the Fleet view.
+
+let dragCarId = null;
+let dragOverId = null;
+
+function setupCarDragging() {
+  const grid = el(root, "timeline");
+
+  grid.addEventListener("pointerdown", (e) => {
+    const grip = e.target.closest("[data-grip]");
+    if (!grip) return;
+    e.preventDefault();
+    dragCarId = grip.dataset.grip;
+    dragOverId = null;
+    grid.setPointerCapture(e.pointerId);
+    grid.classList.add("dragging");
+    markDragRow();
+  });
+
+  grid.addEventListener("pointermove", (e) => {
+    if (!dragCarId) return;
+    e.preventDefault();
+    const over = document.elementFromPoint(e.clientX, e.clientY);
+    const row = over && over.closest("[data-carrow]");
+    const id = row ? row.dataset.carrow : null;
+    if (id !== dragOverId) { dragOverId = id; markDragRow(); }
+  });
+
+  const finish = async (e) => {
+    if (!dragCarId) return;
+    const from = dragCarId, to = dragOverId;
+    dragCarId = null; dragOverId = null;
+    grid.classList.remove("dragging");
+    try { grid.releasePointerCapture(e.pointerId); } catch {}
+    clearDragMarks();
+    if (to && to !== from) await commitCarOrder(from, to);
+  };
+
+  grid.addEventListener("pointerup", finish);
+  grid.addEventListener("pointercancel", finish);
+}
+
+function markDragRow() {
+  clearDragMarks();
+  if (dragCarId) {
+    const r = root.querySelector(`[data-carrow="${dragCarId}"]`);
+    if (r) r.classList.add("drag-source");
+  }
+  if (dragOverId && dragOverId !== dragCarId) {
+    const r = root.querySelector(`[data-carrow="${dragOverId}"]`);
+    if (r) r.classList.add("drag-target");
+  }
+}
+
+function clearDragMarks() {
+  root.querySelectorAll(".drag-source, .drag-target")
+    .forEach(n => n.classList.remove("drag-source", "drag-target"));
+}
+
+// Moves one car to another's position and renumbers the whole fleet, so the
+// order is stable and shared with everyone in the company.
+async function commitCarOrder(fromId, toId) {
+  const list = orderedCars();
+  const fromIdx = list.findIndex(c => c.id === fromId);
+  const toIdx = list.findIndex(c => c.id === toId);
+  if (fromIdx < 0 || toIdx < 0) return;
+
+  const [moved] = list.splice(fromIdx, 1);
+  list.splice(toIdx, 0, moved);
+
+  setSync("saving");
+  try {
+    const batch = writeBatch(db);
+    list.forEach((c, i) => {
+      if (c.sortOrder !== i) batch.update(doc(db, "cars", c.id), { sortOrder: i });
+    });
+    await batch.commit();
+  } catch (e) {
+    alert("Couldn't save the new order (" + (e.code || e.message) + ").");
+    setSync("error");
+  }
 }

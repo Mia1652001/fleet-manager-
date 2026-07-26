@@ -742,3 +742,48 @@ input:focus, select:focus { border-color: var(--text); }
   cursor: default;
 }
 .job-kind.service { background: var(--blue-bg); color: var(--blue-text); }
+
+/* ---------- Timeline zoom control ---------- */
+.zoom-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 6px;
+}
+.zoom-control input[type="range"] {
+  width: 76px;
+  accent-color: var(--text);
+  cursor: pointer;
+}
+
+/* ---------- Drag to reorder cars ---------- */
+.tl-car { position: relative; padding-left: 22px; }
+
+.tl-grip {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--border);
+  font-size: 11px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;      /* let us handle the drag rather than scrolling */
+  line-height: 1;
+  padding: 4px 2px;
+}
+.tl-grip:hover { color: var(--muted); }
+.timeline.dragging .tl-grip { cursor: grabbing; }
+.timeline.dragging { user-select: none; }
+
+.tl-car.drag-source { background: var(--bg); opacity: 0.55; }
+.tl-car.drag-target { box-shadow: inset 0 -2px 0 0 var(--text); }
+
+@media (max-width: 640px) {
+  .zoom-control { display: none; }   /* zoom is a desktop refinement */
+  .tl-grip { font-size: 13px; padding: 6px 4px; }
+}

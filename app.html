@@ -67,6 +67,7 @@
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search car, plate, or renter...">
         <select data-el="sort">
+          <option value="custom">Sort: Planner order</option>
           <option value="name">Sort: Name</option>
           <option value="status">Sort: Status</option>
         </select>
@@ -158,7 +159,10 @@
         <div class="cal-nav">
           <button class="tab active" data-el="view-timeline">Timeline</button>
           <button class="tab" data-el="view-month">Month</button>
-          <span style="width:10px;display:inline-block;"></span>
+          <span class="zoom-control" data-el="zoom-wrap">
+            <label for="tl-zoom" title="Fewer, wider days or more, narrower days">Days</label>
+            <input type="range" id="tl-zoom" data-el="zoom" min="1" max="5" step="1" value="4">
+          </span>
           <button class="btn" data-el="cal-prev">‹ Prev</button>
           <button class="btn" data-el="cal-today">Today</button>
           <button class="btn" data-el="cal-next">Next ›</button>

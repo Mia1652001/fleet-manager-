@@ -5,6 +5,7 @@ import {
   state, onDataChange, esc, formatDate, todayStr, findClash, describeInterval,
   fillTimeOptions, getTime, setTime, onTimeChange,
   currentBooking, nextUpcoming, carStatus, serviceDue, openBookingsForCar,
+  orderedCars,
   el, val, setVal, checked, setChecked, openModal, closeModal, showError
 } from "./store.js";
 
@@ -78,7 +79,7 @@ export function render() {
   const search = el(root, "search").value.toLowerCase();
   const sort = el(root, "sort").value;
 
-  const withStatus = state.cars.map(c => ({ ...c, _status: carStatus(c), _booking: currentBooking(c.id) }));
+  const withStatus = orderedCars().map(c => ({ ...c, _status: carStatus(c), _booking: currentBooking(c.id) }));
   const available = withStatus.filter(c => c._status === "available").length;
   const service = withStatus.filter(c => c._status === "service").length;
   const rented = withStatus.filter(c => c._status === "rented" || c._status === "overdue").length;
@@ -98,8 +99,9 @@ export function render() {
     return mf && ms;
   });
 
+  // "custom" keeps the planner order that orderedCars() already applied
   if (sort === "name") list.sort((a, b) => (a.make + a.model).localeCompare(b.make + b.model));
-  else list.sort((a, b) => a._status.localeCompare(b._status));
+  else if (sort === "status") list.sort((a, b) => a._status.localeCompare(b._status));
 
   const listEl = el(root, "list");
   if (list.length === 0) {

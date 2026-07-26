@@ -389,6 +389,33 @@ export function onTimeChange(root, name, fn) {
   if (m) m.addEventListener("change", fn);
 }
 
+// ---------- Device preferences ----------
+// Interface choices (zoom level, panels hidden) belong to the device, not the
+// company, so they live in the browser rather than the database. Wrapped in
+// try/catch because private browsing can block storage entirely.
+export function loadPref(key, fallback) {
+  try {
+    const v = localStorage.getItem("fleet:" + key);
+    return v === null ? fallback : JSON.parse(v);
+  } catch { return fallback; }
+}
+export function savePref(key, value) {
+  try { localStorage.setItem("fleet:" + key, JSON.stringify(value)); } catch {}
+}
+
+// ---------- Car ordering ----------
+// Cars carry an explicit sortOrder so the planner can be arranged to match how
+// a company thinks about its fleet. Anything without one falls in after the
+// ordered cars, alphabetically, so existing fleets look unchanged until moved.
+export function orderedCars() {
+  return state.cars.slice().sort((a, b) => {
+    const ao = typeof a.sortOrder === "number" ? a.sortOrder : Number.MAX_SAFE_INTEGER;
+    const bo = typeof b.sortOrder === "number" ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+    if (ao !== bo) return ao - bo;
+    return `${a.make} ${a.model}`.localeCompare(`${b.make} ${b.model}`);
+  });
+}
+
 // ---------- Small DOM helpers ----------
 // Each view works inside its own container and uses data-el attributes,
 // so element names can repeat across views without clashing.
