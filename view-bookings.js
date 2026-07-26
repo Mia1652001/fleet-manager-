@@ -4,7 +4,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from "https
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr, bookingCarLabel, bookingState,
   findClash, describeInterval, sharesStartHandover, sharesEndHandover, serviceDue,
-  orderedCars, loadPref, savePref,
+  orderedCars, loadPref, savePref, getSwatch, setSwatch,
   fillTimeOptions, getTime, setTime, onTimeChange,
   startTime, endTime, pickupLabel, dropoffLabel, rentalTotal,
   el, val, setVal, checked, setChecked, openModal, closeModal, showError
@@ -72,6 +72,14 @@ export function mount(container) {
     zoom = Number(zoomEl.value);
     savePref("timelineZoom", zoom);
     render();
+  });
+
+  // Swatch group behaves like a set of radio buttons
+  el(root, "b-colour").addEventListener("click", (e) => {
+    const sw = e.target.closest(".swatch");
+    if (!sw) return;
+    e.preventDefault();
+    setSwatch(root, "b-colour", sw.dataset.colour);
   });
 
   setupCarDragging();
@@ -302,6 +310,11 @@ function renderTimeline() {
         const nameTxt = span >= 2 ? esc(b.renter || "") : "";
 
         const paidCls = b.paid ? "paid" : "unpaid";
+        // A custom colour replaces the status colour, but an overdue rental
+        // keeps a red outline so the warning is never hidden by a colour code.
+        const custom = b.barColour || "";
+        const customStyle = custom ? `background:${custom};color:#24201a;border-color:rgba(0,0,0,0.12);` : "";
+        const customCls = custom ? "custom" : "";
         const title =
           `${b.renter}\n` +
           `Out: ${formatDate(b.startDate)} ${startTime(b)}${b.pickupLocation ? " · " + b.pickupLocation : ""}\n` +
@@ -318,8 +331,8 @@ function renderTimeline() {
         const colStart = startOffset * 2 + 2 + (clipStart ? 1 : 0);
         const colEnd = endOffset * 2 + 4 - (clipEnd ? 1 : 0);
 
-        html += `<div class="tl-bar ${s} ${paidCls}" data-booking="${b.id}" title="${esc(title)}"
-          style="grid-row:${row};grid-column:${colStart} / ${colEnd};">
+        html += `<div class="tl-bar ${s} ${paidCls} ${customCls}" data-booking="${b.id}" title="${esc(title)}"
+          style="grid-row:${row};grid-column:${colStart} / ${colEnd};${customStyle}">
             ${startTxt ? `<span class="tl-bar-start">${esc(startTxt)}</span>` : ""}
             <span class="tl-bar-name">${b.paid ? "✓ " : ""}${nameTxt}</span>
             ${endTxt ? `<span class="tl-bar-end">${esc(endTxt)}</span>` : ""}
@@ -341,6 +354,7 @@ function renderTimeline() {
       <span><i class="tl-key oos"></i> Out of service</span>
       <span><i class="tl-key paid"></i> Paid</span>
       <span><i class="tl-key unpaid"></i> Unpaid</span>
+      <span><i class="tl-key custom"></i> Your own colour</span>
       <span style="opacity:0.7;">Tap a booking to edit it, or an empty day to add one</span>`;
     wrap.insertAdjacentElement("afterend", legend);
   }
@@ -479,6 +493,7 @@ function openBookingModal(bookingId, preset) {
    "b-pickup","b-dropoff","b-total","b-managedby","b-deliveredby","b-notes"]
     .forEach(n => setVal(root, n, ""));
   setChecked(root, "b-paid", false);
+  setSwatch(root, "b-colour", "");
   // Sensible default times so staff only change them when it matters
   setTime(root, "b-start-time", "12:00");
   setTime(root, "b-end-time", "12:00");
@@ -496,6 +511,7 @@ function openBookingModal(bookingId, preset) {
     setVal(root, "b-deliveredby", editing.deliveredBy || "");
     setVal(root, "b-notes", editing.notes || "");
     setChecked(root, "b-paid", editing.paid === true);
+    setSwatch(root, "b-colour", editing.barColour || "");
     if (editing.customerId && state.customers.some(c => c.id === editing.customerId)) {
       csel.value = editing.customerId;
     } else {
@@ -591,7 +607,8 @@ async function saveBooking() {
       managedBy: val(root, "b-managedby"),
       deliveredBy: val(root, "b-deliveredby"),
       notes: val(root, "b-notes"),
-      paid: checked(root, "b-paid")
+      paid: checked(root, "b-paid"),
+      barColour: getSwatch(root, "b-colour")
     };
 
     if (editingBookingId) {

@@ -787,3 +787,38 @@ input:focus, select:focus { border-color: var(--text); }
   .zoom-control { display: none; }   /* zoom is a desktop refinement */
   .tl-grip { font-size: 13px; padding: 6px 4px; }
 }
+
+/* ---------- Colour swatches ---------- */
+.swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.swatch {
+  width: 30px; height: 30px;
+  border-radius: 4px;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  padding: 0;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg);
+  transition: transform 0.1s, border-color 0.1s;
+}
+.swatch:hover { transform: translateY(-1px); }
+.swatch.selected { border-color: var(--text); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--text); }
+.swatch.auto { letter-spacing: 0; }
+
+/* A booking with its own colour: overdue still shows through as a red ring */
+.tl-bar.custom.overdue { box-shadow: 0 0 0 2px var(--red-text) inset; }
+.tl-key.custom {
+  background: linear-gradient(135deg, #cfe8cf 0 33%, #c9dcf0 33% 66%, #f7e2b0 66% 100%);
+  border: 1px solid var(--border);
+}
+
+/* ---------- Draggable tabs ---------- */
+#main-nav a { touch-action: pan-y; }
+#main-nav a.tab-dragging {
+  opacity: 0.6;
+  background: #2a2620;
+  border-radius: 4px 4px 0 0;
+  cursor: grabbing;
+}

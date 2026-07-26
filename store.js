@@ -430,6 +430,28 @@ export function setVal(root, name, v) {
   const e = el(root, name);
   if (e) e.value = v ?? "";
 }
+// ---------- Colour swatch groups ----------
+// A small set of fixed colours rather than a free colour picker: they stay
+// legible against dark text, and a limited palette is easier to use as a code.
+export const BAR_COLOURS = [
+  "#cfe8cf", "#f7e2b0", "#f5c9c9", "#c9dcf0",
+  "#ddd0ee", "#bfe5df", "#e8dcc0", "#d8d8d8"
+];
+
+export function getSwatch(root, name) {
+  const group = el(root, name);
+  if (!group) return "";
+  const sel = group.querySelector(".swatch.selected");
+  return sel ? sel.dataset.colour : "";
+}
+
+export function setSwatch(root, name, value) {
+  const group = el(root, name);
+  if (!group) return;
+  group.querySelectorAll(".swatch").forEach(b =>
+    b.classList.toggle("selected", b.dataset.colour === (value || "")));
+}
+
 export function checked(root, name) {
   const e = el(root, name);
   return e ? e.checked === true : false;

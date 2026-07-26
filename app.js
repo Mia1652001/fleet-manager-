@@ -4,7 +4,7 @@
 
 import { db, auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setSync } from "./firebase-init.js";
 import { collection, query, where, onSnapshot, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor } from "./store.js";
+import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, loadPref, savePref } from "./store.js";
 
 import * as fleet from "./view-fleet.js";
 import * as bookings from "./view-bookings.js";
@@ -113,6 +113,8 @@ function startApp() {
       v.mod.mount(v.root);
     }
 
+    applyTabOrder();
+    wireTabDragging();
     wireExport();
     wireNav();
     showView(currentViewFromHash());
@@ -286,4 +288,73 @@ function exportCarsCsv() {
       c.outOfService ? "Yes" : "No", c.notes_maint || ""
     ]);
   download(`cars-${safeName()}-${stamp()}.csv`, toCsv(headers, rows), "text/csv");
+}
+
+// ---------- Tab order ----------
+// Which order the tabs appear in is a personal working preference, so it is
+// stored on the device rather than shared with the whole company.
+
+function applyTabOrder() {
+  const saved = loadPref("tabOrder", null);
+  if (!Array.isArray(saved)) return;
+  const nav = document.getElementById("main-nav");
+  saved.forEach(name => {
+    const link = nav.querySelector(`a[data-view="${name}"]`);
+    if (link) nav.appendChild(link);      // re-appending puts it last, in order
+  });
+}
+
+function currentTabOrder() {
+  return Array.from(document.querySelectorAll("#main-nav a[data-view]"))
+    .map(a => a.dataset.view);
+}
+
+function wireTabDragging() {
+  const nav = document.getElementById("main-nav");
+  let dragEl = null, startX = 0, moved = false;
+  const THRESHOLD = 6;   // small movements are taps, not drags
+
+  nav.addEventListener("pointerdown", (e) => {
+    const link = e.target.closest("a[data-view]");
+    if (!link) return;
+    dragEl = link; startX = e.clientX; moved = false;
+  });
+
+  nav.addEventListener("pointermove", (e) => {
+    if (!dragEl) return;
+    if (!moved && Math.abs(e.clientX - startX) < THRESHOLD) return;
+
+    if (!moved) {
+      moved = true;
+      dragEl.classList.add("tab-dragging");
+      nav.setPointerCapture(e.pointerId);
+    }
+    e.preventDefault();
+
+    const over = document.elementFromPoint(e.clientX, e.clientY);
+    const target = over && over.closest("#main-nav a[data-view]");
+    if (target && target !== dragEl) {
+      // Insert before or after depending on which way we are moving
+      const rect = target.getBoundingClientRect();
+      const after = e.clientX > rect.left + rect.width / 2;
+      target.parentNode.insertBefore(dragEl, after ? target.nextSibling : target);
+    }
+  });
+
+  const end = (e) => {
+    if (!dragEl) return;
+    const wasDragging = moved;
+    dragEl.classList.remove("tab-dragging");
+    try { nav.releasePointerCapture(e.pointerId); } catch {}
+    dragEl = null; moved = false;
+    if (wasDragging) {
+      savePref("tabOrder", currentTabOrder());
+      // Swallow the click that follows the drag, so the tab does not also switch
+      const swallow = ev => { ev.preventDefault(); ev.stopPropagation(); };
+      nav.addEventListener("click", swallow, { capture: true, once: true });
+    }
+  };
+
+  nav.addEventListener("pointerup", end);
+  nav.addEventListener("pointercancel", end);
 }
