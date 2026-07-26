@@ -203,15 +203,28 @@ export function inPeriod(dateStr) {
   return d >= periodStart() && d <= todayStr();
 }
 
-// The day a booking's money came in. Bookings ticked as paid on the booking
-// form before the app recorded a date have no paidAt at all, so fall back to
-// the day the rental ended — or, if it is still out, the day it went out,
-// since that is when cash normally changes hands.
+// The day a booking's money came in, as well as it can be known. Bookings
+// ticked as paid on the booking form before the app recorded a date have no
+// paidAt at all, so it is inferred — and the answer can never be in the future,
+// because money marked as received has already been received.
 export function settledOn(b) {
   if (b.paidAt) return String(b.paidAt).slice(0, 10);
   const t = todayStr();
+
+  // Rental finished: settled by the time the car came back, at the latest.
   if (b.endDate && b.endDate <= t) return b.endDate;
-  return b.startDate || "";
+
+  // Car still out: cash normally changes hands at pick-up.
+  if (b.startDate && b.startDate <= t) return b.startDate;
+
+  // Not started yet but marked paid, so it was paid in advance. The rental
+  // dates are no use here — they are both in the future — so fall back to the
+  // day the booking was entered, which is the earliest the money could have
+  // arrived. Without that, prepayments counted as received on a future date
+  // and dropped out of the period entirely.
+  const created = b.createdAt ? String(b.createdAt).slice(0, 10) : "";
+  if (created && created <= t) return created;
+  return t;
 }
 
 // Has the rental actually begun? Only started rentals count towards money owed.
