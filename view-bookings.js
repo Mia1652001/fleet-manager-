@@ -61,7 +61,10 @@ function zoomCfg() {
   // how far the window reached and not how much of it you could see at once.
   // Scaling keeps the trade real — from about eighteen days visible at the loose
   // end down to six wide ones at the tight end.
-  return { ...cfg, label: 88, half: Math.max(7, Math.round(cfg.half * 0.72)) };
+  // The floor is 8 rather than 7 so that even at the loosest setting a one-day
+  // bar is wide enough for a character: at 7 it came out 14px, narrower than a
+  // single letter, and rendered as an empty coloured block.
+  return { ...cfg, label: 88, half: Math.max(8, Math.round(cfg.half * 0.72)) };
 }
 
 function timelineDays() { return zoomCfg().days; }
@@ -74,17 +77,31 @@ function syncZoomLabel() {
   if (out) out.textContent = `${timelineDays()}d`;
 }
 
-// Roughly how wide some text renders in the bar labels. DM Mono is monospaced,
-// so character count is a reliable proxy: at 9px the advance width is about
-// 5.4px, plus the padding each label carries. Good enough to decide whether a
-// label fits, which is all it is used for.
-const BAR_CHAR_PX = 5.4;
-const BAR_LABEL_PAD = 8;
-const NAME_ROOM = 44;          // the least width worth giving the renter's name
+// Roughly how wide the bar labels render. DM Mono is monospaced, so character
+// count is a reliable proxy — but only against the right font size, and the bars
+// are set smaller on a phone than on a desktop. Measuring everything at the
+// desktop size over-estimated what a phone label needs by more than a tenth,
+// which hid text that would in fact have fitted.
+//
+// pad is what the bar spends on its own side padding; gap is the space before
+// each label that follows another. Counted separately because a bar carrying
+// only a name pays no gaps at all — lumping them into one figure charged every
+// bar for spacing it was not using, which is why the shortest bars came out
+// completely empty.
+const BAR_METRICS = {
+  wide:   { charPx: 5.4, pad: 14, gap: 6 },   // 9px labels, 7px side padding
+  narrow: { charPx: 4.8, pad: 10, gap: 4 }    // 8px labels, 5px side padding
+};
 
-function textWidth(parts) {
-  return parts.reduce(
-    (sum, t) => sum + (t ? t.length * BAR_CHAR_PX + BAR_LABEL_PAD : 0), 0);
+function barMetrics() {
+  return isNarrowScreen() ? BAR_METRICS.narrow : BAR_METRICS.wide;
+}
+
+// Room the end labels take, including the gap each one introduces.
+function endsWidth(parts) {
+  const m = barMetrics();
+  const shown = parts.filter(Boolean);
+  return shown.reduce((n, t) => n + t.length, 0) * m.charPx + shown.length * m.gap;
 }
 let timelineAnchor = null; // Date — first visible day in the timeline
 
@@ -458,7 +475,8 @@ function renderTimeline() {
         // the labels are measured rather than guessed at. Falling back through
         // location+time, then time alone, then just the name means a bar shows as
         // much as it can hold instead of dropping straight to nothing.
-        const barPx = span * dayPx;
+        // Room for text is the bar minus its own side padding.
+        const inner = span * dayPx - barMetrics().pad;
         const full = [pickupLabel(b), dropoffLabel(b)];
         const times = [startTime(b), endTime(b)];
 
@@ -467,12 +485,17 @@ function renderTimeline() {
         // filled first and the name takes whatever room is left over — which is
         // what lets a short booking show its locations at all.
         let ends = [];
-        if (barPx >= textWidth(full)) ends = full;
-        else if (barPx >= textWidth(times)) ends = times;
+        if (inner >= endsWidth(full)) ends = full;
+        else if (inner >= endsWidth(times)) ends = times;
         const [startTxt = "", endTxt = ""] = ends;
 
-        const nameTxt = (barPx - textWidth(ends)) >= NAME_ROOM
-          ? esc(b.renter || "") : "";
+        // The name is always rendered and left to truncate in whatever room the
+        // ends did not take. Gating it on a pixel budget as well meant a short
+        // booking on a phone came out completely blank — a coloured bar with no
+        // text at all, which reads as a fault rather than as a bar too small to
+        // label. Even two letters and an ellipsis identify which rental it is,
+        // and the tooltip still carries the full detail.
+        const nameTxt = esc(b.renter || "");
 
         const paidCls = b.paid ? "paid" : "unpaid";
         // A custom colour replaces the status colour, but an overdue rental

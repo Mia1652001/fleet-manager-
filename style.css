@@ -512,6 +512,9 @@ input:focus, select:focus { border-color: var(--text); }
   display: flex;
   align-items: center;
   gap: 6px;
+  /* The end labels do not shrink, so anything that will not fit has to be cut
+     off at the bar's edge rather than spilling across the next day's column. */
+  overflow: hidden;
 }
 
 .tl-bar-start, .tl-bar-end {
