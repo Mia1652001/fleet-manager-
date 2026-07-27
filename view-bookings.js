@@ -200,20 +200,9 @@ export function mount(container) {
   // Reaching 2027 by pressing Next twenty-six times is not reasonable. A month
   // input jumps straight to any month of any year, and on a phone it opens the
   // native month-and-year wheel rather than a text field.
-  el(root, "cal-jump").addEventListener("change", () => {
-    const v = val(root, "cal-jump");                 // format is "2027-03"
-    const m = /^(\d{4})-(\d{2})$/.exec(v);
-    if (!m) return;
-    const year = Number(m[1]), monthIndex = Number(m[2]) - 1;
-    if (monthIndex < 0 || monthIndex > 11) return;
-    if (planner === "timeline") {
-      timelineAnchor = new Date(year, monthIndex, 1);
-      reanchored = true;                             // a new window starts at its first day
-    } else {
-      calYear = year; calMonth = monthIndex;
-    }
-    render();
-  });
+  buildJumpOptions();
+  el(root, "jump-month").addEventListener("change", jumpToChosenMonth);
+  el(root, "jump-year").addEventListener("change", jumpToChosenMonth);
 
   el(root, "cal-today").addEventListener("click", () => {
     if (planner === "timeline") { timelineAnchor = freshAnchor(); reanchored = true; }
@@ -268,10 +257,64 @@ export function render() {
   else renderCalendar();
   // After the planner is drawn, so the readout can measure a laid-out element.
   syncZoomLabel();
+  syncJumpSelects();
   updateToggleLabels();
   // A closed panel is not drawn at all, so a long booking list costs nothing
   // while it is put away.
   if (showList) renderList();
+}
+
+// ---------- Jump to a month ----------
+// Reaching next March by pressing Next twenty-odd times is not reasonable, so
+// the month and year can be picked directly. Two selects rather than a month
+// input, because Safari does not support that input and shows an empty text box
+// instead — which is worse than having no control at all, since it looks like
+// something that ought to work.
+
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun",
+                     "Jul","Aug","Sep","Oct","Nov","Dec"];
+const JUMP_YEARS_BACK = 1;
+const JUMP_YEARS_FORWARD = 3;
+
+function buildJumpOptions() {
+  const thisYear = new Date().getFullYear();
+  el(root, "jump-month").innerHTML =
+    MONTH_NAMES.map((m, i) => `<option value="${i}">${m}</option>`).join("");
+
+  const years = [];
+  for (let y = thisYear - JUMP_YEARS_BACK; y <= thisYear + JUMP_YEARS_FORWARD; y++) years.push(y);
+  el(root, "jump-year").innerHTML =
+    years.map(y => `<option value="${y}">${y}</option>`).join("");
+}
+
+// Keeps the two selects showing where the planner currently is, so they read as
+// a position rather than an empty control waiting for input.
+function syncJumpSelects() {
+  const d = planner === "timeline"
+    ? (timelineAnchor || new Date())
+    : new Date(calYear, calMonth, 1);
+  const ms = el(root, "jump-month");
+  const ys = el(root, "jump-year");
+  if (!ms || !ys) return;
+  ms.value = String(d.getMonth());
+  // Only if that year is on the list; scrolling far out should not blank it.
+  if ([...ys.options].some(o => o.value === String(d.getFullYear()))) {
+    ys.value = String(d.getFullYear());
+  }
+}
+
+function jumpToChosenMonth() {
+  const monthIndex = Number(el(root, "jump-month").value);
+  const year = Number(el(root, "jump-year").value);
+  if (!Number.isInteger(monthIndex) || !Number.isInteger(year)) return;
+
+  if (planner === "timeline") {
+    timelineAnchor = new Date(year, monthIndex, 1);
+    reanchored = true;          // a new window starts at its first day
+  } else {
+    calYear = year; calMonth = monthIndex;
+  }
+  render();
 }
 
 // ---------- Planner height ----------

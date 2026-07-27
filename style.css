@@ -1195,18 +1195,18 @@ input:focus, select:focus { border-color: var(--text); }
 /* Jump straight to any month and year instead of pressing Next repeatedly. On a
    phone this opens the native month-and-year wheel. Styled to sit quietly
    alongside the Prev / Today / Next buttons rather than shout. */
-.cal-jump {
+.cal-jump { display: inline-flex; gap: 4px; }
+.cal-jump select {
   font-family: 'DM Mono', monospace;
   font-size: 11px;
   color: var(--text);
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 4px 8px;
+  padding: 4px 6px;
   cursor: pointer;
-  max-width: 150px;
 }
-.cal-jump:hover { border-color: var(--text); }
+.cal-jump select:hover { border-color: var(--text); }
 
 /* Phone: the date row shrinks so a month of planning is visible at once, which
    matters more here than on desktop because there is no room for the Days
@@ -1214,7 +1214,7 @@ input:focus, select:focus { border-color: var(--text); }
 @media (max-width: 640px) {
   .tl-daynum { font-size: 8px; letter-spacing: 0; }
   .tl-daynum .dow { font-size: 7px; }
-  .cal-jump { font-size: 10px; padding: 3px 6px; max-width: 128px; }
+  .cal-jump select { font-size: 10px; padding: 3px 5px; }
 }
 
 /* The summary tiles on the other views carry long values too — a formatted

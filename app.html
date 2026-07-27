@@ -274,8 +274,14 @@
             <input type="range" id="tl-zoom" data-el="zoom" min="1" max="5" step="1" value="4">
             <span class="zoom-count" data-el="zoom-count"></span>
           </span>
-          <input type="month" class="cal-jump" data-el="cal-jump"
-                 title="Jump to any month and year">
+          <!-- Two plain selects rather than <input type="month">: Safari, on the
+               desktop and on the iPhone, does not support that input and quietly
+               renders it as an empty text box that does nothing. Selects work
+               the same in every browser and open a native wheel on a phone. -->
+          <span class="cal-jump">
+            <select data-el="jump-month" title="Jump to a month"></select>
+            <select data-el="jump-year" title="Jump to a year"></select>
+          </span>
           <button class="btn" data-el="cal-prev">‹ Prev</button>
           <button class="btn" data-el="cal-today">Today</button>
           <button class="btn" data-el="cal-next">Next ›</button>
