@@ -21,9 +21,11 @@ const BADGE = {
 let root = null;
 let summaryOpen = () => true;   // set on mount; see initPanelToggle
 let filter = "unpaid";
-// "" is every date, "2027" a whole year, "2027-02" a single month. The value is
-// a plain date prefix, so filtering is a startsWith and cannot go wrong.
-let period = "";
+// Both default to "", meaning no restriction. They work independently: a year
+// alone gives that whole year, a month alone gives that month in every year, and
+// the two together give one month of one year.
+let periodYear = "";
+let periodMonth = "";
 let depositBookingId = null;
 
 export function mount(container) {
@@ -33,9 +35,12 @@ export function mount(container) {
   // first on screen — the phone screens had almost nothing else visible.
   summaryOpen = initPanelToggle(root, "billingShowSummary", "toggle-summary", "hide-summary", "Summary");
 
-  el(root, "period").addEventListener("change", () => {
-    period = el(root, "period").value;
-    render();
+  buildMonthOptions();
+  el(root, "period-year").addEventListener("change", () => {
+    periodYear = el(root, "period-year").value; render();
+  });
+  el(root, "period-month").addEventListener("change", () => {
+    periodMonth = el(root, "period-month").value; render();
   });
 
   el(root, "search").addEventListener("input", render);
@@ -129,7 +134,11 @@ export function render() {
 
   const listEl = el(root, "list");
   if (list.length === 0) {
-    listEl.innerHTML = '<div class="empty">No invoices here. Invoices appear when a booking starts.</div>';
+    // Say which period is empty, or "February 2026 shows nothing" looks like a
+    // fault rather than an accurate answer.
+    listEl.innerHTML = (periodYear || periodMonth)
+      ? `<div class="empty">No invoices in ${esc(periodLabel())}. Widen the period above to see more.</div>`
+      : '<div class="empty">No invoices here. Invoices appear when a booking starts.</div>';
     return;
   }
 
@@ -202,53 +211,52 @@ function matchesSearch(b, search) {
 const MONTHS = ["January","February","March","April","May","June",
                 "July","August","September","October","November","December"];
 
-// Every option is built from dates that genuinely have invoices behind them, so
-// there is no way to select a period that comes back empty, and no way to pick a
-// month without the year it belongs to.
-function refreshPeriodOptions() {
-  const sel = el(root, "period");
-
-  // Which months, per year, actually have something in them
-  const byYear = new Map();
-  state.bookings.filter(isBillable).forEach(b => {
-    const d = b.startDate || "";
-    if (!/^\d{4}-\d{2}/.test(d)) return;
-    const y = d.slice(0, 4), m = d.slice(5, 7);
-    if (!byYear.has(y)) byYear.set(y, new Set());
-    byYear.get(y).add(m);
-  });
-
-  const years = [...byYear.keys()].sort().reverse();
-  const signature = years.map(y => y + ":" + [...byYear.get(y)].sort().join("")).join("|");
-  if (sel.dataset.built === signature) return;   // nothing new; leave the choice alone
-
-  sel.innerHTML =
-    `<option value="">All dates</option>` +
-    years.map(y => {
-      const months = [...byYear.get(y)].sort().reverse();
-      return `<optgroup label="${y}">` +
-        `<option value="${y}">Whole of ${y}</option>` +
-        months.map(m => `<option value="${y}-${m}">${MONTHS[Number(m) - 1]} ${y}</option>`).join("") +
-        `</optgroup>`;
-    }).join("");
-
-  sel.dataset.built = signature;
-  // Keep the current choice if it still exists, otherwise fall back to all dates
-  if ([...sel.querySelectorAll("option")].some(o => o.value === period)) sel.value = period;
-  else { period = ""; sel.value = ""; }
+// All twelve months, always. An earlier version listed only months that already
+// had invoices, which meant most of the year was simply missing from the menu.
+function buildMonthOptions() {
+  el(root, "period-month").innerHTML =
+    `<option value="">All months</option>` +
+    MONTHS.map((m, i) =>
+      `<option value="${String(i + 1).padStart(2, "0")}">${m}</option>`).join("");
 }
 
-// The value is a date prefix, so this is simply "does the start date begin with
-// what was chosen" — "2027" matches the year, "2027-02" matches the month.
+// Years the company has bookings in, plus a couple either side of today so
+// forward planning is possible before anything is booked that far ahead.
+function refreshPeriodOptions() {
+  const sel = el(root, "period-year");
+  const thisYear = new Date().getFullYear();
+  const years = new Set([thisYear - 1, thisYear, thisYear + 1, thisYear + 2]);
+  state.bookings.filter(isBillable).forEach(b => {
+    const y = (b.startDate || "").slice(0, 4);
+    if (/^\d{4}$/.test(y)) years.add(Number(y));
+  });
+
+  const sorted = [...years].sort((a, b) => b - a);
+  const signature = sorted.join(",");
+  if (sel.dataset.built === signature) return;   // unchanged; leave the choice alone
+
+  sel.innerHTML = `<option value="">All years</option>` +
+    sorted.map(y => `<option value="${y}">${y}</option>`).join("");
+  sel.dataset.built = signature;
+  sel.value = periodYear;
+}
+
+// The two conditions are checked separately, which is what lets either one work
+// on its own. The previous version made the month meaningless unless a year was
+// also chosen, so picking "October" quietly filtered nothing at all.
 function inChosenPeriod(b) {
-  if (!period) return true;
-  return (b.startDate || "").startsWith(period);
+  const d = b.startDate || "";
+  if (periodYear && d.slice(0, 4) !== periodYear) return false;
+  if (periodMonth && d.slice(5, 7) !== periodMonth) return false;
+  return true;
 }
 
 function periodLabel() {
-  if (!period) return "all dates";
-  if (period.length === 4) return period;
-  return `${MONTHS[Number(period.slice(5, 7)) - 1]} ${period.slice(0, 4)}`;
+  const m = periodMonth ? MONTHS[Number(periodMonth) - 1] : "";
+  if (m && periodYear) return `${m} ${periodYear}`;
+  if (m) return `every ${m}`;
+  if (periodYear) return periodYear;
+  return "all dates";
 }
 
 function invoicesFor(f, search) {
@@ -282,7 +290,7 @@ function renderListTotals(list) {
 
   // Naming the period matters: without it a filtered total looks like the whole
   // picture, and someone could read "3 invoices" as the company's entire ledger.
-  const scope = period ? ` · ${periodLabel()}` : "";
+  const scope = (periodYear || periodMonth) ? ` · ${periodLabel()}` : "";
   el(root, "list-total").textContent = `${count}${scope} · ${money}`;
 }
 
