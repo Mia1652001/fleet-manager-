@@ -1433,6 +1433,8 @@ input:focus, select:focus { border-color: var(--text); }
 .period-row select {
   font-family: 'DM Mono', monospace;
   font-size: 11px;
+  /* Labels now read "October 2026" rather than a bare month, so give it room */
+  min-width: 155px;
   color: var(--text);
   background: transparent;
   border: 1px solid var(--border);

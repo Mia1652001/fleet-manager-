@@ -361,11 +361,12 @@
       </div>
       <!-- Narrows the list to a month or a year, so it does not grow without
            limit as the business builds up history. -->
+      <!-- One control, built from the dates that actually have invoices. Two
+           selects meant a month could be picked with no year, which quietly
+           filtered nothing at all — every combination offered here is real. -->
       <div class="period-row">
-        <label for="bill-month">Period</label>
-        <select id="bill-month" data-el="period-month"></select>
-        <select data-el="period-year"></select>
-        <button class="btn" data-el="period-clear" type="button">All dates</button>
+        <label for="bill-period">Period</label>
+        <select id="bill-period" data-el="period"></select>
       </div>
       <div class="list-total" data-el="list-total"></div>
       <div class="card-list" data-el="list"><div class="loading-screen">Loading invoices...</div></div>
