@@ -48,6 +48,9 @@ function isNarrowScreen() {
   return window.matchMedia("(max-width: 640px)").matches;
 }
 
+// Half-column widths for phones, one per slider position. A day is two of these.
+const MOBILE_HALF = { 1: 10, 2: 12, 3: 15, 4: 19, 5: 26 };
+
 function zoomCfg() {
   const cfg = ZOOM_LEVELS[zoom] || ZOOM_LEVELS[4];
   if (!isNarrowScreen()) return cfg;
@@ -64,7 +67,17 @@ function zoomCfg() {
   // The floor is 8 rather than 7 so that even at the loosest setting a one-day
   // bar is wide enough for a character: at 7 it came out 14px, narrower than a
   // single letter, and rendered as an empty coloured block.
-  return { ...cfg, label: 88, half: Math.max(8, Math.round(cfg.half * 0.72)) };
+  // Phone widths are listed out one by one rather than scaled from the desktop
+  // numbers, because what matters here is how many days land on screen and that
+  // is easier to reason about directly. Against the usable width of a typical
+  // phone — about 260px once the vehicle column is taken off — these give
+  // roughly 13 days on screen at the loosest setting down to 5 wide ones at the
+  // tightest, with the range still running from 42 days to 14.
+  //
+  // The loosest setting is deliberately about a fortnight on screen rather than
+  // as many days as will physically fit: past that the columns are too narrow to
+  // carry a booking bar with any text in it, which is not a useful overview.
+  return { ...cfg, label: 88, half: MOBILE_HALF[zoom] || MOBILE_HALF[3] };
 }
 
 function timelineDays() { return zoomCfg().days; }

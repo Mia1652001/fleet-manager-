@@ -463,6 +463,9 @@ input:focus, select:focus { border-color: var(--text); }
 .tl-bar.completed { background: #efece5;         color: var(--muted);      border-color: #e2ddd2; }
 
 /* Out-of-service stripe */
+/* Spans the full width and carries nowrap text, so it has the same power to
+   force the tracks open unless told otherwise. */
+.tl-oos-bar { min-width: 0; }
 .tl-oos-bar {
   align-self: center;
   margin: 3px 2px;
@@ -515,6 +518,14 @@ input:focus, select:focus { border-color: var(--text); }
   /* The end labels do not shrink, so anything that will not fit has to be cut
      off at the bar's edge rather than spilling across the next day's column. */
   overflow: hidden;
+  /* And the bar must not decide how wide a day is. A grid item's min-width
+     defaults to its min-content, which for nowrap text is the entire label —
+     so one bar reading "✓ customer 1  12:00" forced the days it spanned to be
+     that wide, and because every day track is an equal 1fr, every other column
+     grew to match. The planner ended up showing five days instead of a
+     fortnight, and the width changed depending on which bookings happened to be
+     on screen. Zero lets the tracks keep the width the zoom level asked for. */
+  min-width: 0;
 }
 
 .tl-bar-start, .tl-bar-end {
