@@ -1415,3 +1415,60 @@ input:focus, select:focus { border-color: var(--text); }
   .tl-cell { padding-top: 2px; padding-bottom: 2px; }
   .tl-bar { margin-top: 2px; margin-bottom: 2px; }
 }
+
+/* ---------- Billing period picker ---------- */
+.period-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: -0.6rem 0 0.9rem;
+}
+.period-row label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.period-row select {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 7px;
+  cursor: pointer;
+}
+.period-row select:hover { border-color: var(--text); }
+
+/* ---------- Customers A to Z ---------- */
+.alpha-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 0.8rem;
+}
+.alpha-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  min-width: 26px;
+  padding: 4px 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.alpha-btn:hover:not(:disabled) { border-color: var(--text); }
+.alpha-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+/* Shown but not clickable, so the row keeps its shape and an empty letter reads
+   as empty rather than as something that failed to respond. */
+.alpha-btn:disabled { color: var(--border); cursor: default; }
+
+@media (max-width: 640px) {
+  .alpha-btn { min-width: 0; flex: 1 1 auto; padding: 5px 4px; font-size: 10px; }
+  .period-row { margin-top: -0.3rem; gap: 6px; }
+  .period-row select { font-size: 10px; padding: 3px 5px; }
+}

@@ -21,6 +21,9 @@ const BADGE = {
 let root = null;
 let summaryOpen = () => true;   // set on mount; see initPanelToggle
 let filter = "unpaid";
+// "" means every date. Otherwise a year, optionally narrowed to one month.
+let periodYear = "";
+let periodMonth = "";
 let depositBookingId = null;
 
 export function mount(container) {
@@ -29,6 +32,24 @@ export function mount(container) {
   // The summary figures start closed so the working part of the view is
   // first on screen — the phone screens had almost nothing else visible.
   summaryOpen = initPanelToggle(root, "billingShowSummary", "toggle-summary", "hide-summary", "Summary");
+
+  buildPeriodOptions();
+  el(root, "period-month").addEventListener("change", () => {
+    periodMonth = el(root, "period-month").value; render();
+  });
+  el(root, "period-year").addEventListener("change", () => {
+    periodYear = el(root, "period-year").value;
+    // A month on its own means nothing without a year, so choosing one while no
+    // year is set would silently show everything. Default to the current year.
+    if (!periodYear) periodMonth = "";
+    render();
+  });
+  el(root, "period-clear").addEventListener("click", () => {
+    periodYear = ""; periodMonth = "";
+    el(root, "period-year").value = "";
+    el(root, "period-month").value = "";
+    render();
+  });
 
   el(root, "search").addEventListener("input", render);
   el(root, "save-deposit").addEventListener("click", saveDeposits);
@@ -113,6 +134,7 @@ export function render() {
     <div class="stat"><div class="stat-label">Deposits held</div><div class="stat-val blue">${formatAmount(depositsHeld)}</div></div>
   `;
 
+  refreshPeriodYears();
   renderTabCounts(search);
   let list = invoicesFor(filter, search);
   list.sort((a, b) => (a.paid - b.paid) || b.startDate.localeCompare(a.startDate));
@@ -187,9 +209,69 @@ function matchesSearch(b, search) {
   return `${b.renter || ""} ${bookingCarLabel(b)}`.toLowerCase().includes(search);
 }
 
+// ---------- Period ----------
+// Invoices are filed by when the rental starts, which is how the desk thinks of
+// them: "the August invoices" means the rentals that began in August.
+const MONTHS = ["January","February","March","April","May","June",
+                "July","August","September","October","November","December"];
+
+function buildPeriodOptions() {
+  el(root, "period-month").innerHTML =
+    `<option value="">Whole year</option>` +
+    MONTHS.map((m, i) => `<option value="${String(i + 1).padStart(2, "0")}">${m}</option>`).join("");
+
+  // Offer only years the company actually has bookings in, plus this one and
+  // next, so the list stays short and never offers an empty year.
+  const thisYear = new Date().getFullYear();
+  const years = new Set([thisYear, thisYear + 1]);
+  state.bookings.forEach(b => {
+    const y = (b.startDate || "").slice(0, 4);
+    if (/^\d{4}$/.test(y)) years.add(Number(y));
+  });
+  el(root, "period-year").innerHTML =
+    `<option value="">All dates</option>` +
+    [...years].sort((a, b) => b - a).map(y => `<option value="${y}">${y}</option>`).join("");
+  el(root, "period-year").value = periodYear;
+  el(root, "period-month").value = periodMonth;
+}
+
+// Rebuilds the year list only when the set of years has actually changed, so
+// selecting a year is not undone the moment new data arrives.
+function refreshPeriodYears() {
+  const sel = el(root, "period-year");
+  const thisYear = new Date().getFullYear();
+  const years = new Set([thisYear, thisYear + 1]);
+  state.bookings.forEach(b => {
+    const y = (b.startDate || "").slice(0, 4);
+    if (/^\d{4}$/.test(y)) years.add(Number(y));
+  });
+  const wanted = [...years].sort((a, b) => b - a).join(",");
+  if (sel.dataset.built === wanted) return;
+  sel.innerHTML = `<option value="">All dates</option>` +
+    wanted.split(",").map(y => `<option value="${y}">${y}</option>`).join("");
+  sel.dataset.built = wanted;
+  sel.value = periodYear;
+}
+
+function inChosenPeriod(b) {
+  if (!periodYear) return true;                       // every date
+  const d = b.startDate || "";
+  if (!d.startsWith(periodYear)) return false;
+  if (!periodMonth) return true;                      // the whole year
+  return d.slice(5, 7) === periodMonth;
+}
+
+function periodLabel() {
+  if (!periodYear) return "all dates";
+  if (!periodMonth) return periodYear;
+  return `${MONTHS[Number(periodMonth) - 1]} ${periodYear}`;
+}
+
 function invoicesFor(f, search) {
   return state.bookings.filter(isBillable)
-    .filter(b => (f === "all" || categoryOf(b) === f) && matchesSearch(b, search));
+    .filter(b => (f === "all" || categoryOf(b) === f)
+              && inChosenPeriod(b)
+              && matchesSearch(b, search));
 }
 
 // Totals for exactly the invoices listed below — the figure that has to
@@ -214,7 +296,10 @@ function renderListTotals(list) {
     money = `${formatAmount(sum(list, rentalTotal))} in rentals · ${formatAmount(owed)} still owed`;
   }
 
-  el(root, "list-total").textContent = `${count} · ${money}`;
+  // Naming the period matters: without it a filtered total looks like the whole
+  // picture, and someone could read "3 invoices" as the company's entire ledger.
+  const scope = periodYear ? ` · ${periodLabel()}` : "";
+  el(root, "list-total").textContent = `${count}${scope} · ${money}`;
 }
 
 // The count on each tab is what clicking it will show, search included.

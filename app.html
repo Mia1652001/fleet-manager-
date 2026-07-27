@@ -313,6 +313,10 @@
         <input type="text" data-el="search" placeholder="Search name, phone, email, or license...">
         <button class="btn-primary" data-el="add-customer">+ Add customer</button>
       </div>
+      <!-- Jump straight to a letter rather than scrolling a register that only
+           ever gets longer. Letters with nobody behind them are dimmed. -->
+      <div class="alpha-index" data-el="alpha"></div>
+      <div class="list-total" data-el="list-total"></div>
       <div class="card-list" data-el="list"><div class="loading-screen">Loading customers...</div></div>
 
       <div class="overlay" data-el="customer-modal">
@@ -354,6 +358,14 @@
         <button class="tab" data-f="paid">Paid</button>
         <button class="tab" data-f="upcoming">Not started</button>
         <button class="tab" data-f="all">All</button>
+      </div>
+      <!-- Narrows the list to a month or a year, so it does not grow without
+           limit as the business builds up history. -->
+      <div class="period-row">
+        <label for="bill-month">Period</label>
+        <select id="bill-month" data-el="period-month"></select>
+        <select data-el="period-year"></select>
+        <button class="btn" data-el="period-clear" type="button">All dates</button>
       </div>
       <div class="list-total" data-el="list-total"></div>
       <div class="card-list" data-el="list"><div class="loading-screen">Loading invoices...</div></div>

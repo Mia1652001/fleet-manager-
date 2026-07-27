@@ -9,6 +9,7 @@ import {
 
 let root = null;
 let summaryOpen = () => true;   // set on mount; see initPanelToggle
+let letter = "";                // "" is everyone; otherwise "A".."Z" or "#"
 let editingId = null;
 
 export function mount(container) {
@@ -19,6 +20,15 @@ export function mount(container) {
   summaryOpen = initPanelToggle(root, "customersShowSummary", "toggle-summary", "hide-summary", "Summary");
 
   el(root, "search").addEventListener("input", render);
+
+  el(root, "alpha").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-letter]");
+    if (!b || b.disabled) return;
+    // Tapping the letter you are already on clears it, so there is always a way
+    // back to the full register without hunting for an "All" button.
+    letter = (b.dataset.letter === letter) ? "" : b.dataset.letter;
+    render();
+  });
   el(root, "add-customer").addEventListener("click", () => openCustomerModal(null));
   el(root, "save-customer").addEventListener("click", saveCustomer);
 
@@ -39,6 +49,41 @@ export function mount(container) {
   onDataChange(() => { if (root.classList.contains("active")) render(); });
 }
 
+// ---------- A to Z index ----------
+// The register only ever grows, so scrolling it stops being practical fairly
+// quickly. Letters with nobody behind them are shown but disabled, which keeps
+// the row a stable shape and makes an empty letter obvious at a glance rather
+// than something you tap and wonder about.
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+function initialOf(c) {
+  // Accents are stripped before the letter is taken, so Émile files under E and
+  // Ålesund under A. Mauritius has plenty of French names and putting them all
+  // in the "#" bucket would make the index close to useless.
+  const ch = (c.name || "")
+    .trim()
+    .normalize("NFD")                    // é becomes e + combining accent
+    .replace(/[\u0300-\u036f]/g, "")    // drop the accent
+    .charAt(0)
+    .toUpperCase();
+  return /[A-Z]/.test(ch) ? ch : "#";
+}
+
+function renderAlphaIndex(people) {
+  const counts = {};
+  people.forEach(c => { const k = initialOf(c); counts[k] = (counts[k] || 0) + 1; });
+
+  const keys = [...ALPHABET];
+  if (counts["#"]) keys.push("#");          // only when something needs it
+
+  el(root, "alpha").innerHTML = keys.map(k => {
+    const n = counts[k] || 0;
+    return `<button type="button" class="alpha-btn${letter === k ? " active" : ""}"
+      data-letter="${k}" ${n ? "" : "disabled"}
+      title="${n ? `${n} customer${n === 1 ? "" : "s"}` : "nobody yet"}">${k}</button>`;
+  }).join("");
+}
+
 function rentalCount(customerId) {
   return state.bookings.filter(b => b.customerId === customerId).length;
 }
@@ -52,13 +97,25 @@ export function render() {
     <div class="stat"><div class="stat-label">Total rentals</div><div class="stat-val blue">${state.bookings.length}</div></div>
   `;
 
-  let list = state.customers.filter(c =>
+  // Search first, so the letters reflect what the search has already narrowed to
+  // rather than offering letters that would come back empty.
+  const searched = state.customers.filter(c =>
     `${c.name} ${c.phone || ""} ${c.email || ""} ${c.license || ""}`.toLowerCase().includes(search));
-  list.sort((a, b) => a.name.localeCompare(b.name));
+
+  renderAlphaIndex(searched);
+
+  let list = searched.filter(c => !letter || initialOf(c) === letter);
+  list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+  el(root, "list-total").textContent = list.length === searched.length
+    ? `${list.length} customer${list.length === 1 ? "" : "s"}`
+    : `${list.length} of ${searched.length} · ${letter === "#" ? "not starting with a letter" : "starting with " + letter}`;
 
   const listEl = el(root, "list");
   if (list.length === 0) {
-    listEl.innerHTML = '<div class="empty">No customers yet. Add your first customer with the button above.</div>';
+    listEl.innerHTML = letter
+      ? `<div class="empty">Nobody under ${esc(letter)}. Tap the letter again to see everyone.</div>`
+      : '<div class="empty">No customers yet. Add your first customer with the button above.</div>';
     return;
   }
 
