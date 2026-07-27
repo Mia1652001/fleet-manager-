@@ -6,16 +6,22 @@ import {
   fillTimeOptions, getTime, setTime, onTimeChange,
   currentBooking, nextUpcoming, carStatus, serviceDue, openBookingsForCar,
   orderedCars, getSwatch, setSwatch,
+  initPanelToggle,
   el, val, setVal, checked, setChecked, openModal, closeModal, showError
 } from "./store.js";
 
 let root = null;
+let summaryOpen = () => true;   // set on mount; see initPanelToggle
 let filter = "all";
 let editingCarId = null;
 let rentingCarId = null;
 
 export function mount(container) {
   root = container;
+
+  // The summary figures start closed so the working part of the view is
+  // first on screen — the phone screens had almost nothing else visible.
+  summaryOpen = initPanelToggle(root, "fleetShowSummary", "toggle-summary", "hide-summary", "Summary");
 
   el(root, "search").addEventListener("input", render);
   el(root, "sort").addEventListener("change", render);
@@ -91,7 +97,7 @@ export function render() {
   const service = withStatus.filter(c => c._status === "service").length;
   const rented = withStatus.filter(c => c._status === "rented" || c._status === "overdue").length;
 
-  el(root, "stats").innerHTML = `
+  if (summaryOpen()) el(root, "stats").innerHTML = `
     <div class="stat"><div class="stat-label">Total cars</div><div class="stat-val">${state.cars.length}</div></div>
     <div class="stat"><div class="stat-label">Available</div><div class="stat-val green">${available}</div></div>
     <div class="stat"><div class="stat-label">Rented out</div><div class="stat-val amber">${rented}</div></div>

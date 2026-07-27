@@ -6,10 +6,12 @@ import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstat
 import {
   state, onDataChange, esc, formatDate, todayStr, buildSchedule, staffNames,
   fillTimeOptions, getTime, setTime,
+  initPanelToggle,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
 let root = null;
+let summaryOpen = () => true;   // set on mount; see initPanelToggle
 let range = "today";
 let showDone = false;
 let staffFilter = "";
@@ -18,6 +20,10 @@ let editingTaskId = null;
 
 export function mount(container) {
   root = container;
+
+  // The summary figures start closed so the working part of the view is
+  // first on screen — the phone screens had almost nothing else visible.
+  summaryOpen = initPanelToggle(root, "tasksShowSummary", "toggle-summary", "hide-summary", "Summary");
 
   fillTimeOptions(root, "t-time");
   el(root, "search").addEventListener("input", render);
@@ -144,7 +150,7 @@ export function render() {
   const weekJobs = buildSchedule({ from: t, to: shiftDate(6), includeDone: false });
   const lateJobs = buildSchedule({ from: null, to: null, includeDone: false }).filter(j => j.overdue);
 
-  el(root, "stats").innerHTML = `
+  if (summaryOpen()) el(root, "stats").innerHTML = `
     <div class="stat"><div class="stat-label">Due today</div><div class="stat-val">${todayJobs.filter(j => !j.overdue).length}</div></div>
     <div class="stat"><div class="stat-label">Next 7 days</div><div class="stat-val blue">${weekJobs.filter(j => !j.overdue).length}</div></div>
     <div class="stat"><div class="stat-label">Running late</div><div class="stat-val red">${lateJobs.length}</div></div>

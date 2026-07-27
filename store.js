@@ -182,6 +182,30 @@ export function settledAmount(b) {
   if (b.paid && typeof b.paidAmount === "number") return b.paidAmount;
   return balanceFor(b);
 }
+// ---------- Collapsible panels ----------
+// Several views open with a row of summary figures that push the working part
+// of the screen out of sight, especially on a phone. This wires the small
+// disclosure button they share. Closed by default; each person's choice is kept
+// on their own device, so one member of staff opening it does not affect anyone
+// else. Returns a getter so a view can skip drawing a panel nobody is looking at.
+export function initPanelToggle(root, prefKey, elName, className, label, defaultOpen = false) {
+  const btn = el(root, elName);
+  if (!btn) return () => true;              // view without this panel
+  let open = loadPref(prefKey, defaultOpen);
+  const paint = () => {
+    root.classList.toggle(className, !open);
+    btn.textContent = `${open ? "\u25be" : "\u25b8"} ${label}`;
+  };
+  btn.addEventListener("click", () => {
+    open = !open;
+    savePref(prefKey, open);
+    paint();
+    notifyDataChange();                     // redraw whatever was just opened
+  });
+  paint();
+  return () => open;
+}
+
 // ---------- The reporting period ----------
 // Calendar months do not suit this business: rentals routinely start in one
 // month and end in the next, so a month boundary cuts single rentals in half

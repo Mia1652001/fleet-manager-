@@ -10,7 +10,8 @@ import {
   sharesStartHandover, sharesEndHandover, serviceDue,
   orderedCars, loadPref, savePref,
   startTime, endTime, pickupLabel, dropoffLabel, rentalTotal,
-  el, closeModal
+  initPanelToggle,
+  el, val, closeModal
 } from "./store.js";
 
 let root = null;
@@ -31,7 +32,11 @@ const ZOOM_LEVELS = {
   5: { days: 14, half: 26, label: 200 }
 };
 
-let zoom = loadPref("timelineZoom", 4);
+// There is no room for the Days slider on a phone, so the phone default has to
+// be right first time: a month of planning, which is what the desk looks at.
+// Desktop keeps three weeks and its slider. Both are only starting points.
+const DEFAULT_ZOOM = window.matchMedia("(max-width: 640px)").matches ? 2 : 4;
+let zoom = loadPref("timelineZoom", DEFAULT_ZOOM);
 
 // The planner is what the desk works from, so the summary figures and the
 // booking list stay closed until asked for. Each person's choice is remembered
@@ -46,12 +51,27 @@ function isNarrowScreen() {
 function zoomCfg() {
   const cfg = ZOOM_LEVELS[zoom] || ZOOM_LEVELS[4];
   if (!isNarrowScreen()) return cfg;
-  // On a phone the vehicle column has to stay narrow or it squeezes the
-  // names out of view, and days are capped so several fit on screen at once.
-  return { ...cfg, label: 96, half: Math.min(cfg.half, 12) };
+  // A phone was showing about three days at a time, which is not planning. The
+  // vehicle column gives up eight pixels and the day columns are capped at half
+  // the desktop width, roughly tripling how much of the month is visible at once.
+  // The date font shrinks to match (see the mobile block in style.css).
+  return { ...cfg, label: 88, half: Math.min(cfg.half, 9) };
 }
 
 function timelineDays() { return zoomCfg().days; }
+
+// Roughly how wide some text renders in the bar labels. DM Mono is monospaced,
+// so character count is a reliable proxy: at 9px the advance width is about
+// 5.4px, plus the padding each label carries. Good enough to decide whether a
+// label fits, which is all it is used for.
+const BAR_CHAR_PX = 5.4;
+const BAR_LABEL_PAD = 8;
+const NAME_ROOM = 44;          // the least width worth giving the renter's name
+
+function textWidth(parts) {
+  return parts.reduce(
+    (sum, t) => sum + (t ? t.length * BAR_CHAR_PX + BAR_LABEL_PAD : 0), 0);
+}
 let timelineAnchor = null; // Date — first visible day in the timeline
 
 // Redrawing the planner rebuilds every cell, which loses the scroll position.
@@ -60,6 +80,7 @@ let timelineAnchor = null; // Date — first visible day in the timeline
 // middle of reading August is maddening. So the position is put back afterwards,
 // except when the user has actually asked to move the window.
 let reanchored = true;   // the first draw should start at the left
+let legendOpen = () => true;   // set on mount; see initPanelToggle
 
 function freshAnchor() {
   const d = new Date();
@@ -79,6 +100,11 @@ export function mount(container) {
   timelineAnchor = freshAnchor();
 
   applyPanels();
+  // The legend costs four lines of a phone screen to explain colours that are
+  // self-evident after a day's use, so it starts closed there. A desktop has
+  // room, so it stays open. Either way the choice is remembered.
+  legendOpen = initPanelToggle(
+    root, "bookingsShowLegend", "toggle-legend", "hide-legend", "Legend", !isNarrowScreen());
   el(root, "toggle-summary").addEventListener("click", () => togglePanel("summary"));
   el(root, "toggle-list").addEventListener("click", () => togglePanel("list"));
 
@@ -135,6 +161,24 @@ export function mount(container) {
       timelineAnchor.setDate(timelineAnchor.getDate() + 7); reanchored = true; render();
     } else shiftMonth(1);
   });
+  // Reaching 2027 by pressing Next twenty-six times is not reasonable. A month
+  // input jumps straight to any month of any year, and on a phone it opens the
+  // native month-and-year wheel rather than a text field.
+  el(root, "cal-jump").addEventListener("change", () => {
+    const v = val(root, "cal-jump");                 // format is "2027-03"
+    const m = /^(\d{4})-(\d{2})$/.exec(v);
+    if (!m) return;
+    const year = Number(m[1]), monthIndex = Number(m[2]) - 1;
+    if (monthIndex < 0 || monthIndex > 11) return;
+    if (planner === "timeline") {
+      timelineAnchor = new Date(year, monthIndex, 1);
+      reanchored = true;                             // a new window starts at its first day
+    } else {
+      calYear = year; calMonth = monthIndex;
+    }
+    render();
+  });
+
   el(root, "cal-today").addEventListener("click", () => {
     if (planner === "timeline") { timelineAnchor = freshAnchor(); reanchored = true; }
     else {
@@ -318,6 +362,13 @@ function renderTimeline() {
 
   const cfg = zoomCfg();
   grid.style.gridTemplateColumns = `${cfg.label}px repeat(${DAYS * 2}, minmax(${cfg.half}px, 1fr))`;
+
+  // How wide a day column actually ends up on screen. The template sets a
+  // minimum, but the 1fr lets columns stretch to fill the planner, so on a wide
+  // window a day is far wider than its minimum. Whether a label fits is a
+  // question of pixels, so this is the figure the bar labels are decided from.
+  const dayPx = Math.max(cfg.half * 2, (wrap.clientWidth - cfg.label) / DAYS);
+
   // The sticky renter name pins just past this column, so it needs the width
   grid.style.setProperty("--tl-label-w", cfg.label + "px");
 
@@ -379,12 +430,31 @@ function renderTimeline() {
         const s = bookingState(b);
         const span = endOffset - startOffset + 1;
 
-        // Only show the pick-up / drop-off detail when the bar is wide enough
-        // to read it; narrow bars keep just the name and rely on the tooltip.
-        const showEnds = span >= 4;
-        const startTxt = showEnds ? pickupLabel(b) : "";
-        const endTxt = showEnds ? dropoffLabel(b) : "";
-        const nameTxt = span >= 2 ? esc(b.renter || "") : "";
+        // What fits in a bar is a question of pixels against actual text, not of
+        // how many days it covers. The old rule hid the pick-up and drop-off
+        // labels on anything shorter than four days, so a two-day booking showed
+        // nothing but a name even on a wide screen with room to spare — which is
+        // the display problem reported from the field.
+        //
+        // "12:00 BB" and "11:30 Airport" need very different amounts of room, so
+        // the labels are measured rather than guessed at. Falling back through
+        // location+time, then time alone, then just the name means a bar shows as
+        // much as it can hold instead of dropping straight to nothing.
+        const barPx = span * dayPx;
+        const full = [pickupLabel(b), dropoffLabel(b)];
+        const times = [startTime(b), endTime(b)];
+
+        // Where and when the car changes hands is the operational detail; the
+        // renter's name is already in the tooltip and the list. So the ends are
+        // filled first and the name takes whatever room is left over — which is
+        // what lets a short booking show its locations at all.
+        let ends = [];
+        if (barPx >= textWidth(full)) ends = full;
+        else if (barPx >= textWidth(times)) ends = times;
+        const [startTxt = "", endTxt = ""] = ends;
+
+        const nameTxt = (barPx - textWidth(ends)) >= NAME_ROOM
+          ? esc(b.renter || "") : "";
 
         const paidCls = b.paid ? "paid" : "unpaid";
         // A custom colour replaces the status colour, but an overdue rental

@@ -1079,7 +1079,6 @@ input:focus, select:focus { border-color: var(--text); }
 /* In the toolbar it is one control among several, so it drops the row spacing. */
 .toolbar .panel-toggle { margin-bottom: 0; }
 
-#view-bookings.hide-summary .stats { display: none; }
 #view-bookings.hide-list .filter-row,
 #view-bookings.hide-list .card-list { display: none; }
 
@@ -1136,4 +1135,42 @@ input:focus, select:focus { border-color: var(--text); }
     width: 100%;
     margin-left: 0;
   }
+}
+
+/* ---------- Collapsible planner legend ----------
+   Closed by default on a phone, where four lines of colour key competes with
+   the planner itself for a small screen. Open by default on a desktop. */
+
+
+/* ---------- Collapsible summary panels on every view ----------
+   The bookings view had this first; the same disclosure button now sits on
+   Fleet, Customers, Billing, Maintenance and Tasks, so the working part of each
+   view is what greets you. Scoped to .view rather than one id so all six share
+   the rule. */
+.view.hide-summary .stats { display: none; }
+.view.hide-legend .tl-legend { display: none; }
+
+/* Jump straight to any month and year instead of pressing Next repeatedly. On a
+   phone this opens the native month-and-year wheel. Styled to sit quietly
+   alongside the Prev / Today / Next buttons rather than shout. */
+.cal-jump {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  max-width: 150px;
+}
+.cal-jump:hover { border-color: var(--text); }
+
+/* Phone: the date row shrinks so a month of planning is visible at once, which
+   matters more here than on desktop because there is no room for the Days
+   slider. Paired with the narrower columns set in view-bookings.js. */
+@media (max-width: 640px) {
+  .tl-daynum { font-size: 8px; letter-spacing: 0; }
+  .tl-daynum .dow { font-size: 7px; }
+  .cal-jump { font-size: 10px; padding: 3px 6px; max-width: 128px; }
 }

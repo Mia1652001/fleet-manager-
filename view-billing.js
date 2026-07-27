@@ -6,6 +6,7 @@ import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
   settledAmount, isBillable, hasStarted, inPeriod, settledOn, PERIOD_DAYS,
+  initPanelToggle,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
@@ -18,11 +19,16 @@ const BADGE = {
 };
 
 let root = null;
+let summaryOpen = () => true;   // set on mount; see initPanelToggle
 let filter = "unpaid";
 let depositBookingId = null;
 
 export function mount(container) {
   root = container;
+
+  // The summary figures start closed so the working part of the view is
+  // first on screen — the phone screens had almost nothing else visible.
+  summaryOpen = initPanelToggle(root, "billingShowSummary", "toggle-summary", "hide-summary", "Summary");
 
   el(root, "search").addEventListener("input", render);
   el(root, "save-deposit").addEventListener("click", saveDeposits);
@@ -99,7 +105,7 @@ export function render() {
 
   const depositsHeld = billable.reduce((sum, b) => sum + securityHeld(b), 0);
 
-  el(root, "stats").innerHTML = `
+  if (summaryOpen()) el(root, "stats").innerHTML = `
     <div class="stat"><div class="stat-label">Outstanding</div><div class="stat-val red">${formatAmount(outstanding)}</div></div>
     <div class="stat"><div class="stat-label">Unpaid invoices</div><div class="stat-val amber">${unpaid.length}</div></div>
     <div class="stat"><div class="stat-label">Booked (${PERIOD_DAYS} days)</div><div class="stat-val">${formatAmount(booked)}</div></div>

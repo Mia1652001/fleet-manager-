@@ -146,6 +146,7 @@
 
     <!-- ---------- FLEET ---------- -->
     <section class="view" id="view-fleet">
+      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search car, plate, or renter...">
@@ -255,6 +256,8 @@
             <label for="tl-zoom" title="Fewer, wider days or more, narrower days">Days</label>
             <input type="range" id="tl-zoom" data-el="zoom" min="1" max="5" step="1" value="4">
           </span>
+          <input type="month" class="cal-jump" data-el="cal-jump"
+                 title="Jump to any month and year">
           <button class="btn" data-el="cal-prev">‹ Prev</button>
           <button class="btn" data-el="cal-today">Today</button>
           <button class="btn" data-el="cal-next">Next ›</button>
@@ -264,6 +267,7 @@
         <div class="timeline" data-el="timeline"></div>
       </div>
       <div class="calendar" data-el="calendar" style="display:none;"></div>
+      <button type="button" class="panel-toggle" data-el="toggle-legend">Legend</button>
       <button type="button" class="panel-toggle" data-el="toggle-list">Booking list</button>
       <div class="filter-row" data-el="filters">
         <button class="tab active" data-f="all">All</button>
@@ -278,6 +282,7 @@
 
     <!-- ---------- CUSTOMERS ---------- -->
     <section class="view" id="view-customers">
+      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search name, phone, email, or license...">
@@ -314,6 +319,7 @@
 
     <!-- ---------- BILLING ---------- -->
     <section class="view" id="view-billing">
+      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search by customer or car...">
@@ -344,6 +350,7 @@
 
     <!-- ---------- MAINTENANCE ---------- -->
     <section class="view" id="view-maintenance">
+      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search car or plate...">
@@ -373,6 +380,7 @@
 
     <!-- ---------- TASKS ---------- -->
     <section class="view" id="view-tasks">
+      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
 
       <div class="toolbar">
