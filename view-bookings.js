@@ -411,10 +411,17 @@ function renderTimeline() {
   const cfg = zoomCfg();
   grid.style.gridTemplateColumns = `${cfg.label}px repeat(${DAYS * 2}, minmax(${cfg.half}px, 1fr))`;
 
-  // How wide a day column actually ends up on screen. The template sets a
-  // minimum, but the 1fr lets columns stretch to fill the planner, so on a wide
-  // window a day is far wider than its minimum. Whether a label fits is a
-  // question of pixels, so this is the figure the bar labels are decided from.
+  // Width comes from the zoom level, never from the content. Stating it outright
+  // means a day column is the same width whatever bookings happen to be on
+  // screen, and it makes the planner wider than its frame so it scrolls.
+  const gridWidth = cfg.label + DAYS * 2 * cfg.half;
+  grid.style.minWidth = gridWidth + "px";
+
+  // How wide a day column really is. Tracks stretch to fill the planner when the
+  // frame is wider than the grid needs, so take whichever is larger — but never
+  // guess: this now matches what is actually rendered, which the previous
+  // estimate did not, and that mismatch was hiding labels from bars that had
+  // ample room for them.
   const dayPx = Math.max(cfg.half * 2, (wrap.clientWidth - cfg.label) / DAYS);
 
   // The sticky renter name pins just past this column, so it needs the width

@@ -347,7 +347,12 @@ input:focus, select:focus { border-color: var(--text); }
 
 .timeline {
   display: grid;
-  min-width: max-content;
+  /* The width is set from JavaScript, as the column count times the width the
+     current zoom level asks for. It used to be min-width: max-content, which
+     sized the grid to whatever the longest booking label wanted and then let the
+     1fr tracks stretch to fill it — so a day column was as wide as the wordiest
+     booking on screen, and the planner showed five days instead of a fortnight.
+     Searching visibly changed the column width, which was the giveaway. */
   font-size: 11px;
 }
 

@@ -218,6 +218,10 @@ function renderMiniTimeline() {
   const cols = miniColumns();
   grid.style.gridTemplateColumns =
     `${cols.label}px repeat(${DASH_DAYS * 2}, minmax(${cols.half}px, 1fr))`;
+  // Same as the full planner: state the width rather than let the longest
+  // booking label decide it. This grid shares the .timeline class, so it had the
+  // same fault — columns widening whenever a wordy booking came into view.
+  grid.style.minWidth = (cols.label + DASH_DAYS * 2 * cols.half) + "px";
 
   const dow = ["Su","Mo","Tu","We","Th","Fr","Sa"];
   let html = `<div class="tl-corner" style="grid-row:1;grid-column:1;">Vehicle</div>`;
