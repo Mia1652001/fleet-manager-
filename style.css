@@ -1354,3 +1354,64 @@ input:focus, select:focus { border-color: var(--text); }
   .backup-banner { padding: 9px 0.9rem; font-size: 11px; }
   .backup-banner-actions { width: 100%; }
 }
+
+/* ---------- One-line planner controls (desktop) ----------
+   The search row and the planner controls used to sit on two separate lines,
+   which cost the planner a whole row of height on the screen where it matters
+   most. On anything wider than a phone they share one line: search and its
+   buttons on the left, the date range and planner controls on the right. It
+   still wraps if the window is too narrow, which is no worse than before.
+   Phones are untouched — the rule below only applies from 641px up. */
+@media (min-width: 641px) {
+  .planner-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px 18px;
+    flex-wrap: wrap;
+    margin-bottom: 0.85rem;
+  }
+  .planner-bar .toolbar {
+    flex: 1 1 300px;
+    margin-bottom: 0;
+    min-width: 0;
+  }
+  .planner-bar .cal-header {
+    flex: 0 1 auto;
+    margin-bottom: 0;
+    gap: 8px 12px;
+  }
+  /* Smaller now it shares a line with everything else, and it may wrap onto its
+     own line rather than force the controls off the edge. */
+  .planner-bar .cal-title { font-size: 1.05rem; }
+}
+
+/* ---------- More cars on screen (phones) ----------
+   About 438px of an 844px phone was being spent before the planner even began,
+   leaving room for roughly five vehicles. Two things are done about it: the
+   furniture above the planner is trimmed, and the vehicle rows themselves are
+   made shorter. Together that is worth three or four more cars without anything
+   becoming hard to read. */
+@media (max-width: 640px) {
+  /* The masthead was sized for a desktop */
+  header { padding: 0.7rem 1rem 0; }
+  header h1 { font-size: 1.15rem; }
+  .header-company { margin-top: 2px; }
+  .header-logo { margin-top: 4px; }
+  .header-logo img { max-height: 24px; }
+
+  /* Space between the controls, none of which needs to be generous */
+  .main { padding-top: 0.7rem; }
+  .toolbar { margin-bottom: 0.5rem; }
+  .cal-header { margin-bottom: 0.5rem; gap: 6px; }
+  .cal-title { font-size: 0.95rem; }
+  .panel-toggle { margin-bottom: 0.5rem; padding: 5px 11px; }
+
+  /* Shorter vehicle rows. The two lines of text stay the same size; it is the
+     padding and the leading around them that comes down, which is what was
+     making each row taller than its contents needed. */
+  .tl-car { padding-top: 3px; padding-bottom: 3px; line-height: 1.2; }
+  .tl-car strong { line-height: 1.2; }
+  .tl-car .tl-plate { line-height: 1.15; margin-top: 0; }
+  .tl-cell { padding-top: 2px; padding-bottom: 2px; }
+  .tl-bar { margin-top: 2px; margin-bottom: 2px; }
+}

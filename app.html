@@ -255,6 +255,10 @@
     <!-- ---------- BOOKINGS ---------- -->
     <section class="view" id="view-bookings">
       <div class="stats" data-el="stats"></div>
+      <!-- Wrapped so a wide screen can lay the search row and the planner
+           controls out as a single line, which gives the planner back a whole
+           row of height. On a phone they stay stacked. -->
+      <div class="planner-bar">
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search booking by car or renter...">
         <button class="btn-primary" data-el="new-booking">+ New booking</button>
@@ -276,6 +280,7 @@
           <button class="btn" data-el="cal-today">Today</button>
           <button class="btn" data-el="cal-next">Next ›</button>
         </div>
+      </div>
       </div>
       <div class="timeline-wrap" data-el="timeline-wrap">
         <div class="timeline" data-el="timeline"></div>
