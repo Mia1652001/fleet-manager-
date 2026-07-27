@@ -128,7 +128,7 @@ nav a.active { background: var(--bg); color: var(--text); }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 2rem; }
 
-.stat { background: var(--surface); border: 1px solid var(--border); padding: 1.2rem 1.4rem; border-radius: 4px; }
+.stat { background: var(--surface); border: 1px solid var(--border); padding: 1.2rem 1.4rem; border-radius: 4px; min-width: 0; }
 .stat-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
 .stat-val { font-family: 'Fraunces', serif; font-size: 2.2rem; font-weight: 300; line-height: 1; }
 .stat-val.green { color: var(--green-text); }
@@ -267,7 +267,7 @@ input:focus, select:focus { border-color: var(--text); }
 .cal-title { font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 400; white-space: nowrap; }
 .cal-nav { display: flex; gap: 6px; flex-wrap: wrap; }
 
-.calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 2rem; }
+.calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 2rem; }
 
 .cal-dow { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 6px 0; }
 
@@ -309,7 +309,7 @@ input:focus, select:focus { border-color: var(--text); }
 @media (max-width: 640px) {
   header { padding: 1rem 1rem 0; }
   .main { padding: 1.25rem 0.9rem; }
-  .stats { grid-template-columns: repeat(2, 1fr); }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cal-day { min-height: 48px; padding: 4px; }
   .cal-booking { display: none; }
   .cal-day .cal-dots { display: flex; gap: 2px; margin-top: 4px; flex-wrap: wrap; }
@@ -912,14 +912,24 @@ input:focus, select:focus { border-color: var(--text); }
   padding: 12px 16px;
 }
 
-.dash-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 14px; }
-.dash-grid-3 { grid-template-columns: repeat(3, 1fr); }
+/* minmax(0, 1fr) rather than plain 1fr. A bare 1fr means minmax(auto, 1fr), and
+   that auto floor stops a track shrinking below its content's min-content width
+   — which, for a row of nowrap text like "Vitali (localrent) 2025 Suzuki Baleno
+   (1234FF22)", is the whole string. The card then pushed past the screen edge on
+   a phone and the ellipsis never fired, because the box was never constrained.
+   Letting the track reach zero puts the row back in charge of its own truncation. */
+.dash-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+.dash-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 .dash-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 1.1rem 1.25rem 1.25rem;
+  /* Shrinking the grid track is only half the job: a grid item's min-width also
+     defaults to auto, so without this the card itself still refuses to go
+     narrower than the longest line of text inside it. */
+  min-width: 0;
 }
 .dash-wide { margin-bottom: 14px; }
 
@@ -948,7 +958,7 @@ input:focus, select:focus { border-color: var(--text); }
 .dash-link:hover { color: var(--text); }
 
 /* Figures */
-.dash-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px; }
+.dash-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px; min-width: 0; }
 
 .dash-figure {
   background: transparent;
@@ -1021,8 +1031,8 @@ input:focus, select:focus { border-color: var(--text); }
 .dash-timeline .tl-bar { cursor: pointer; }
 
 @media (max-width: 640px) {
-  .dash-grid, .dash-grid-3 { grid-template-columns: 1fr; }
-  .dash-figures { grid-template-columns: repeat(2, 1fr); }
+  .dash-grid, .dash-grid-3 { grid-template-columns: minmax(0, 1fr); }
+  .dash-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dash-figure-val { font-size: 1.4rem; }
 }
 
@@ -1097,10 +1107,12 @@ input:focus, select:focus { border-color: var(--text); }
    The dashboard was designed at desktop width and its padding, type sizes and
    heading rows were all a little oversized once squeezed into ~350px. */
 @media (max-width: 640px) {
-  /* Cards: 22px of the card's inner width was going to padding alone */
-  .dash-card { padding: 1rem 0.9rem 1.1rem; }
-  .dash-grid, .dash-grid-3 { gap: 10px; margin-bottom: 10px; }
-  .dash-wide { margin-bottom: 10px; }
+  /* Cards: 22px of the card's inner width was going to padding alone. min-width
+     lets a card shrink to its column instead of being propped open by a long
+     line of text inside it. */
+  .dash-card { padding: 0.85rem 0.8rem 0.95rem; min-width: 0; }
+  .dash-grid, .dash-grid-3 { gap: 9px; margin-bottom: 9px; }
+  .dash-wide { margin-bottom: 9px; }
 
   /* Heading rows carry a title and a set of controls. On a phone they cannot
      sit side by side, so let them stack instead of squeezing each other. */
@@ -1108,18 +1120,30 @@ input:focus, select:focus { border-color: var(--text); }
   .dash-head h3 { font-size: 1rem; }
   .dash-range { margin-left: 0; display: block; }
 
-  /* Figures: two per row, sized to match */
-  .dash-figures { gap: 8px; }
-  .dash-figure { padding: 4px 0; }
-  .dash-figure-val { font-size: 1.25rem; }
-  .dash-figure-label { font-size: 8px; letter-spacing: 0.07em; }
+  /* Figures: two per row. The values were set for a desktop card and left a lot
+     of empty space around them once halved in width, so they come down a size
+     and the block tightens up. */
+  .dash-figures { gap: 6px 8px; }
+  .dash-figure { padding: 2px 0; }
+  .dash-figure-val { font-size: 1.15rem; }
+  .dash-figure-label { font-size: 8px; letter-spacing: 0.05em; margin-top: 1px; }
+
+  /* Card headings: the rule and the space under it were sized for desktop */
+  .dash-head { margin-bottom: 0.65rem; padding-bottom: 0.45rem; }
+  .dash-head h3 { font-size: 0.95rem; }
+  .dash-link { font-size: 9px; letter-spacing: 0.06em; }
 
   /* Alerts and rows */
-  .dash-alerts { gap: 6px; margin-bottom: 1rem; }
-  .dash-alert, .dash-allclear { font-size: 12px; padding: 10px 12px; }
-  .dash-job { gap: 8px; padding: 8px 2px; font-size: 11px; }
-  .dash-job-time { width: 34px; }
-  .dash-empty { font-size: 11px; padding: 8px 2px; }
+  .dash-alerts { gap: 6px; margin-bottom: 0.8rem; }
+  .dash-alert, .dash-allclear { font-size: 11px; padding: 9px 11px; }
+  .dash-job { gap: 6px; padding: 7px 0; font-size: 11px; }
+  .dash-job-time { width: 32px; }
+  /* The OUT / BACK badge was 64px — a fifth of the row on a phone, and its
+     labels are four letters. */
+  .dash-job .job-kind { width: 40px; font-size: 8px; padding: 2px 4px; }
+  .dash-amount { font-size: 11px; }
+  .dash-more { font-size: 10px; padding-top: 6px; }
+  .dash-empty { font-size: 11px; padding: 7px 0; }
 
   /* A phone screen has less room to give a glance-only planner */
   .dash-timeline { max-height: 260px; }
@@ -1173,4 +1197,15 @@ input:focus, select:focus { border-color: var(--text); }
   .tl-daynum { font-size: 8px; letter-spacing: 0; }
   .tl-daynum .dow { font-size: 7px; }
   .cal-jump { font-size: 10px; padding: 3px 6px; max-width: 128px; }
+}
+
+/* The summary tiles on the other views carry long values too — a formatted
+   amount, a car description — and the same automatic minimum applies, so give
+   their contents somewhere to go rather than pushing the tile wide. */
+.stat-val, .stat-label { overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 640px) {
+  .stat { padding: 0.8rem 0.85rem; }
+  .stat-val { font-size: 1.3rem; }
+  .stat-label { font-size: 8px; letter-spacing: 0.06em; }
+  .stats { gap: 8px; margin-bottom: 1.2rem; }
 }
