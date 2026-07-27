@@ -4,6 +4,7 @@
 
 export const state = {
   ctx: null,        // { user, companyId, companyName }
+  settings: {},     // the company's own settings doc — see view-settings.js
   cars: [],
   bookings: [],
   customers: [],
@@ -34,9 +35,22 @@ export function formatDate(d) {
   return `${p[2].slice(0, 2)}/${p[1]}/${p[0]}`;
 }
 
+// Displayed amounts carry whatever symbol the company set on the Settings page
+// ("Rs" in Mauritius). Exports deliberately do not use this — a spreadsheet needs
+// bare numbers it can add up, not text with a symbol in front.
 export function formatAmount(n) {
-  return Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const num = Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const symbol = state.settings?.currency || "";
+  return symbol ? `${symbol} ${num}` : num;
 }
+
+// The company's own details, with sensible fallbacks so nothing shows "undefined"
+// before the Settings page has been filled in.
+export function companyName() {
+  return state.settings?.companyName || state.ctx?.companyName || "";
+}
+export function companyPhone() { return state.settings?.phone || ""; }
+export function companyTerms() { return state.settings?.terms || ""; }
 
 // ---------- Shared domain logic ----------
 export function carLabel(carId) {

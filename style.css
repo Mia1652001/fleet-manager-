@@ -1242,3 +1242,99 @@ input:focus, select:focus { border-color: var(--text); }
     width: 22px; height: 22px;
   }
 }
+
+/* ================= Settings page ================= */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.settings-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem 1.5rem;
+  min-width: 0;
+}
+.settings-card h3 {
+  font-family: 'Fraunces', serif;
+  font-weight: 400;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+.settings-note {
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0.35rem 0 1rem;
+}
+.settings-note.warn { color: var(--red-text); }
+.settings-note strong { color: var(--text); }
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+.saved-note { font-size: 11px; color: var(--green-text); }
+
+.check-list { display: flex; flex-direction: column; gap: 4px; }
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+}
+.check-row input { cursor: pointer; }
+
+/* Logo picker */
+.logo-row { display: flex; gap: 12px; align-items: flex-start; }
+.logo-preview {
+  width: 92px; height: 92px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.logo-preview img { max-width: 100%; max-height: 100%; display: block; }
+.logo-empty { font-size: 9px; color: var(--muted); text-align: center; padding: 4px; }
+.logo-actions { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.logo-actions input[type="file"] { font-family: 'DM Mono', monospace; font-size: 11px; max-width: 100%; }
+.logo-actions .settings-note { margin: 0; }
+
+/* The logo repeated small in the header, once one has been set */
+.header-logo { margin-top: 6px; }
+.header-logo img { max-height: 34px; max-width: 150px; display: block; border-radius: 2px; }
+
+/* ---------- Backup reminder banner ---------- */
+.backup-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #fdf6e3;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid var(--amber-text, #8a6d1f);
+  padding: 10px 1.5rem;
+  font-size: 12px;
+}
+.backup-banner-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  .settings-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .settings-card { padding: 1rem 0.9rem 1.1rem; }
+  .settings-card h3 { font-size: 1.05rem; }
+  .logo-row { flex-direction: column; }
+  .logo-preview { width: 76px; height: 76px; }
+  .backup-banner { padding: 9px 0.9rem; font-size: 11px; }
+  .backup-banner-actions { width: 100%; }
+}

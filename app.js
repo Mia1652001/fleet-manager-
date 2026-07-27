@@ -13,6 +13,8 @@ import * as billing from "./view-billing.js";
 import * as maintenance from "./view-maintenance.js";
 import * as tasks from "./view-tasks.js";
 import * as dashboard from "./view-dashboard.js";
+import * as settings from "./view-settings.js";
+import { backupDue, backupPrefs, daysSinceBackup, runBackup } from "./backup.js";
 import { mountBookingForm, onBookingChange } from "./booking-form.js";
 
 const VIEWS = {
@@ -22,7 +24,8 @@ const VIEWS = {
   customers: { mod: customers, root: null },
   billing: { mod: billing, root: null },
   maintenance: { mod: maintenance, root: null },
-  tasks: { mod: tasks, root: null }
+  tasks: { mod: tasks, root: null },
+  settings: { mod: settings, root: null }
 };
 
 // True once the interface has been wired up. This must never be set back to
@@ -123,6 +126,7 @@ function startApp() {
       v.mod.mount(v.root);
     }
 
+    wireBackupBanner();
     applyTabOrder();
     wireTabDragging();
     wireExport();
@@ -135,6 +139,9 @@ function startApp() {
   showView(currentViewFromHash());
 
   startListeners();
+
+  // After the listeners, so the check runs against data that has actually loaded.
+  setTimeout(() => { checkBackupDue(); }, 2500);
 }
 
 // ---------- Live data ----------
@@ -162,6 +169,30 @@ function startListeners() {
     state.tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     notifyDataChange();
   }, () => setSync("error")));
+
+  // One settings document per company, so this watches a single known id rather
+  // than running a query. Everything money-shaped reads the currency from here,
+  // so a change shows up across the app immediately.
+  unsubs.push(onSnapshot(doc(db, "settings", cid), snap => {
+    state.settings = snap.exists() ? snap.data() : {};
+    applyCompanyIdentity();
+    notifyDataChange();
+  }, () => setSync("error")));
+}
+
+// The header carries whatever the company set on the Settings page, falling back
+// to the name on the user record until that page has been filled in.
+function applyCompanyIdentity() {
+  const s = state.settings || {};
+  const label = document.getElementById("company-label");
+  if (label) label.textContent = s.companyName || state.ctx.companyName;
+
+  const slot = document.getElementById("company-logo");
+  if (slot) {
+    slot.innerHTML = s.logo ? `<img src="${s.logo}" alt="">` : "";
+    slot.style.display = s.logo ? "block" : "none";
+  }
+  if (s.companyName) document.title = `${s.companyName} — Fleet Manager`;
 }
 
 function stopListeners() {
@@ -223,6 +254,55 @@ function showActiveTab(name) {
   }
 }
 
+
+// ---------- Backup reminder ----------
+// A browser cannot run anything while the app is closed, so there is no true
+// schedule. What it can do is notice on opening that a backup is overdue, and —
+// if the user has granted a folder — quietly write one. Otherwise it says so and
+// offers a button, which is the honest version of "automatic".
+
+function wireBackupBanner() {
+  document.getElementById("backup-banner-go").addEventListener("click", () => {
+    hideBackupBanner();
+    location.hash = "#settings";
+    showView("settings");
+    settings.doBackup();
+  });
+  document.getElementById("backup-banner-hide").addEventListener("click", () => {
+    // Dismissed for this session only. A backup that is still overdue tomorrow
+    // should say so again rather than stay quiet for good.
+    sessionStorage.setItem("backupBannerHidden", "1");
+    hideBackupBanner();
+  });
+}
+
+function hideBackupBanner() {
+  const b = document.getElementById("backup-banner");
+  if (b) b.style.display = "none";
+}
+
+async function checkBackupDue() {
+  if (!backupDue()) { hideBackupBanner(); return; }
+
+  // If a folder is already set up and permitted, just do it — silently, without
+  // prompting, because an unexpected permission dialog on load is alarming and
+  // the browser would refuse it anyway outside a click.
+  if (backupPrefs().auto) {
+    try {
+      const r = await runBackup({ mayPrompt: false });
+      if (r.ok && /saved to/.test(r.where)) { hideBackupBanner(); return; }
+    } catch { /* fall through to the banner */ }
+  }
+
+  if (sessionStorage.getItem("backupBannerHidden")) return;
+
+  const since = daysSinceBackup();
+  document.getElementById("backup-banner-text").textContent =
+    since === null
+      ? "Your data has never been backed up. A copy on your own computer takes one click."
+      : `Last backup was ${since} day${since === 1 ? "" : "s"} ago.`;
+  document.getElementById("backup-banner").style.display = "flex";
+}
 
 // ---------- Export / backup ----------
 // Everything is built in the browser from data already loaded, so exporting

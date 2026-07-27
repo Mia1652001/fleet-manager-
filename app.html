@@ -42,6 +42,8 @@
       <div>
         <h1>Fleet <em>Manager</em></h1>
         <div class="header-company" id="company-label">—</div>
+        <!-- Filled from the Settings page; hidden until a logo is uploaded. -->
+        <div class="header-logo" id="company-logo" style="display:none;"></div>
       </div>
       <div class="header-right">
         <div class="sync-status"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">Live</span></div>
@@ -57,8 +59,19 @@
       <a href="#customers" data-view="customers">Customers</a>
       <a href="#billing" data-view="billing">Billing</a>
       <a href="#maintenance" data-view="maintenance">Maintenance</a>
+      <a href="#settings" data-view="settings">Settings</a>
     </nav>
   </header>
+
+  <!-- Shown only when a backup is overdue. Dismissable, because being nagged on
+       every screen is worse than being reminded once. -->
+  <div class="backup-banner" id="backup-banner" style="display:none;">
+    <span id="backup-banner-text"></span>
+    <span class="backup-banner-actions">
+      <button class="btn" id="backup-banner-go">Back up now</button>
+      <button class="btn" id="backup-banner-hide">Not now</button>
+    </span>
+  </div>
 
   <div class="main">
 
@@ -380,6 +393,109 @@
     </section>
 
     <!-- ---------- TASKS ---------- -->
+    <section class="view" id="view-settings">
+      <div class="settings-grid">
+
+        <div class="settings-card">
+          <h3>Company details</h3>
+          <p class="settings-note">These appear on invoices, reminder messages and
+            exports. Anyone signed in to this company can edit them.</p>
+
+          <div class="field">
+            <label for="s-name">Company name</label>
+            <input type="text" id="s-name" data-el="s-name" placeholder="Ocean Rentals Ltd">
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="s-phone">Phone</label>
+              <input type="text" id="s-phone" data-el="s-phone" placeholder="+230 5xxx xxxx">
+            </div>
+            <div class="field">
+              <label for="s-email">Email</label>
+              <input type="email" id="s-email" data-el="s-email" placeholder="bookings@example.mu">
+            </div>
+          </div>
+          <div class="field">
+            <label for="s-address">Address</label>
+            <input type="text" id="s-address" data-el="s-address" placeholder="Street, town">
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="s-currency-preset">Currency</label>
+              <select id="s-currency-preset" data-el="s-currency-preset"></select>
+            </div>
+            <div class="field">
+              <label for="s-currency">Symbol shown before amounts</label>
+              <input type="text" id="s-currency" data-el="s-currency" maxlength="6" placeholder="Rs">
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="s-logo-file">Company logo</label>
+            <div class="logo-row">
+              <div class="logo-preview" data-el="s-logo-preview"></div>
+              <div class="logo-actions">
+                <input type="file" id="s-logo-file" data-el="s-logo-file" accept="image/*">
+                <button class="btn danger" data-el="s-logo-clear" type="button">Remove logo</button>
+                <p class="settings-note">Shrunk to 320px in your browser before saving,
+                  so it stays small enough to store without a paid plan.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="s-terms">Terms and conditions</label>
+            <textarea id="s-terms" data-el="s-terms" rows="6"
+              placeholder="Deposit, fuel policy, insurance, late return charges..."></textarea>
+            <p class="settings-note">Stored now and used on printed contracts and
+              invoices when that stage is built. Nothing sends it automatically.</p>
+          </div>
+
+          <div class="error" data-el="settings-error"></div>
+          <div class="settings-actions">
+            <button class="btn-primary" data-el="save-settings">Save company details</button>
+            <span class="saved-note" data-el="settings-saved"></span>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h3>Backup</h3>
+          <p class="settings-note">Your records live in Google's database, which is
+            reliable but not backed up for you — and there is no undo for a
+            deletion. A copy on your own computer is the safety net.</p>
+
+          <p class="settings-note" data-el="s-last"></p>
+
+          <div class="field">
+            <label>Include</label>
+            <div class="check-list" data-el="s-categories"></div>
+          </div>
+
+          <div class="field">
+            <label for="s-interval">Remind me to back up</label>
+            <select id="s-interval" data-el="s-interval"></select>
+          </div>
+
+          <div class="field" data-el="s-auto-row">
+            <label class="check-row">
+              <input type="checkbox" id="s-auto" data-el="s-auto">
+              <span>Write backups to my folder automatically when one is due</span>
+            </label>
+          </div>
+
+          <p class="settings-note" data-el="s-folder-state"></p>
+
+          <div class="settings-actions">
+            <button class="btn-primary" data-el="backup-now">Back up now</button>
+            <button class="btn" data-el="s-choose-folder" type="button">Choose a folder</button>
+            <button class="btn" data-el="s-forget-folder" type="button">Forget folder</button>
+          </div>
+          <p class="settings-note" data-el="backup-result"></p>
+        </div>
+
+      </div>
+    </section>
     <section class="view" id="view-tasks">
       <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
