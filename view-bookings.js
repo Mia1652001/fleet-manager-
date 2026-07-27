@@ -19,23 +19,28 @@ let filter = "all";
 let calYear, calMonth;
 let planner = "timeline"; // "timeline" | "month"
 
-// The timeline shows a rolling window of dates (not tied to calendar months),
-// so it never dumps out a whole month of empty history on a wide screen.
-// It starts a few days before today and scrolls forward from there.
-// Each zoom step trades day width for how much of the calendar is visible.
-// Level 4 matches the original layout.
-const ZOOM_LEVELS = {
-  1: { days: 42, half: 9,  label: 90  },
-  2: { days: 35, half: 11, label: 110 },
-  3: { days: 28, half: 14, label: 140 },
-  4: { days: 21, half: 18, label: 170 },
-  5: { days: 14, half: 26, label: 200 }
-};
+// The timeline always holds the same stretch of calendar — a month and a half,
+// starting a few days before today. The slider is a zoom, not a range: it makes
+// the columns wider or narrower so more or less of that stretch is on screen at
+// once, but every one of the 45 days stays there to be scrolled to. Before, the
+// slider shortened the window itself, so zooming in to read a booking threw away
+// the far end of the calendar and there was no way to scroll to it.
+const TIMELINE_DAYS = 45;
 
-// There is no room for the Days slider on a phone, so the phone default has to
-// be right first time: a month of planning, which is what the desk looks at.
-// Desktop keeps three weeks and its slider. Both are only starting points.
-const DEFAULT_ZOOM = window.matchMedia("(max-width: 640px)").matches ? 2 : 4;
+// Day column widths per slider position, as half-columns — a day is two of
+// these, because bookings hand over mid-day and a bar can start or end on a
+// half. Wider steps than the old scale, since the window no longer shortens to
+// compensate: zooming in now has to do all the work of making a bar readable.
+const ZOOM_HALF = { 1: 16, 2: 22, 3: 30, 4: 42, 5: 60 };   // desktop
+const MOBILE_HALF = { 1: 10, 2: 12, 3: 15, 4: 19, 5: 26 }; // phones
+
+// The vehicle column can afford to be generous when the days are wide.
+const ZOOM_LABEL = { 1: 120, 2: 140, 3: 170, 4: 190, 5: 200 };
+
+// Position 3 on a desktop puts roughly three weeks on screen, which is what the
+// planner showed before this change. A phone starts one step wider still, since
+// screen space is the scarce thing there.
+const DEFAULT_ZOOM = window.matchMedia("(max-width: 640px)").matches ? 1 : 3;
 let zoom = loadPref("timelineZoom", DEFAULT_ZOOM);
 
 // The planner is what the desk works from, so the summary figures and the
@@ -48,46 +53,32 @@ function isNarrowScreen() {
   return window.matchMedia("(max-width: 640px)").matches;
 }
 
-// Half-column widths for phones, one per slider position. A day is two of these.
-const MOBILE_HALF = { 1: 10, 2: 12, 3: 15, 4: 19, 5: 26 };
-
 function zoomCfg() {
-  const cfg = ZOOM_LEVELS[zoom] || ZOOM_LEVELS[4];
-  if (!isNarrowScreen()) return cfg;
-  // A phone was showing about three days at a time, which is not planning. The
-  // vehicle column gives up eight pixels and the day columns shrink to roughly
-  // three quarters of their desktop width, with a floor that keeps a two-digit
-  // date legible. The date font shrinks to match (see style.css).
-  //
-  // Scaled rather than capped at a flat value: a flat cap made every position of
-  // the Days slider render identical column widths, so the slider only changed
-  // how far the window reached and not how much of it you could see at once.
-  // Scaling keeps the trade real — from about eighteen days visible at the loose
-  // end down to six wide ones at the tight end.
-  // The floor is 8 rather than 7 so that even at the loosest setting a one-day
-  // bar is wide enough for a character: at 7 it came out 14px, narrower than a
-  // single letter, and rendered as an empty coloured block.
-  // Phone widths are listed out one by one rather than scaled from the desktop
-  // numbers, because what matters here is how many days land on screen and that
-  // is easier to reason about directly. Against the usable width of a typical
-  // phone — about 260px once the vehicle column is taken off — these give
-  // roughly 13 days on screen at the loosest setting down to 5 wide ones at the
-  // tightest, with the range still running from 42 days to 14.
-  //
-  // The loosest setting is deliberately about a fortnight on screen rather than
-  // as many days as will physically fit: past that the columns are too narrow to
-  // carry a booking bar with any text in it, which is not a useful overview.
-  return { ...cfg, label: 88, half: MOBILE_HALF[zoom] || MOBILE_HALF[3] };
+  const z = ZOOM_HALF[zoom] ? zoom : 3;
+  // A phone gets its own, much narrower set: the vehicle column is trimmed to
+  // 88px and the days are roughly a third of their desktop width, or barely any
+  // of the calendar would be on screen at once.
+  return isNarrowScreen()
+    ? { days: TIMELINE_DAYS, half: MOBILE_HALF[z], label: 88 }
+    : { days: TIMELINE_DAYS, half: ZOOM_HALF[z], label: ZOOM_LABEL[z] };
 }
 
 function timelineDays() { return zoomCfg().days; }
 
-// An unlabelled slider gives no clue what it will do. Showing the resulting day
-// count turns it into a choice rather than a guess — especially on a phone,
-// where the whole window rarely fits on screen so the range is not self-evident.
+// The window is always 45 days now, so printing that would say nothing. What the
+// slider actually changes is how much of it you can see without scrolling, so
+// that is what the readout reports. Measured from the planner's real width, so
+// it is honest on any screen.
 function syncZoomLabel() {
   const out = el(root, "zoom-count");
-  if (out) out.textContent = `${timelineDays()}d`;
+  if (!out) return;
+  const wrap = el(root, "timeline-wrap");
+  const cfg = zoomCfg();
+  const usable = (wrap ? wrap.clientWidth : 0) - cfg.label;
+  const visible = usable > 0
+    ? Math.min(TIMELINE_DAYS, Math.max(1, Math.floor(usable / (cfg.half * 2))))
+    : null;
+  out.textContent = visible ? `${visible} of ${TIMELINE_DAYS}d` : `${TIMELINE_DAYS}d`;
 }
 
 // Roughly how wide the bar labels render. DM Mono is monospaced, so character
@@ -273,9 +264,10 @@ function stateLabel(s) {
 export function render() {
   if (!root) return;
   if (showSummary) renderStats();
-  syncZoomLabel();
   if (planner === "timeline") { renderTimeline(); fitPlannerHeight(); }
   else renderCalendar();
+  // After the planner is drawn, so the readout can measure a laid-out element.
+  syncZoomLabel();
   updateToggleLabels();
   // A closed panel is not drawn at all, so a long booking list costs nothing
   // while it is put away.
