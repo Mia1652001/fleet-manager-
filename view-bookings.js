@@ -52,13 +52,27 @@ function zoomCfg() {
   const cfg = ZOOM_LEVELS[zoom] || ZOOM_LEVELS[4];
   if (!isNarrowScreen()) return cfg;
   // A phone was showing about three days at a time, which is not planning. The
-  // vehicle column gives up eight pixels and the day columns are capped at half
-  // the desktop width, roughly tripling how much of the month is visible at once.
-  // The date font shrinks to match (see the mobile block in style.css).
-  return { ...cfg, label: 88, half: Math.min(cfg.half, 9) };
+  // vehicle column gives up eight pixels and the day columns shrink to roughly
+  // three quarters of their desktop width, with a floor that keeps a two-digit
+  // date legible. The date font shrinks to match (see style.css).
+  //
+  // Scaled rather than capped at a flat value: a flat cap made every position of
+  // the Days slider render identical column widths, so the slider only changed
+  // how far the window reached and not how much of it you could see at once.
+  // Scaling keeps the trade real — from about eighteen days visible at the loose
+  // end down to six wide ones at the tight end.
+  return { ...cfg, label: 88, half: Math.max(7, Math.round(cfg.half * 0.72)) };
 }
 
 function timelineDays() { return zoomCfg().days; }
+
+// An unlabelled slider gives no clue what it will do. Showing the resulting day
+// count turns it into a choice rather than a guess — especially on a phone,
+// where the whole window rarely fits on screen so the range is not self-evident.
+function syncZoomLabel() {
+  const out = el(root, "zoom-count");
+  if (out) out.textContent = `${timelineDays()}d`;
+}
 
 // Roughly how wide some text renders in the bar labels. DM Mono is monospaced,
 // so character count is a reliable proxy: at 9px the advance width is about
@@ -121,6 +135,7 @@ export function mount(container) {
     reanchored = true;
     render();
   });
+  syncZoomLabel();
 
 
   // Rotating a phone changes which layout applies, so redraw on resize
@@ -228,6 +243,7 @@ function stateLabel(s) {
 export function render() {
   if (!root) return;
   if (showSummary) renderStats();
+  syncZoomLabel();
   if (planner === "timeline") { renderTimeline(); fitPlannerHeight(); }
   else renderCalendar();
   updateToggleLabels();
@@ -287,6 +303,8 @@ function setPlanner(which) {
   el(root, "view-month").classList.toggle("active", which === "month");
   el(root, "timeline-wrap").style.display = which === "timeline" ? "block" : "none";
   el(root, "calendar").style.display = which === "month" ? "grid" : "none";
+  // The Days control only means anything to the timeline; a month is a month.
+  el(root, "zoom-wrap").style.display = which === "timeline" ? "" : "none";
   const legend = root.querySelector(".tl-legend");
   if (legend) legend.style.display = which === "timeline" ? "flex" : "none";
   render();
