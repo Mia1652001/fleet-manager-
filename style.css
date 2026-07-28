@@ -1051,9 +1051,22 @@ input:focus, select:focus { border-color: var(--text); }
    whole page and carried the date row with it. Giving the planner its own
    height makes it the thing that scrolls. */
 #view-bookings .timeline-wrap {
-  /* Starting value only. view-bookings.js measures the space actually left
-     below the planner's top edge and sets an exact height. */
-  max-height: max(320px, calc(100vh - 340px));
+  /* A window's worth of height, so the planner holds as many vehicles as the
+     screen can physically show. That makes it start off taller than the space
+     below the header — hence sticky: scroll down a little and it pins to the top
+     of the window with all of it visible, instead of the header permanently
+     taking a slice out of it.
+     The exact height comes from view-bookings.js so it follows a resize; this is
+     the value used before the first draw. */
+  position: sticky;
+  top: 16px;
+  max-height: max(320px, calc(100vh - 32px));
+  /* vh counts the area behind the phone browser's own toolbars, so on iOS the
+     line above overshoots and the bottom rows sit under the chrome. dvh measures
+     what is actually visible; browsers that do not know it ignore this line and
+     keep the one above. JavaScript sets an exact value on the first draw either
+     way, so this only governs the moment before that. */
+  max-height: max(320px, calc(100dvh - 32px));
   overflow-y: auto;
 }
 

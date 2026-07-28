@@ -435,16 +435,23 @@ function paintDragPreview() {
 // height is either wasteful or too short, because what sits above it changes
 // (the Summary panel opens and closes, and windows differ). So it is measured:
 // fill everything from the planner's top edge to the bottom of the window.
+// The planner is a window's worth of height rather than "whatever is left below
+// the header". It therefore starts off hanging past the bottom of the screen —
+// the page gets longer, which is the trade — and because the frame is sticky
+// (see style.css) a short scroll pins it to the top of the window, at which
+// point the whole of it is visible at once.
+//
+// It cannot go beyond one window. The date row stays frozen by being sticky
+// inside this frame, and that only holds while the frame itself is on screen; a
+// frame taller than the window would scroll its own top away and take the dates
+// with it. So a window's height is the ceiling, and this now reaches it.
+const PLANNER_VIEWPORT_GAP = 16;  // a little air top and bottom when pinned
 const PLANNER_MIN_HEIGHT = 320;   // a short window still gets a usable planner
-const PLANNER_BOTTOM_GAP = 4;     // run right down to the window edge
 
 function fitPlannerHeight() {
   const wrap = el(root, "timeline-wrap");
   if (!wrap) return;
-  // Document offset, not viewport offset, so the answer does not change
-  // depending on how far the page happens to be scrolled.
-  const topInPage = wrap.getBoundingClientRect().top + window.scrollY;
-  const available = window.innerHeight - topInPage - PLANNER_BOTTOM_GAP;
+  const available = window.innerHeight - PLANNER_VIEWPORT_GAP * 2;
   wrap.style.maxHeight = Math.max(PLANNER_MIN_HEIGHT, Math.round(available)) + "px";
 }
 
