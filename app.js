@@ -149,6 +149,10 @@ function startListeners() {
   stopListeners();
   const cid = state.ctx.companyId;
 
+  // Every listener reports "live" once its data has come back. Only the cars one
+  // used to, so saving a booking, a customer, a task or the settings left the
+  // header reading "Saving" indefinitely — the write had gone through, but
+  // nothing was left to say so until somebody happened to edit a car.
   unsubs.push(onSnapshot(query(collection(db, "cars"), where("companyId", "==", cid)), snap => {
     state.cars = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     setSync("live");
@@ -157,16 +161,19 @@ function startListeners() {
 
   unsubs.push(onSnapshot(query(collection(db, "bookings"), where("companyId", "==", cid)), snap => {
     state.bookings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    setSync("live");
     notifyDataChange();
   }, () => setSync("error")));
 
   unsubs.push(onSnapshot(query(collection(db, "customers"), where("companyId", "==", cid)), snap => {
     state.customers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    setSync("live");
     notifyDataChange();
   }, () => setSync("error")));
 
   unsubs.push(onSnapshot(query(collection(db, "tasks"), where("companyId", "==", cid)), snap => {
     state.tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    setSync("live");
     notifyDataChange();
   }, () => setSync("error")));
 
@@ -176,6 +183,7 @@ function startListeners() {
   unsubs.push(onSnapshot(doc(db, "settings", cid), snap => {
     state.settings = snap.exists() ? snap.data() : {};
     applyCompanyIdentity();
+    setSync("live");
     notifyDataChange();
   }, () => setSync("error")));
 }
