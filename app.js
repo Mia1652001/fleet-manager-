@@ -409,13 +409,24 @@ function exportCarsCsv() {
 // stored on the device rather than shared with the whole company.
 
 function applyTabOrder() {
+  const nav = document.getElementById("main-nav");
   const saved = loadPref("tabOrder", null);
   if (!Array.isArray(saved)) return;
-  const nav = document.getElementById("main-nav");
-  saved.forEach(name => {
-    const link = nav.querySelector(`a[data-view="${name}"]`);
-    if (link) nav.appendChild(link);      // re-appending puts it last, in order
-  });
+
+  const all = Array.from(nav.querySelectorAll("a[data-view]"));
+  const known = new Set(saved);
+
+  // A tab added to the app after someone last dragged their tabs will not be in
+  // their saved order. Re-appending only the saved ones left it stranded at the
+  // front — which is how Settings ended up before Dashboard on a device where
+  // the tabs had once been rearranged. Anything unknown goes to the end instead,
+  // in the order it appears in the markup, which is where a new tab belongs.
+  const ordered = [
+    ...saved.map(name => all.find(a => a.dataset.view === name)).filter(Boolean),
+    ...all.filter(a => !known.has(a.dataset.view))
+  ];
+
+  ordered.forEach(link => nav.appendChild(link));
 }
 
 function currentTabOrder() {
