@@ -1051,22 +1051,16 @@ input:focus, select:focus { border-color: var(--text); }
    whole page and carried the date row with it. Giving the planner its own
    height makes it the thing that scrolls. */
 #view-bookings .timeline-wrap {
-  /* A window's worth of height, so the planner holds as many vehicles as the
-     screen can physically show. That makes it start off taller than the space
-     below the header — hence sticky: scroll down a little and it pins to the top
-     of the window with all of it visible, instead of the header permanently
-     taking a slice out of it.
-     The exact height comes from view-bookings.js so it follows a resize; this is
-     the value used before the first draw. */
-  position: sticky;
-  top: 16px;
-  max-height: max(320px, calc(100vh - 32px));
-  /* vh counts the area behind the phone browser's own toolbars, so on iOS the
-     line above overshoots and the bottom rows sit under the chrome. dvh measures
-     what is actually visible; browsers that do not know it ignore this line and
-     keep the one above. JavaScript sets an exact value on the first draw either
-     way, so this only governs the moment before that. */
-  max-height: max(320px, calc(100dvh - 32px));
+  /* Sized to the space that is genuinely below it, so nothing is drawn outside
+     its own box. It was briefly position: sticky, to reclaim the height the
+     header takes — but a pinned sticky element is drawn lower than the space it
+     reserves, so it slid down over the legend and the buttons beneath it. That
+     is not fixable by spacing: the slide is bounded by the section, so it always
+     covers exactly whatever follows inside it.
+     The height the header was costing has been taken back by trimming the header
+     instead — see the desktop block further down. */
+  max-height: max(320px, calc(100vh - 250px));
+  max-height: max(320px, calc(100dvh - 250px));
   overflow-y: auto;
 }
 
@@ -1530,3 +1524,28 @@ input:focus, select:focus { border-color: var(--text); }
 }
 /* While dragging, stop the browser turning the gesture into a text selection. */
 .timeline.picking-range { user-select: none; cursor: crosshair; }
+
+/* ---------- A taller planner on desktop, by taking space off the top ----------
+   The planner can never be taller than the space below it, or the frozen date
+   row scrolls away with it. So the way to make it taller is to leave less above
+   it. The masthead and the gaps between the controls were sized generously for a
+   wide screen; none of this makes anything harder to read, and together it is
+   worth roughly four more vehicle rows. Phones already have their own, tighter
+   set of these values. */
+@media (min-width: 641px) {
+  header { padding: 0.8rem 2rem 0; }
+  header h1 { font-size: 1.35rem; }
+  .header-company { margin-top: 2px; font-size: 10px; }
+  .header-logo { margin-top: 4px; }
+  .header-logo img { max-height: 26px; }
+  .header-top { gap: 0.8rem; }
+
+  .main { padding-top: 1.1rem; }
+  .planner-bar { margin-bottom: 0.6rem; }
+  #view-bookings .panel-toggle { margin-bottom: 0.6rem; }
+
+  /* Slightly shorter vehicle rows. The two lines of text keep their size; it is
+     the padding around them that comes down. */
+  #view-bookings .tl-car { padding-top: 5px; padding-bottom: 5px; }
+  #view-bookings .tl-cell { padding-top: 3px; padding-bottom: 3px; }
+}

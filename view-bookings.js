@@ -435,23 +435,23 @@ function paintDragPreview() {
 // height is either wasteful or too short, because what sits above it changes
 // (the Summary panel opens and closes, and windows differ). So it is measured:
 // fill everything from the planner's top edge to the bottom of the window.
-// The planner is a window's worth of height rather than "whatever is left below
-// the header". It therefore starts off hanging past the bottom of the screen —
-// the page gets longer, which is the trade — and because the frame is sticky
-// (see style.css) a short scroll pins it to the top of the window, at which
-// point the whole of it is visible at once.
-//
-// It cannot go beyond one window. The date row stays frozen by being sticky
-// inside this frame, and that only holds while the frame itself is on screen; a
-// frame taller than the window would scroll its own top away and take the dates
-// with it. So a window's height is the ceiling, and this now reaches it.
-const PLANNER_VIEWPORT_GAP = 16;  // a little air top and bottom when pinned
+// The planner fills the space between its own top edge and the bottom of the
+// window. It cannot exceed that: the date row stays frozen by being sticky inside
+// this frame, which only holds while the frame is on screen, so a frame taller
+// than the window would scroll its own top away and take the dates with it.
+// Height is therefore won by taking space off what sits above the planner, not by
+// letting the planner spill past the window.
+const PLANNER_BOTTOM_GAP = 8;     // clear of the window edge, nothing more
 const PLANNER_MIN_HEIGHT = 320;   // a short window still gets a usable planner
 
 function fitPlannerHeight() {
   const wrap = el(root, "timeline-wrap");
   if (!wrap) return;
-  const available = window.innerHeight - PLANNER_VIEWPORT_GAP * 2;
+  // Measured from where the planner actually starts, so it fills the space below
+  // itself and no more. Document offset rather than viewport offset, so the
+  // answer does not change with how far the page happens to be scrolled.
+  const topInPage = wrap.getBoundingClientRect().top + window.scrollY;
+  const available = window.innerHeight - topInPage - PLANNER_BOTTOM_GAP;
   wrap.style.maxHeight = Math.max(PLANNER_MIN_HEIGHT, Math.round(available)) + "px";
 }
 
