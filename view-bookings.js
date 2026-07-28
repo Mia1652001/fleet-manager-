@@ -441,24 +441,23 @@ function paintDragPreview() {
 // than the window would scroll its own top away and take the dates with it.
 // Height is therefore won by taking space off what sits above the planner, not by
 // letting the planner spill past the window.
-const PLANNER_BOTTOM_GAP = 8;     // clear of the window edge, nothing more
+// The planner is a window's worth of height rather than "whatever is left below
+// the header". So at rest its bottom hangs below the fold — the page is longer,
+// which is the trade — and scrolling down by the height of the header brings the
+// whole planner into the window with the date row along its top edge. That is the
+// position you actually work in, and it is where the extra rows show up.
+//
+// A window's height is the ceiling and this reaches it. Going beyond would mean
+// scrolling the frame's own top off screen to see its lower rows, and the frozen
+// date row would go with it, since it is pinned inside this frame rather than to
+// the window.
+const PLANNER_VIEWPORT_AIR = 24;  // a little air so it does not touch the edges
 const PLANNER_MIN_HEIGHT = 320;   // a short window still gets a usable planner
 
 function fitPlannerHeight() {
   const wrap = el(root, "timeline-wrap");
   if (!wrap) return;
-
-  // Fill everything from the planner's own top edge to the bottom of the window.
-  // Nothing is reserved for the legend and buttons underneath: they sit below the
-  // fold and a short scroll reaches them, which is the trade for a taller
-  // planner. They cannot be covered — that only happened while this frame was
-  // briefly sticky, and reserving room for them afterwards was a leftover from
-  // that mistake which quietly ate the height it was supposed to be adding.
-  //
-  // Document offset rather than viewport offset, so the answer does not change
-  // with how far the page happens to be scrolled.
-  const topInPage = wrap.getBoundingClientRect().top + window.scrollY;
-  const available = window.innerHeight - topInPage - PLANNER_BOTTOM_GAP;
+  const available = window.innerHeight - PLANNER_VIEWPORT_AIR;
   wrap.style.maxHeight = Math.max(PLANNER_MIN_HEIGHT, Math.round(available)) + "px";
 }
 

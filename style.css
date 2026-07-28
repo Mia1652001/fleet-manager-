@@ -1051,18 +1051,15 @@ input:focus, select:focus { border-color: var(--text); }
    whole page and carried the date row with it. Giving the planner its own
    height makes it the thing that scrolls. */
 #view-bookings .timeline-wrap {
-  /* Sized to the space genuinely below it. I briefly made this sticky to reclaim
-     the height the header takes, which is what caused the planner to slide down
-     over the legend and buttons: a pinned sticky element is drawn lower than the
-     space it reserves, and its slide is bounded by the section, so it always
-     ends up covering whatever follows inside it. No amount of spacing fixes
-     that. The height is reclaimed by trimming the header instead. */
-  max-height: max(320px, calc(100vh - 250px));
+  /* A window's worth of height. The exact value is set from view-bookings.js so
+     it follows a resize; these are the values used before the first draw.
+     Deliberately not sticky — a pinned sticky frame is drawn lower than the space
+     it reserves and slid down over the buttons beneath it. */
+  max-height: max(320px, calc(100vh - 24px));
   /* vh counts the area behind a phone browser's toolbars, so it overshoots on
      iOS; dvh measures what is actually visible. Browsers that do not know dvh
-     ignore this line and keep the one above. JavaScript sets an exact value on
-     the first draw regardless. */
-  max-height: max(320px, calc(100dvh - 250px));
+     ignore this line and keep the one above. */
+  max-height: max(320px, calc(100dvh - 24px));
   overflow-y: auto;
 }
 
