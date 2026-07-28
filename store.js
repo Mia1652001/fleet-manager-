@@ -49,17 +49,10 @@ export function formatAmount(n) {
 export function companyName() {
   return state.settings?.companyName || state.ctx?.companyName || "";
 }
-export function companyPhone() { return state.settings?.phone || ""; }
+
 export function companyTerms() { return state.settings?.terms || ""; }
 
-// ---------- Shared domain logic ----------
-export function carLabel(carId) {
-  const c = state.cars.find(x => x.id === carId);
-  return c ? `${c.year || ""} ${c.make} ${c.model} (${c.plate || "no plate"})`.trim() : "Unknown car";
-}
 
-// Label for a booking's car. Falls back to the name saved on the booking when
-// the car itself has since been removed from the fleet, so history survives.
 export function bookingCarLabel(b) {
   const c = state.cars.find(x => x.id === b.carId);
   if (c) return `${c.year || ""} ${c.make} ${c.model} (${c.plate || "no plate"})`.trim();
@@ -77,10 +70,6 @@ export function openBookingsForCar(carId) {
   return state.bookings.filter(b => b.carId === carId && b.status !== "completed");
 }
 
-// Date-only overlap, kept for anything that reasons in whole days.
-export function overlaps(aStart, aEnd, bStart, bEnd) {
-  return aStart <= bEnd && bStart <= aEnd;
-}
 
 // ---------- Time-aware availability ----------
 // A rental occupies an interval from pick-up date+time to return date+time.
@@ -146,7 +135,12 @@ export function carStatus(car) {
 
 export function serviceDueByDate(c) {
   if (!c.nextServiceDate) return false;
-  const soon = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+  // Built from local date parts rather than toISOString, which reports UTC.
+  // Mauritius is four hours ahead, so between midnight and 4am the old version
+  // measured the fortnight from yesterday and the warning appeared a day late.
+  const d = new Date();
+  d.setDate(d.getDate() + 14);
+  const soon = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   return c.nextServiceDate <= soon;
 }
 export function serviceDueByMileage(c) {
@@ -167,7 +161,12 @@ export function bookingState(b) {
 
 // ---------- Billing maths ----------
 export function rentalDays(b) {
+  // A booking with a missing or unreadable date used to make this NaN, which
+  // then spread through the total, the balance and every figure built on them —
+  // and "NaN" printed on screen and into the exports.
+  if (!b || !b.startDate || !b.endDate) return 1;
   const ms = new Date(b.endDate) - new Date(b.startDate);
+  if (!Number.isFinite(ms)) return 1;
   return Math.max(1, Math.round(ms / 86400000) + 1);
 }
 
@@ -181,16 +180,28 @@ export function rateFor(b) {
 // agree a bespoke price (long rental, negotiated deal) without changing the
 // car's published rate.
 export function hasManualTotal(b) {
-  return typeof b.totalPrice === "number" && b.totalPrice > 0;
+  // Zero counts. Requiring it to be above zero meant a complimentary rental,
+  // entered deliberately as 0, fell through to days × daily rate and was billed
+  // in full — the opposite of what was typed. A blank field is saved as null, so
+  // "nothing entered" and "entered as free" stay distinguishable.
+  return typeof b.totalPrice === "number" && Number.isFinite(b.totalPrice) && b.totalPrice >= 0;
 }
 export function rentalTotal(b) {
-  if (hasManualTotal(b)) return b.totalPrice;
-  return rentalDays(b) * rateFor(b);
+  // Clamped, because a negative rate or price typed by mistake would otherwise
+  // show as a negative invoice and quietly reduce the outstanding total.
+  if (hasManualTotal(b)) return Math.max(0, b.totalPrice);
+  return Math.max(0, rentalDays(b) * rateFor(b));
 }
 export function advancePaid(b) { return typeof b.advancePaid === "number" ? b.advancePaid : 0; }
 export function balanceFor(b) { return Math.max(0, rentalTotal(b) - advancePaid(b)); }
 export function securityHeld(b) {
-  return (b.securityDeposit && b.securityStatus === "held") ? b.securityDeposit : 0;
+  // Anything not explicitly refunded or kept is still in hand. Requiring the
+  // status to say "held" meant a deposit recorded without one was left out of
+  // "Deposits held" — understating money the company is actually holding.
+  const amount = Number(b.securityDeposit) || 0;
+  if (amount <= 0) return 0;
+  const status = b.securityStatus;
+  return (status === "refunded" || status === "kept") ? 0 : amount;
 }
 export function settledAmount(b) {
   if (b.paid && typeof b.paidAmount === "number") return b.paidAmount;
@@ -530,7 +541,9 @@ export function buildSchedule({ from, to, includeDone }) {
   const t = todayStr();
   let jobs = [];
   state.bookings.forEach(b => { jobs = jobs.concat(bookingJobs(b)); });
-  state.tasks.forEach(x => { jobs.push(manualJob(x)); });
+  // Guarded like the other collections: this runs on a timer from the dashboard,
+  // and a list that has not arrived yet would otherwise stop the whole schedule.
+  (state.tasks || []).forEach(x => { jobs.push(manualJob(x)); });
   jobs = jobs.concat(serviceJobs());
 
   jobs = jobs.filter(j => {
@@ -645,14 +658,6 @@ export function setVal(root, name, v) {
   const e = el(root, name);
   if (e) e.value = v ?? "";
 }
-// ---------- Colour swatch groups ----------
-// A small set of fixed colours rather than a free colour picker: they stay
-// legible against dark text, and a limited palette is easier to use as a code.
-export const BAR_COLOURS = [
-  "#cfe8cf", "#f7e2b0", "#f5c9c9", "#c9dcf0",
-  "#ddd0ee", "#bfe5df", "#e8dcc0", "#d8d8d8",
-  "#5eff3d", "#ffff3d"          // fluorescent green and yellow
-];
 
 export function getSwatch(root, name) {
   const group = el(root, name);

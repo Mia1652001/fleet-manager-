@@ -17,7 +17,7 @@
 import {
   state, esc, formatDate, formatAmount, bookingCarLabel, bookingRef,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor,
-  startTime, endTime, customerForBooking, companyName, companyTerms
+  startTime, endTime, customerForBooking, companyName, companyTerms, todayStr
 } from "./store.js";
 
 function line(label, value) {
@@ -136,7 +136,7 @@ function documentHtml(b) {
     <div class="ag-title">
       <h1>Rental agreement</h1>
       <div class="ag-ref">${esc(ref)}</div>
-      <div class="ag-issued">Issued ${esc(formatDate(new Date().toISOString().slice(0, 10)))}</div>
+      <div class="ag-issued">Issued ${esc(formatDate(todayStr()))}</div>
     </div>
   </div>
 

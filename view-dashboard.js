@@ -72,11 +72,6 @@ export function mount(container) {
   onDataChange(() => { if (root.classList.contains("active")) render(); });
 }
 
-function shiftDate(days) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function figure(label, value, tone, goto) {
   return `<button class="dash-figure" data-goto="${goto}">
