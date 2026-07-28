@@ -245,7 +245,25 @@ input:focus, select:focus { border-color: var(--text); }
 
 .modal { background: var(--surface); border-radius: 6px; border: 1px solid var(--border); padding: 2rem; width: 400px; max-width: 100%; max-height: 90vh; overflow-y: auto; }
 .modal h2 { font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 300; margin-bottom: 1.5rem; }
-.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.5rem; }
+/* Wraps, because the booking form now carries six buttons and a single row
+   pushed the first of them off the left edge where they could not be reached. */
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 1.5rem;
+}
+/* The document and send actions. margin-right: auto keeps them on the left and
+   pushes Cancel and Save to the right, so the two you press most often are
+   always in the same place however many of these are showing. */
+.modal-actions-side {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-right: auto;
+}
 
 .field { margin-bottom: 14px; }
 .field label { display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
@@ -1651,4 +1669,14 @@ input:focus, select:focus { border-color: var(--text); }
 .item-card.just-focused {
   box-shadow: 0 0 0 2px var(--blue-text);
   transition: box-shadow 0.25s ease-out;
+}
+
+@media (max-width: 640px) {
+  /* On a phone the row becomes two stacked groups rather than a wrapping line,
+     so Save is always the full-width control at the bottom where a thumb is. */
+  .modal-actions { gap: 6px; }
+  .modal-actions-side { width: 100%; margin-right: 0; }
+  .modal-actions-side .btn { flex: 1 1 auto; }
+  .modal-actions .btn-primary { flex: 1 1 100%; padding: 11px; }
+  .modal-actions > .btn { flex: 1 1 auto; }
 }

@@ -663,12 +663,16 @@
         <textarea data-el="b-notes" rows="4" placeholder="e.g. baby seat, second driver, late flight&#10;Multiple lines are fine."></textarea>
       </div>
       <div class="modal-actions">
-        <button class="btn danger" data-el="delete-booking" style="display:none;">Delete booking</button>
-        <!-- Hidden until the booking exists: an agreement needs a reference
-             number, and there is nothing to print for an unsaved form. -->
-        <button class="btn" data-el="print-agreement" style="display:none;">Rental agreement</button>
-        <button class="btn" data-el="email-booking" style="display:none;">Email customer</button>
-        <button class="btn" data-el="whatsapp-booking" style="display:none;">WhatsApp</button>
+        <!-- Grouped so Cancel and Save always stay together at the right, whatever
+             else is on the row. These four are hidden until the booking exists:
+             an agreement needs a reference number, and there is nothing to send
+             about a form that has not been saved. -->
+        <div class="modal-actions-side">
+          <button class="btn danger" data-el="delete-booking" style="display:none;">Delete booking</button>
+          <button class="btn" data-el="print-agreement" style="display:none;">Rental agreement</button>
+          <button class="btn" data-el="email-booking" style="display:none;">Email customer</button>
+          <button class="btn" data-el="whatsapp-booking" style="display:none;">WhatsApp</button>
+        </div>
         <button class="btn" data-close="booking-modal">Cancel</button>
         <button class="btn-primary" data-el="save-booking">Save booking</button>
       </div>
