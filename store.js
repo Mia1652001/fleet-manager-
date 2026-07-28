@@ -396,6 +396,7 @@ function bookingJobs(b) {
       staff: b.deliveredBy || b.managedBy || "",
       managedBy: b.managedBy || "",
       deliveredBy: b.deliveredBy || "",
+      recoveredBy: b.recoveredBy || "",
       notes: b.notes || "",
       done: deliveryDone(b)
     },
@@ -408,9 +409,13 @@ function bookingJobs(b) {
       car: carText,
       location: b.dropoffLocation || "",
       customer: b.renter || "",
-      staff: b.deliveredBy || b.managedBy || "",
+      // Bringing a car back is often a different person's job from taking it
+      // out, so this follows recoveredBy. It used to credit the recovery to
+      // whoever delivered, which put the job on the wrong person's list.
+      staff: b.recoveredBy || b.managedBy || "",
       managedBy: b.managedBy || "",
       deliveredBy: b.deliveredBy || "",
+      recoveredBy: b.recoveredBy || "",
       notes: b.notes || "",
       done: recoveryDone(b)
     }
@@ -459,15 +464,46 @@ function manualJob(t) {
 
 // Every staff name that appears anywhere, so a filter can be built from the
 // data rather than needing a separate list of employees to maintain.
-export function staffNames() {
-  const set = new Set();
-  state.bookings.forEach(b => {
-    if (b.deliveredBy) set.add(String(b.deliveredBy).trim());
-    if (b.managedBy) set.add(String(b.managedBy).trim());
+// ---------- Suggestion lists ----------
+// Two sources, deliberately. The list kept on the Settings page is the company's
+// own — the people and places it actually uses. Everything already typed into a
+// booking is added to it, so the suggestions are useful from the first day
+// without anyone having to fill Settings in first, and a one-off destination
+// typed for a single customer is never lost.
+
+function settingsList(key) {
+  const raw = state.settings?.[key];
+  if (!Array.isArray(raw)) return [];
+  return raw.map(x => String(x).trim()).filter(Boolean);
+}
+
+function mergeNames(...groups) {
+  // Case-insensitive de-duplication, keeping the first spelling seen. Settings
+  // is passed first, so the company's own spelling wins over whatever variants
+  // have been typed into bookings over the months.
+  const seen = new Map();
+  groups.flat().forEach(v => {
+    const name = String(v || "").trim();
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (!seen.has(key)) seen.set(key, name);
   });
-  state.tasks.forEach(t => { if (t.staff) set.add(String(t.staff).trim()); });
-  set.delete("");
-  return Array.from(set).sort((a, b) => a.localeCompare(b));
+  return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
+}
+
+export function staffNames() {
+  return mergeNames(
+    settingsList("staff"),
+    state.bookings.flatMap(b => [b.deliveredBy, b.managedBy, b.recoveredBy]),
+    (state.tasks || []).map(t => t.staff)
+  );
+}
+
+export function locationNames() {
+  return mergeNames(
+    settingsList("locations"),
+    state.bookings.flatMap(b => [b.pickupLocation, b.dropoffLocation])
+  );
 }
 
 // Returns jobs within [from, to], plus anything overdue and still not done —

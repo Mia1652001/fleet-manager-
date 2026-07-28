@@ -9,6 +9,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstat
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
   makeBookingRef, bookingRef, showToast,
+  staffNames, locationNames,
   startTime, endTime,
   fillTimeOptions, getTime, setTime, onTimeChange,
   getSwatch, setSwatch,
@@ -75,6 +76,19 @@ function toggleNewCustomer() {
   el(root, "b-quick-fields").style.display = v === "__quick__" ? "block" : "none";
 }
 
+// Refilled each time the form opens rather than once at startup, so a location
+// typed into yesterday's booking is offered on today's.
+function fillSuggestions() {
+  const put = (id, values) => {
+    const dl = document.getElementById(id);
+    if (!dl) return;
+    dl.innerHTML = values
+      .map(v => `<option value="${esc(v)}"></option>`).join("");
+  };
+  put("dl-locations", locationNames());
+  put("dl-staff", staffNames());
+}
+
 export function openBookingModal(bookingId, preset) {
   if (state.cars.length === 0) { alert("Add at least one car in the Fleet view first."); return; }
 
@@ -92,6 +106,8 @@ export function openBookingModal(bookingId, preset) {
     .map(c => `<option value="${c.id}">${esc(`${c.year || ""} ${c.make} ${c.model} (${c.plate || "no plate"})`.trim())}</option>`)
     .join("");
 
+  fillSuggestions();
+
   const csel = el(root, "b-customer");
   csel.innerHTML = state.customers.slice()
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -104,7 +120,7 @@ export function openBookingModal(bookingId, preset) {
   csel.value = "__quick__";
 
   ["b-name","b-phone","b-email","b-quickname","b-start","b-end",
-   "b-pickup","b-dropoff","b-total","b-managedby","b-deliveredby","b-notes"]
+   "b-pickup","b-dropoff","b-total","b-managedby","b-deliveredby","b-recoveredby","b-notes"]
     .forEach(n => setVal(root, n, ""));
   setChecked(root, "b-paid", false);
   setSwatch(root, "b-colour", "");
@@ -123,6 +139,7 @@ export function openBookingModal(bookingId, preset) {
     setVal(root, "b-total", editing.totalPrice ?? "");
     setVal(root, "b-managedby", editing.managedBy || "");
     setVal(root, "b-deliveredby", editing.deliveredBy || "");
+    setVal(root, "b-recoveredby", editing.recoveredBy || "");
     setVal(root, "b-notes", editing.notes || "");
     setChecked(root, "b-paid", editing.paid === true);
     setSwatch(root, "b-colour", editing.barColour || "");
@@ -243,6 +260,7 @@ async function saveBooking() {
       totalPrice: totalRaw === "" ? null : (parseFloat(totalRaw) || 0),
       managedBy: val(root, "b-managedby"),
       deliveredBy: val(root, "b-deliveredby"),
+      recoveredBy: val(root, "b-recoveredby"),
       notes: val(root, "b-notes"),
       ...settlement(),
       barColour: getSwatch(root, "b-colour")

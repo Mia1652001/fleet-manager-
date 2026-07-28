@@ -103,10 +103,33 @@ export function render() {
   setVal(root, "s-address", s.address || "");
   setVal(root, "s-currency", s.currency || "");
   setVal(root, "s-terms", s.terms || "");
+  setVal(root, "s-locations", linesFrom(s.locations));
+  setVal(root, "s-staff", linesFrom(s.staff));
 
   if (!logoTouched) logoData = s.logo || null;
   paintLogo();
   renderBackup();
+}
+
+// ---------- Lists ----------
+// Stored as arrays but edited as lines of text, which is far quicker than a row
+// of add-and-remove buttons when someone is entering a dozen place names.
+
+function linesFrom(arr) {
+  return Array.isArray(arr) ? arr.join("\n") : "";
+}
+
+function linesTo(text) {
+  // Duplicates are dropped case-insensitively, so "Airport" and "airport" do not
+  // both end up in the list and produce two suggestions for one place.
+  const seen = new Map();
+  String(text || "").split("\n").forEach(line => {
+    const v = line.trim();
+    if (!v) return;
+    const k = v.toLowerCase();
+    if (!seen.has(k)) seen.set(k, v);
+  });
+  return Array.from(seen.values());
 }
 
 // ---------- Logo ----------
@@ -264,6 +287,8 @@ async function saveSettings() {
     address: val(root, "s-address"),
     currency: val(root, "s-currency"),
     terms: val(root, "s-terms"),
+    locations: linesTo(val(root, "s-locations")),
+    staff: linesTo(val(root, "s-staff")),
     updatedAt: new Date().toISOString()
   };
   if (logoTouched) data.logo = logoData || null;

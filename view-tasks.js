@@ -139,8 +139,8 @@ export function render() {
     // another shows up for both of them.
     const matchesStaff =
       !staffFilter ? true :
-      staffFilter === "__none__" ? !j.staff && !j.managedBy && !j.deliveredBy :
-      [j.staff, j.managedBy, j.deliveredBy].includes(staffFilter);
+      staffFilter === "__none__" ? !j.staff && !j.managedBy && !j.deliveredBy && !j.recoveredBy :
+      [j.staff, j.managedBy, j.deliveredBy, j.recoveredBy].includes(staffFilter);
     return matchesSearch && matchesKind && matchesStaff;
   });
 

@@ -77,7 +77,7 @@ function bookingRows() {
     ["Reference","Customer","Phone","Car","Pick-up","Pick-up time","Return","Return time",
      "Days","Daily rate","Rental total","Advance paid","Balance",
      "Security deposit","Deposit status","Paid","Settled on","Status",
-     "Pick-up place","Drop-off place","Managed by","Delivered by","Notes"],
+     "Pick-up place","Drop-off place","Managed by","Delivered by","Recovered by","Notes"],
     ...state.bookings.slice()
       .sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""))
       .map(b => [
@@ -89,7 +89,7 @@ function bookingRows() {
         b.paid ? "Yes" : "No", b.paid ? settledOn(b) : "",
         b.status === "completed" ? "Completed" : "Open",
         b.pickupLocation || "", b.dropoffLocation || "",
-        b.managedBy || "", b.deliveredBy || "", b.notes || ""
+        b.managedBy || "", b.deliveredBy || "", b.recoveredBy || "", b.notes || ""
       ])
   ];
 }
