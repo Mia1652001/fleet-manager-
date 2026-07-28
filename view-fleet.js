@@ -183,9 +183,18 @@ export function render() {
 function revealCar(id) {
   const card = el(root, "list").querySelector(`[data-car-id="${id}"]`);
   if (!card) return;
-  card.scrollIntoView({ block: "center", behavior: "smooth" });
+
   card.classList.add("just-focused");
-  setTimeout(() => card.classList.remove("just-focused"), 2200);
+  setTimeout(() => card.classList.remove("just-focused"), 2600);
+
+  // Deferred deliberately. Switching view renders the page and then sends it back
+  // to the top — sensible for every normal navigation, but it landed immediately
+  // after this scroll and cancelled it, so the card was outlined somewhere far
+  // down a page still sitting at the top. Waiting a tick puts this second.
+  setTimeout(() => {
+    const still = el(root, "list").querySelector(`[data-car-id="${id}"]`);
+    if (still) still.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, 0);
 }
 
 // ---------- Car add / edit ----------
