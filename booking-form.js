@@ -8,6 +8,7 @@ import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
+  makeBookingRef, bookingRef, showToast,
   startTime, endTime,
   fillTimeOptions, getTime, setTime, onTimeChange,
   getSwatch, setSwatch,
@@ -79,7 +80,11 @@ export function openBookingModal(bookingId, preset) {
 
   editingBookingId = bookingId || null;
   const editing = editingBookingId ? state.bookings.find(b => b.id === editingBookingId) : null;
-  el(root, "booking-modal-title").textContent = editing ? "Edit booking" : "New booking";
+  // Shown in the title when editing, which is where someone looks when a
+  // customer rings up quoting a number.
+  el(root, "booking-modal-title").textContent = editing
+    ? `Edit booking ${bookingRef(editing)}`
+    : "New booking";
 
   const sel = el(root, "b-car");
   sel.innerHTML = state.cars.slice()
@@ -198,6 +203,7 @@ async function saveBooking() {
     return;
   }
 
+  const wasEditing = editingBookingId;
   const clash = findClash({ carId, startAt, endAt, ignoreId: editingBookingId });
   if (clash) {
     showError(root, "booking-error",
@@ -209,6 +215,7 @@ async function saveBooking() {
   const btn = el(root, "save-booking");
   btn.disabled = true; btn.textContent = "Saving...";
   setSync("saving");
+  let newRef = null;
   try {
     if (!customerId) {
       const ref = await addDoc(collection(db, "customers"), {
@@ -240,13 +247,21 @@ async function saveBooking() {
       await updateDoc(doc(db, "bookings", editingBookingId),
         { carId, customerId: customerId ?? null, renter, phone, startDate, endDate, dailyRate, carName, ...details });
     } else {
+      // Generated once, here, so the reference stays the same for the life of the
+      // booking however often it is edited afterwards.
+      newRef = makeBookingRef();
       await addDoc(collection(db, "bookings"), {
         companyId: state.ctx.companyId, carId, customerId: customerId ?? null, renter, phone,
         startDate, endDate, dailyRate, carName, ...details,
-        status: "open", createdAt: new Date().toISOString()
+        ref: newRef, status: "open", createdAt: new Date().toISOString()
       });
     }
     closeModal(root, "booking-modal");
+    // The reference is only useful if staff actually see it, so it is shown on
+    // saving rather than left to be found later in the list.
+    showToast(newRef
+      ? `Booking ${newRef} saved`
+      : `Booking ${bookingRef(state.bookings.find(b => b.id === wasEditing)) || ""} updated`);
     editingBookingId = null;
     announce();
   } catch (e) {

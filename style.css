@@ -1472,3 +1472,56 @@ input:focus, select:focus { border-color: var(--text); }
   .period-row { margin-top: -0.3rem; gap: 6px; }
   .period-row select { font-size: 10px; padding: 3px 5px; }
 }
+
+/* The All button sits with the letters but needs room for a word, and a little
+   separation so it reads as "everything" rather than as another letter. */
+.alpha-btn.alpha-all {
+  min-width: 40px;
+  padding-left: 6px;
+  padding-right: 6px;
+  margin-right: 5px;
+}
+
+/* ---------- Brief confirmations ---------- */
+#toast-host {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;              /* above the modals, which sit at 100 */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;      /* never blocks a click on what is underneath */
+}
+.toast {
+  background: var(--text);
+  color: var(--bg);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  padding: 11px 18px;
+  border-radius: 4px;
+  box-shadow: 0 6px 20px rgba(26,24,20,0.22);
+  max-width: 92vw;
+  text-align: center;
+  animation: toast-in 0.18s ease-out;
+}
+.toast.leaving { opacity: 0; transition: opacity 0.45s ease-in; }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 640px) {
+  #toast-host { bottom: 14px; }
+  .toast { font-size: 11px; padding: 10px 14px; }
+}
+
+/* The booking reference, wherever it appears alongside other card detail. */
+.ref {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  opacity: 0.75;
+}

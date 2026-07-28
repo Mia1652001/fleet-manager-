@@ -265,6 +265,84 @@ export function settledOn(b) {
   return t;
 }
 
+// ---------- Brief confirmations ----------
+// A save that closes a dialog and leaves no trace gives no assurance it worked,
+// and there is nowhere to put a booking reference at that moment. This is a short
+// notice that appears, then goes. Deliberately not a dialog: nothing here needs
+// dismissing, and an extra click on every save would wear thin quickly.
+export function showToast(message, tone = "ok") {
+  if (!message) return;
+  let host = document.getElementById("toast-host");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "toast-host";
+    document.body.appendChild(host);
+  }
+  const note = document.createElement("div");
+  note.className = `toast ${tone}`;
+  note.textContent = message;
+  host.appendChild(note);
+
+  // Long enough to read and write down a reference, short enough not to linger.
+  setTimeout(() => { note.classList.add("leaving"); }, 4200);
+  setTimeout(() => { note.remove(); }, 4700);
+}
+
+// ---------- Booking reference ----------
+// A short code staff can read out over the phone and quote on a confirmation.
+// The alphabet deliberately leaves out 0, O, 1, I and L, because those are the
+// characters people mishear and mistype; what is left is unambiguous spoken
+// aloud. The YYMM prefix means a reference also tells you roughly when it was
+// taken, and keeps codes from the same month grouped together.
+const REF_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+const REF_BODY_LEN = 4;
+
+function refBody(fromRandom) {
+  let out = "";
+  for (let i = 0; i < REF_BODY_LEN; i++) {
+    out += REF_ALPHABET[Math.floor(fromRandom() * REF_ALPHABET.length)];
+  }
+  return out;
+}
+
+function refPrefix(dateish) {
+  const d = dateish ? new Date(dateish) : new Date();
+  const use = isNaN(d) ? new Date() : d;
+  return `${String(use.getFullYear()).slice(2)}${String(use.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// Called once when a booking is created, so the reference is stored and never
+// changes afterwards even if the dates or the car do. Checks what is already
+// loaded and tries again on the small chance of a repeat.
+export function makeBookingRef() {
+  const prefix = refPrefix(null);
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const candidate = `${prefix}-${refBody(Math.random)}`;
+    if (!state.bookings.some(b => b.ref === candidate)) return candidate;
+  }
+  // Twelve collisions in a row is implausible; fall back to something certainly
+  // unique rather than risk handing out a duplicate.
+  return `${prefix}-${Date.now().toString(36).slice(-4).toUpperCase()}`;
+}
+
+// Bookings taken before references existed have no stored ref, so one is derived
+// from the document id. It is stable, unique and in the same shape, which means
+// every booking can show a reference without having to rewrite old records.
+export function bookingRef(b) {
+  if (!b) return "";
+  if (b.ref) return b.ref;
+  const id = b.id || "";
+  if (!id) return "";
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  let body = "";
+  for (let i = 0; i < REF_BODY_LEN; i++) {
+    body += REF_ALPHABET[h % REF_ALPHABET.length];
+    h = Math.floor(h / REF_ALPHABET.length) + 7;
+  }
+  return `${refPrefix(b.createdAt || b.startDate)}-${body}`;
+}
+
 // Has the rental actually begun? Only started rentals count towards money owed.
 export function hasStarted(b) {
   return b.startDate <= todayStr() || b.status === "completed";

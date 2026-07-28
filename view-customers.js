@@ -24,8 +24,7 @@ export function mount(container) {
   el(root, "alpha").addEventListener("click", (e) => {
     const b = e.target.closest("[data-letter]");
     if (!b || b.disabled) return;
-    // Tapping the letter you are already on clears it, so there is always a way
-    // back to the full register without hunting for an "All" button.
+    // All sets it empty; tapping the letter you are already on also clears it.
     letter = (b.dataset.letter === letter) ? "" : b.dataset.letter;
     render();
   });
@@ -76,7 +75,13 @@ function renderAlphaIndex(people) {
   const keys = [...ALPHABET];
   if (counts["#"]) keys.push("#");          // only when something needs it
 
-  el(root, "alpha").innerHTML = keys.map(k => {
+  // An explicit All button. Tapping the selected letter again also clears it, but
+  // nothing on screen says so, so relying on that alone left people stuck inside
+  // a letter with no obvious way back to the whole register.
+  const all = `<button type="button" class="alpha-btn alpha-all${letter === "" ? " active" : ""}"
+      data-letter="" title="Show every customer">All</button>`;
+
+  el(root, "alpha").innerHTML = all + keys.map(k => {
     const n = counts[k] || 0;
     return `<button type="button" class="alpha-btn${letter === k ? " active" : ""}"
       data-letter="${k}" ${n ? "" : "disabled"}

@@ -7,7 +7,8 @@ import {
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
   settledAmount, isBillable, hasStarted, inPeriod, settledOn, PERIOD_DAYS,
   initPanelToggle,
-  el, val, setVal, openModal, closeModal, showError
+  el, val, setVal, openModal, closeModal, showError,
+  bookingRef
 } from "./store.js";
 
 // The badge on a card names the same category the tabs sort by, so a card can
@@ -155,7 +156,7 @@ export function render() {
       <div class="card-top">
         <div>
           <div class="card-title">${esc(b.renter)} — ${formatAmount(b.paid ? total : balance)}${b.paid ? "" : " owed"}</div>
-          <div class="card-sub">${esc(bookingCarLabel(b))}</div>
+          <div class="card-sub">${esc(bookingCarLabel(b))} · <span class="ref">${esc(bookingRef(b))}</span></div>
         </div>
         <span class="badge ${BADGE[categoryOf(b)].cls}">${BADGE[categoryOf(b)].text}</span>
       </div>

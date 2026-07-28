@@ -13,7 +13,8 @@
 // nobody is left believing they are protected when they are not.
 
 import { state, bookingCarLabel, rentalDays, rateFor, rentalTotal,
-         advancePaid, balanceFor, settledOn, loadPref, savePref } from "./store.js";
+         advancePaid, balanceFor, settledOn, bookingRef,
+         loadPref, savePref } from "./store.js";
 
 export const CATEGORIES = [
   { key: "bookings",  label: "Bookings & invoices" },
@@ -73,14 +74,14 @@ export function backupDue() {
 
 function bookingRows() {
   return [
-    ["Customer","Phone","Car","Pick-up","Pick-up time","Return","Return time",
+    ["Reference","Customer","Phone","Car","Pick-up","Pick-up time","Return","Return time",
      "Days","Daily rate","Rental total","Advance paid","Balance",
      "Security deposit","Deposit status","Paid","Settled on","Status",
      "Pick-up place","Drop-off place","Managed by","Delivered by","Notes"],
     ...state.bookings.slice()
       .sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""))
       .map(b => [
-        b.renter || "", b.phone || "", bookingCarLabel(b),
+        bookingRef(b), b.renter || "", b.phone || "", bookingCarLabel(b),
         b.startDate || "", b.startTime || "", b.endDate || "", b.endTime || "",
         rentalDays(b), rateFor(b), rentalTotal(b),
         advancePaid(b), balanceFor(b),

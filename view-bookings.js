@@ -11,7 +11,8 @@ import {
   orderedCars, loadPref, savePref,
   startTime, endTime, pickupLabel, dropoffLabel, rentalTotal,
   initPanelToggle,
-  el, val, closeModal
+  el, val, closeModal,
+  bookingRef
 } from "./store.js";
 
 let root = null;
@@ -673,7 +674,7 @@ function renderList() {
       <div class="card-top">
         <div>
           <div class="card-title">${esc(b.renter)}</div>
-          <div class="card-sub">${esc(bookingCarLabel(b))}</div>
+          <div class="card-sub">${esc(bookingCarLabel(b))} · <span class="ref">${esc(bookingRef(b))}</span></div>
         </div>
         <span class="badge ${s}">${stateLabel(s)}</span>
       </div>

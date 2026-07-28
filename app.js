@@ -4,7 +4,7 @@
 
 import { db, auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setSync } from "./firebase-init.js";
 import { collection, query, where, onSnapshot, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, loadPref, savePref } from "./store.js";
+import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, bookingRef, loadPref, savePref } from "./store.js";
 
 import * as fleet from "./view-fleet.js";
 import * as bookings from "./view-bookings.js";
@@ -362,12 +362,12 @@ function toCsv(headers, rows) {
 }
 
 function exportBookingsCsv() {
-  const headers = ["Customer","Phone","Car","Pick-up","Return","Days","Daily rate","Rental total","Advance paid","Balance","Security deposit","Deposit status","Paid","Paid on","Status"];
+  const headers = ["Reference","Customer","Phone","Car","Pick-up","Return","Days","Daily rate","Rental total","Advance paid","Balance","Security deposit","Deposit status","Paid","Paid on","Status"];
   const rows = state.bookings
     .slice()
     .sort((a,b) => b.startDate.localeCompare(a.startDate))
     .map(b => [
-      b.renter || "", b.phone || "", bookingCarLabel(b),
+      bookingRef(b), b.renter || "", b.phone || "", bookingCarLabel(b),
       b.startDate || "", b.endDate || "",
       rentalDays(b), rateFor(b), rentalTotal(b),
       advancePaid(b), balanceFor(b),
