@@ -225,19 +225,28 @@ export function render() {
 // point of it — that is where the Saturday collection nobody has been given
 // shows up, which a per-person filter can never reveal.
 
-function boardDays(from, to) {
-  // Bounded so an open-ended range cannot try to draw a year of columns.
-  const MAX = 21;
+const BOARD_MIN_DAYS = 7;    // a board showing one day is not a board
+const BOARD_MAX_DAYS = 31;   // and an open-ended range must not draw a year
+
+function boardDays(from, to, jobs) {
   const start = from || todayStr();
   const days = [];
   const d = new Date(start + "T12:00");
-  for (let i = 0; i < MAX; i++) {
+  for (let i = 0; i < BOARD_MAX_DAYS; i++) {
     const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    if (to && ds > to) break;
+    // A week at minimum, even on the Today tab: seeing one row tells you nothing
+    // about how the week is spread, which is the whole point of the board.
+    if (to && ds > to && days.length >= BOARD_MIN_DAYS) break;
     days.push(ds);
     d.setDate(d.getDate() + 1);
   }
-  return days;
+
+  // Anything overdue is carried forward by the schedule regardless of the range,
+  // so its day has to appear or the job would give someone a column while its
+  // chip had no row to sit in — a person looking busy with nothing shown.
+  jobs.forEach(j => { if (j.date && !days.includes(j.date)) days.push(j.date); });
+
+  return days.sort();
 }
 
 function boardColumns(jobs) {
@@ -287,7 +296,7 @@ function renderBoard(jobs, from, to) {
   // ever and drown the column that is meant to be actionable.
   const assignable = jobs.filter(j => j.kind !== "service");
 
-  const days = boardDays(from, to);
+  const days = boardDays(from, to, assignable);
   const people = boardColumns(assignable);
   const columns = [...people, null];        // null is the Unassigned column
 
