@@ -134,10 +134,15 @@ export function openBookingModal(bookingId, preset) {
     }
   }
 
-  // Pre-fill from a clicked timeline cell
+  // Pre-fill from the planner: a single tapped day, or a range dragged across
+  // several. endDate is only sent by the drag, so a plain tap still puts both
+  // dates on the same day as before.
   if (!editing && preset) {
     if (preset.carId) sel.value = preset.carId;
-    if (preset.date) { setVal(root, "b-start", preset.date); setVal(root, "b-end", preset.date); }
+    if (preset.date) {
+      setVal(root, "b-start", preset.date);
+      setVal(root, "b-end", preset.endDate || preset.date);
+    }
   }
 
   el(root, "delete-booking").style.display = editing ? "inline-block" : "none";

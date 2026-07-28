@@ -118,6 +118,11 @@ let timelineAnchor = null; // Date — first visible day in the timeline
 let reanchored = true;   // the first draw should start at the left
 let legendOpen = () => true;   // set on mount; see initPanelToggle
 
+// Drag across empty days to book a range. Holds the dates of the window
+// currently drawn, so a day index can be turned back into a date.
+let lastRenderedDays = [];
+let cellDrag = null;
+
 function freshAnchor() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -187,6 +192,8 @@ export function mount(container) {
     const cell = e.target.closest("[data-add-car]");
     if (cell) openBookingModal(null, { carId: cell.dataset.addCar, date: cell.dataset.addDate });
   });
+
+  wireDragToBook();
 
   el(root, "cal-prev").addEventListener("click", () => {
     if (planner === "timeline") {
@@ -316,6 +323,130 @@ function jumpToChosenMonth() {
     calYear = year; calMonth = monthIndex;
   }
   render();
+}
+
+// ---------- Drag across days to book a range ----------
+// Pressing on an empty day and dragging sideways sets both dates at once, which
+// is how the range is thought about anyway — "this car, these days" — rather
+// than opening the form and typing two dates that are already on screen.
+//
+// Mouse and trackpad only. On a touchscreen the same gesture is how you scroll
+// the planner sideways, and taking that over would make the planner unusable to
+// gain a shortcut nobody can discover on a phone. Tapping a day still works
+// there, exactly as before.
+
+function wireDragToBook() {
+  const grid = el(root, "timeline");
+  if (!grid) return;
+
+  grid.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "touch") return;
+    if (e.button !== 0) return;                       // left button only
+    const cell = e.target.closest("[data-add-car]");
+    if (!cell) return;                                // a bar, a car name, or a gap
+
+    cellDrag = {
+      carId: cell.dataset.addCar,
+      row: cell.dataset.row,
+      from: Number(cell.dataset.idx),
+      to: Number(cell.dataset.idx),
+      moved: false,
+      pointerId: e.pointerId
+    };
+    grid.classList.add("picking-range");
+    // Without capture the drag dies the moment the pointer crosses a bar or
+    // leaves the grid, which happens constantly on a busy planner.
+    try { grid.setPointerCapture(e.pointerId); } catch {}
+  });
+
+  grid.addEventListener("pointermove", (e) => {
+    if (!cellDrag) return;
+    // elementFromPoint rather than the event target: with the pointer captured
+    // every move reports the grid itself, not the cell underneath.
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const cell = under && under.closest && under.closest("[data-add-car]");
+    // Staying on the same vehicle keeps the gesture meaning one thing; dragging
+    // diagonally across rows would be ambiguous about which car was intended.
+    if (!cell || cell.dataset.row !== cellDrag.row) return;
+
+    const idx = Number(cell.dataset.idx);
+    if (idx === cellDrag.to) return;
+    cellDrag.to = idx;
+    cellDrag.moved = true;
+    e.preventDefault();
+    paintDragPreview();
+  });
+
+  const finish = (e) => {
+    if (!cellDrag) return;
+    const drag = cellDrag;
+    cellDrag = null;
+    try { grid.releasePointerCapture(drag.pointerId); } catch {}
+    clearDragPreview();
+
+    if (!drag.moved) return;                          // a plain click; leave it be
+
+    const lo = Math.min(drag.from, drag.to);
+    const hi = Math.max(drag.from, drag.to);
+    const start = lastRenderedDays[lo];
+    const end = lastRenderedDays[hi];
+    if (!start || !end) return;
+
+    // The click that follows a drag would otherwise open the form a second time
+    // on whichever day the pointer happened to be over.
+    grid.addEventListener("click", ev => {
+      ev.preventDefault(); ev.stopPropagation();
+    }, { capture: true, once: true });
+
+    openBookingModal(null, { carId: drag.carId, date: start, endDate: end });
+  };
+
+  grid.addEventListener("pointerup", finish);
+  grid.addEventListener("pointercancel", () => {
+    cellDrag = null;
+    clearDragPreview();
+  });
+
+  // Escape abandons a drag in progress rather than committing it.
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && cellDrag) {
+      cellDrag = null;
+      clearDragPreview();
+    }
+  });
+}
+
+function clearDragPreview() {
+  const grid = el(root, "timeline");
+  if (!grid) return;
+  grid.classList.remove("picking-range");
+  grid.querySelectorAll(".tl-cell.picking").forEach(c => c.classList.remove("picking"));
+  const bar = grid.querySelector(".tl-drag-preview");
+  if (bar) bar.remove();
+}
+
+function paintDragPreview() {
+  const grid = el(root, "timeline");
+  if (!grid || !cellDrag) return;
+  clearDragPreview();
+
+  const lo = Math.min(cellDrag.from, cellDrag.to);
+  const hi = Math.max(cellDrag.from, cellDrag.to);
+
+  grid.querySelectorAll(`[data-row="${cellDrag.row}"]`).forEach(c => {
+    const i = Number(c.dataset.idx);
+    if (i >= lo && i <= hi) c.classList.add("picking");
+  });
+
+  // A bar in the same shape as a real booking, so what is being drawn is
+  // obviously the booking that is about to exist.
+  const days = hi - lo + 1;
+  const bar = document.createElement("div");
+  bar.className = "tl-drag-preview";
+  bar.style.gridRow = cellDrag.row;
+  bar.style.gridColumn = `${lo * 2 + 2} / ${hi * 2 + 4}`;
+  bar.textContent = days === 1 ? "1 day" : `${days} days`;
+  grid.appendChild(bar);
 }
 
 // ---------- Planner height ----------
@@ -490,8 +621,11 @@ function renderTimeline() {
       const ds = dstr(d);
       const dow = d.getDay();
       const cls = ds === t ? "today" : (dow === 0 || dow === 6) ? "weekend" : "";
+      // row and day index are carried on the cell so a drag can work out which
+      // span it covers without having to measure anything on screen.
       html += `<div class="tl-cell addable ${cls}" data-add-car="${car.id}" data-add-date="${ds}"
-        title="Add a booking for this car on ${formatDate(ds)}"
+        data-row="${row}" data-idx="${i2}"
+        title="Drag across days to book a range, or click for a single day"
         style="grid-row:${row};grid-column:${i2 * 2 + 2} / span 2;"></div>`;
     });
 
@@ -587,6 +721,10 @@ function renderTimeline() {
   // Both axes: the planner scrolls vertically too now that it has a height.
   const keepLeft = wrap.scrollLeft;
   const keepTop = wrap.scrollTop;
+  // Kept for the drag-to-book handler, which needs to turn a day index back into
+  // a date after the grid has been built.
+  lastRenderedDays = days.map(dstr);
+
   grid.innerHTML = html;
   if (reanchored) {
     wrap.scrollLeft = 0;   // a new window, so start at its first day

@@ -1525,3 +1525,24 @@ input:focus, select:focus { border-color: var(--text); }
   color: var(--text);
   opacity: 0.75;
 }
+
+/* ---------- Drag across days to book ---------- */
+.tl-cell.picking { background: rgba(46,90,140,0.10); }
+.tl-drag-preview {
+  align-self: center;
+  margin: 3px 2px;
+  border-radius: 3px;
+  padding: 3px 7px;
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: center;
+  background: rgba(46,90,140,0.18);
+  border: 1px dashed var(--blue-text, #2e5a8c);
+  color: var(--blue-text, #2e5a8c);
+  z-index: 4;                 /* above bars, so the range stays readable */
+  pointer-events: none;       /* must never swallow the pointer mid-drag */
+}
+/* While dragging, stop the browser turning the gesture into a text selection. */
+.timeline.picking-range { user-select: none; cursor: crosshair; }
