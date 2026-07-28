@@ -109,8 +109,27 @@ function documentHtml(b) {
 
   .ag-foot { margin-top: 22px; border-top: 1px solid #bbb; padding-top: 6px;
              font-size: 8pt; color: #666; }
+  /* The toolbar belongs to the screen only; the printed page starts at the
+     agreement itself. */
+  @media print { .ag-bar { display: none !important; } }
+  .ag-bar {
+    display: flex; gap: 8px; align-items: center; justify-content: flex-end;
+    padding: 8px 0 14px; border-bottom: 1px solid #ddd; margin-bottom: 14px;
+  }
+  .ag-bar button {
+    font: inherit; font-size: 10pt; padding: 7px 16px; cursor: pointer;
+    border: 1px solid #111; border-radius: 4px; background: #111; color: #fff;
+  }
+  .ag-bar .ag-secondary { background: #fff; color: #111; }
+  .ag-bar span { margin-right: auto; font-size: 9pt; color: #555; }
 </style></head>
 <body>
+
+  <div class="ag-bar">
+    <span>Choose <strong>Save as PDF</strong> in the print dialog to send this as a file.</span>
+    <button class="ag-secondary" onclick="window.close()">Close</button>
+    <button onclick="window.print()">Print / Save as PDF</button>
+  </div>
 
   <div class="ag-head">
     ${companyBlock()}
@@ -182,6 +201,23 @@ function documentHtml(b) {
     Agreement ${esc(ref)} · ${esc(companyName())}
     ${b.managedBy ? ` · Managed by ${esc(b.managedBy)}` : ""}
   </div>
+
+<script>
+  // Prints itself once, from inside its own window, after the logo has had a
+  // chance to load — an image still loading prints as a blank gap. Guarded so a
+  // late load event cannot open a second dialog on top of the first.
+  (function () {
+    var done = false;
+    function once() {
+      if (done) return;
+      done = true;
+      setTimeout(function () { window.print(); }, 300);
+    }
+    if (document.readyState === "complete") once();
+    else window.addEventListener("load", once);
+    setTimeout(once, 2000);   // backstop if an image never arrives
+  })();
+<\/script>
 
 </body></html>`;
 }
@@ -315,12 +351,13 @@ export function openAgreement(bookingId) {
   win.document.write(documentHtml(b));
   win.document.close();
 
-  // Wait for the logo to load, or it prints as a gap. The timeout is a backstop
-  // in case the image never arrives.
-  const go = () => { try { win.focus(); win.print(); } catch {} };
-  if (win.document.readyState === "complete") setTimeout(go, 250);
-  else win.addEventListener("load", () => setTimeout(go, 250));
-  setTimeout(go, 1500);
+  // The parent deliberately does nothing further. Driving the print dialog from
+  // here froze the app: a print dialog is modal and the two windows share a main
+  // thread, so this page sat blocked waiting on a dialog belonging to the other
+  // one — and a retry timer queued a second dialog behind the first, which
+  // nothing could then clear. The document prints itself instead, once, and
+  // carries its own button in case that is blocked.
+  try { win.focus(); } catch {}
 
   return { ok: true };
 }
