@@ -12,7 +12,8 @@ import {
   startTime, endTime, pickupLabel, dropoffLabel, rentalTotal,
   initPanelToggle,
   el, val, closeModal,
-  bookingRef
+  bookingRef,
+  requestFocus
 } from "./store.js";
 
 let root = null;
@@ -177,7 +178,11 @@ export function mount(container) {
   // Clicking a booking bar in the timeline opens it for editing
   el(root, "timeline").addEventListener("click", (e) => {
     const link = e.target.closest(".tl-carlink");
-    if (link) { location.hash = "#fleet"; return; }
+    if (link) {
+      requestFocus("fleet", link.dataset.car);
+      location.hash = "#fleet";
+      return;
+    }
 
     const bar = e.target.closest("[data-booking]");
     if (bar) { openBookingModal(bar.dataset.booking); return; }

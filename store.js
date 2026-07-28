@@ -265,6 +265,24 @@ export function settledOn(b) {
   return t;
 }
 
+// ---------- Jumping to one record ----------
+// Clicking a vehicle on the planner should land on that vehicle in Fleet, not
+// merely on the Fleet page. The two views do not know about each other, so the
+// request is left here and the receiving view picks it up on its next draw and
+// clears it.
+let pendingFocus = null;
+
+export function requestFocus(view, id) {
+  if (view && id) pendingFocus = { view, id };
+}
+
+export function takeFocus(view) {
+  if (!pendingFocus || pendingFocus.view !== view) return null;
+  const { id } = pendingFocus;
+  pendingFocus = null;           // one jump per request, never repeated on a redraw
+  return id;
+}
+
 // ---------- Brief confirmations ----------
 // A save that closes a dialog and leaves no trace gives no assurance it worked,
 // and there is nowhere to put a booking reference at that moment. This is a short

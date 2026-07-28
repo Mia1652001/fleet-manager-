@@ -7,7 +7,8 @@ import {
   currentBooking, nextUpcoming, carStatus, serviceDue, openBookingsForCar,
   orderedCars, getSwatch, setSwatch,
   initPanelToggle,
-  el, val, setVal, checked, setChecked, openModal, closeModal, showError
+  el, val, setVal, checked, setChecked, openModal, closeModal, showError,
+  takeFocus
 } from "./store.js";
 
 let root = null;
@@ -89,6 +90,18 @@ export function mount(container) {
 
 export function render() {
   if (!root) return;
+
+  // Arriving from a planner: clear whatever was filtered or searched, or the car
+  // being jumped to might not be in the list at all and the jump would silently
+  // do nothing.
+  const focusId = takeFocus("fleet");
+  if (focusId) {
+    setVal(root, "search", "");
+    filter = "all";
+    el(root, "filters").querySelectorAll(".tab").forEach(x =>
+      x.classList.toggle("active", x.dataset.f === "all"));
+  }
+
   const search = el(root, "search").value.toLowerCase();
   const sort = el(root, "sort").value;
 
@@ -128,7 +141,7 @@ export function render() {
     const up = s === "available" ? nextUpcoming(c.id) : null;
     const cls = s === "service" ? "overdue" : s;
     return `
-    <div class="item-card ${cls}">
+    <div class="item-card ${cls}" data-car-id="${c.id}">
       <div class="card-top">
         <div>
           <div class="card-title">${esc(c.year)} ${esc(c.make)} ${esc(c.model)}</div>
@@ -160,6 +173,19 @@ export function render() {
       </div>
     </div>`;
   }).join("");
+
+  if (focusId) revealCar(focusId);
+}
+
+// Brings one vehicle into view and marks it briefly, so it is obvious which of
+// twenty near-identical cards was meant. The mark fades on its own — a card that
+// stayed highlighted would be puzzling on the next visit.
+function revealCar(id) {
+  const card = el(root, "list").querySelector(`[data-car-id="${id}"]`);
+  if (!card) return;
+  card.scrollIntoView({ block: "center", behavior: "smooth" });
+  card.classList.add("just-focused");
+  setTimeout(() => card.classList.remove("just-focused"), 2200);
 }
 
 // ---------- Car add / edit ----------

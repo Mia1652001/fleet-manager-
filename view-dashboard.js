@@ -9,7 +9,8 @@ import {
   startTime, endTime, rentalTotal, balanceFor, securityHeld, settledAmount, hasStarted,
   inPeriod, settledOn, PERIOD_DAYS,
   sharesStartHandover, sharesEndHandover,
-  el
+  el,
+  requestFocus
 } from "./store.js";
 
 let root = null;
@@ -40,7 +41,11 @@ export function mount(container) {
     if (cell) { openBookingModal(null, { carId: cell.dataset.addCar, date: cell.dataset.addDate }); return; }
 
     const car = e.target.closest("[data-carjump]");
-    if (car) { location.hash = "#fleet"; return; }
+    if (car) {
+      requestFocus("fleet", car.dataset.carjump);
+      location.hash = "#fleet";
+      return;
+    }
   });
 
   // Everything else on the dashboard is a shortcut to the page that owns it

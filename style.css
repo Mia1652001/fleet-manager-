@@ -1645,3 +1645,10 @@ input:focus, select:focus { border-color: var(--text); }
     margin-left: calc(-1 * max(0px, (var(--board-w) - 100%) / 2));
   }
 }
+
+/* A card jumped to from a planner. Marked briefly so it is obvious which of
+   twenty near-identical vehicles was meant, then fades back to normal. */
+.item-card.just-focused {
+  box-shadow: 0 0 0 2px var(--blue-text);
+  transition: box-shadow 0.25s ease-out;
+}
