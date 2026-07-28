@@ -1553,3 +1553,81 @@ input:focus, select:focus { border-color: var(--text); }
   #view-bookings .tl-cell { padding-top: 2px; padding-bottom: 2px; }
   #view-bookings .tl-bar { margin-top: 2px; margin-bottom: 2px; }
 }
+
+/* ---------- Staff board (Tasks) ----------
+   One column per person, one row per day. A grid rather than a table so the
+   header row and the day column can be frozen the same way the planner's are. */
+.staff-board {
+  display: grid;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  overflow: auto;
+  max-height: calc(100vh - 260px);
+  margin-bottom: 2rem;
+  -webkit-overflow-scrolling: touch;
+}
+.board-cell {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 6px;
+  min-width: 0;              /* or a long chip props the whole column open */
+  min-height: 44px;
+}
+.board-head, .board-corner {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bg);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 6px;
+  min-height: 0;
+}
+.board-corner { left: 0; z-index: 5; }
+.board-day {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface);
+  font-size: 11px;
+  color: var(--text);
+}
+.board-day.today { background: var(--bg); font-weight: 500; }
+/* Unassigned is the column worth noticing, so it is tinted rather than left to
+   look like just another person. */
+.board-cell.unassigned { background: rgba(138,92,0,0.045); }
+
+.board-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 10px;
+  line-height: 1.35;
+  padding: 4px 6px;
+  margin-bottom: 4px;
+  border-radius: 3px;
+  border-left: 3px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+}
+.board-chip:last-child { margin-bottom: 0; }
+.board-chip.kind-delivery { border-left-color: var(--amber-text); }
+.board-chip.kind-recovery { border-left-color: var(--green-text); }
+.board-chip.kind-task     { border-left-color: var(--blue-text); }
+.board-chip.late          { border-left-color: var(--red-text); }
+.board-chip.done { opacity: 0.45; text-decoration: line-through; }
+.board-chip-time { font-variant-numeric: tabular-nums; color: var(--muted); flex-shrink: 0; }
+.board-chip-kind { font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); flex-shrink: 0; }
+.board-chip-main { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-dim { color: var(--muted); }
+
+/* A phone cannot show three or four readable columns at once, so the board
+   scrolls sideways there rather than squeezing every name to nothing. */
+@media (max-width: 640px) {
+  .staff-board { max-height: calc(100dvh - 300px); }
+  .board-cell { padding: 4px; min-height: 38px; }
+  .board-chip { font-size: 9px; padding: 3px 5px; }
+}

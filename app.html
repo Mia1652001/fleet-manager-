@@ -561,9 +561,14 @@
 
       <div class="filter-row">
         <button class="tab" data-el="toggle-done">Show completed</button>
+        <!-- Same jobs, two ways of reading them: the list to work through a day
+             and tick things off, the board to see across the team at a glance. -->
+        <button class="tab" data-el="view-list">List</button>
+        <button class="tab" data-el="view-board">Board</button>
       </div>
 
       <div data-el="list"><div class="loading-screen">Loading schedule...</div></div>
+      <div class="staff-board" data-el="board" style="display:none;"></div>
 
       <!-- Manual task -->
       <div class="overlay" data-el="task-modal">

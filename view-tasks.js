@@ -6,7 +6,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstat
 import {
   state, onDataChange, esc, formatDate, todayStr, buildSchedule, staffNames,
   fillTimeOptions, getTime, setTime,
-  initPanelToggle,
+  initPanelToggle, loadPref, savePref,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
@@ -17,6 +17,9 @@ let showDone = false;
 let staffFilter = "";
 let kindFilter = "";
 let editingTaskId = null;
+// "list" to work through a day, "board" to see across the team. Remembered per
+// device, since it is a working preference rather than company data.
+let mode = loadPref("tasksView", "list");
 
 export function mount(container) {
   root = container;
@@ -34,6 +37,10 @@ export function mount(container) {
   el(root, "kind-filter").addEventListener("change", () => {
     kindFilter = el(root, "kind-filter").value; render();
   });
+  el(root, "view-list").addEventListener("click", () => setMode("list"));
+  el(root, "view-board").addEventListener("click", () => setMode("board"));
+  applyMode();
+
   el(root, "add-task").addEventListener("click", () => openTaskModal(null));
   el(root, "save-task").addEventListener("click", saveTask);
   el(root, "delete-task").addEventListener("click", removeTask);
@@ -60,6 +67,15 @@ export function mount(container) {
   root.querySelectorAll(".overlay").forEach(o =>
     o.addEventListener("click", e => { if (e.target === o) o.classList.remove("open"); }));
 
+  // Ticking a chip on the board does the same as ticking a row in the list —
+  // it would be odd to be able to see the work but not mark it done.
+  el(root, "board").addEventListener("click", async (e) => {
+    const chip = e.target.closest("[data-tick]");
+    if (!chip) return;
+    if (chip.dataset.kind === "service") return;   // marked on the Maintenance view
+    await toggleDone(chip.dataset.tick, chip.dataset.kind, chip.dataset.ref);
+  });
+
   el(root, "list").addEventListener("click", async (e) => {
     const tick = e.target.closest("[data-tick]");
     if (tick) { await toggleDone(tick.dataset.tick, tick.dataset.kind, tick.dataset.ref); return; }
@@ -73,6 +89,21 @@ export function mount(container) {
   });
 
   onDataChange(() => { if (root.classList.contains("active")) render(); });
+}
+
+// ---------- List or board ----------
+function setMode(next) {
+  mode = next;
+  savePref("tasksView", mode);
+  applyMode();
+  render();
+}
+
+function applyMode() {
+  el(root, "view-list").classList.toggle("active", mode === "list");
+  el(root, "view-board").classList.toggle("active", mode === "board");
+  el(root, "list").style.display = mode === "list" ? "" : "none";
+  el(root, "board").style.display = mode === "board" ? "" : "none";
 }
 
 // ---------- Helpers ----------
@@ -156,6 +187,8 @@ export function render() {
     <div class="stat"><div class="stat-label">Running late</div><div class="stat-val red">${lateJobs.length}</div></div>
   `;
 
+  if (mode === "board") { renderBoard(jobs, from, to); return; }
+
   const listEl = el(root, "list");
   if (jobs.length === 0) {
     const filtered = staffFilter || kindFilter || search;
@@ -184,6 +217,89 @@ export function render() {
       ${g.items.map(j => jobRow(j)).join("")}
     </div>
   `).join("");
+}
+
+// ---------- The staff board ----------
+// One column per person, one row per day: read across a row for everyone's
+// Tuesday, down a column for one person's week. The Unassigned column is the
+// point of it — that is where the Saturday collection nobody has been given
+// shows up, which a per-person filter can never reveal.
+
+function boardDays(from, to) {
+  // Bounded so an open-ended range cannot try to draw a year of columns.
+  const MAX = 21;
+  const start = from || todayStr();
+  const days = [];
+  const d = new Date(start + "T12:00");
+  for (let i = 0; i < MAX; i++) {
+    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (to && ds > to) break;
+    days.push(ds);
+    d.setDate(d.getDate() + 1);
+  }
+  return days;
+}
+
+function boardColumns(jobs) {
+  // Everyone the company knows about, so a person with nothing on is visibly
+  // free rather than simply absent — then anyone else who turns up in the jobs
+  // themselves, which covers names typed before the staff list was filled in.
+  const known = staffNames();
+  const inJobs = jobs.map(j => j.staff).filter(Boolean);
+  const seen = new Map();
+  [...known, ...inJobs].forEach(n => {
+    const k = n.trim().toLowerCase();
+    if (k && !seen.has(k)) seen.set(k, n.trim());
+  });
+  return Array.from(seen.values());
+}
+
+function boardChip(j) {
+  const kindShort = { delivery: "Out", recovery: "Back", task: "Task", service: "Service" }[j.kind] || j.kind;
+  const ref = j.kind === "task" ? j.taskId : j.kind === "service" ? j.carId : j.bookingId;
+  const label = j.kind === "task" ? j.customer : j.car;
+  const sub = [j.kind !== "task" ? j.customer : "", j.location].filter(Boolean).join(" · ");
+  return `
+    <div class="board-chip kind-${j.kind}${j.done ? " done" : ""}${j.overdue ? " late" : ""}"
+         data-tick="${j.id}" data-kind="${j.kind}" data-ref="${ref}"
+         title="${esc(`${j.time || ""} ${label} ${sub}`.trim())}">
+      <span class="board-chip-time">${j.time ? esc(j.time) : "—"}</span>
+      <span class="board-chip-kind">${kindShort}</span>
+      <span class="board-chip-main">${esc(label || "")}${sub ? ` <span class="board-dim">${esc(sub)}</span>` : ""}</span>
+    </div>`;
+}
+
+function renderBoard(jobs, from, to) {
+  const box = el(root, "board");
+
+  // Servicing has no person to assign it to, so it would sit in Unassigned for
+  // ever and drown the column that is meant to be actionable.
+  const assignable = jobs.filter(j => j.kind !== "service");
+
+  const days = boardDays(from, to);
+  const people = boardColumns(assignable);
+  const columns = [...people, null];        // null is the Unassigned column
+
+  if (days.length === 0 || columns.length === 1 && assignable.length === 0) {
+    box.innerHTML = `<div class="empty">Nothing to show here. Widen the date range, or add staff on the Settings page.</div>`;
+    return;
+  }
+
+  const head = `<div class="board-cell board-corner">Day</div>` +
+    columns.map(p => `<div class="board-cell board-head${p ? "" : " unassigned"}">${p ? esc(p) : "Unassigned"}</div>`).join("");
+
+  const rows = days.map(ds => {
+    const dayJobs = assignable.filter(j => j.date === ds);
+    const cells = columns.map(p => {
+      const mine = dayJobs.filter(j =>
+        p ? (j.staff || "").trim().toLowerCase() === p.toLowerCase() : !(j.staff || "").trim());
+      return `<div class="board-cell${p ? "" : " unassigned"}">${mine.map(boardChip).join("")}</div>`;
+    }).join("");
+    return `<div class="board-cell board-day${ds === todayStr() ? " today" : ""}">${esc(dayHeading(ds))}</div>${cells}`;
+  }).join("");
+
+  box.style.gridTemplateColumns = `minmax(120px, 0.8fr) repeat(${columns.length}, minmax(150px, 1fr))`;
+  box.innerHTML = head + rows;
 }
 
 function jobRow(j) {
