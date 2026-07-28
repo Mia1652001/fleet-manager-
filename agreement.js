@@ -186,6 +186,110 @@ function documentHtml(b) {
 </body></html>`;
 }
 
+// ---------- Sending the booking to the customer ----------
+// A mailto link cannot carry an attachment — that is a limit of the format, and
+// with no server there is nothing to send mail from anyway. So this is the
+// confirmation rather than the agreement: everything the customer needs to know,
+// written into the body, opening in whatever mail app the staff member uses so
+// it can be read and edited before it goes. Nothing is sent behind their back.
+//
+// The signed agreement stays a printed document, which is what actually happens
+// to it at the counter.
+
+function confirmationText(b) {
+  const company = companyName() || "our team";
+  const s = state.settings || {};
+  const days = rentalDays(b);
+  const total = rentalTotal(b);
+  const advance = advancePaid(b);
+  const balance = balanceFor(b);
+  const security = b.securityDeposit || 0;
+
+  const where = (place, time) => [time, place].filter(Boolean).join(" · ");
+
+  const lines = [
+    `Dear ${b.renter || "customer"},`,
+    "",
+    `Thank you for booking with ${company}. Here are your rental details.`,
+    "",
+    `Booking reference: ${bookingRef(b)}`,
+    `Vehicle: ${bookingCarLabel(b)}`,
+    "",
+    `Pick-up:  ${formatDate(b.startDate)}   ${where(b.pickupLocation, startTime(b))}`,
+    `Return:   ${formatDate(b.endDate)}   ${where(b.dropoffLocation, endTime(b))}`,
+    ""
+  ];
+
+  if (hasManualTotal(b)) {
+    lines.push(`Agreed price (${days} day${days === 1 ? "" : "s"}): ${formatAmount(total)}`);
+  } else {
+    lines.push(`${days} day${days === 1 ? "" : "s"} at ${formatAmount(rateFor(b))} per day: ${formatAmount(total)}`);
+  }
+  if (advance > 0) lines.push(`Advance already paid: ${formatAmount(advance)}`);
+  lines.push(b.paid ? "Paid in full — thank you." : `Balance due: ${formatAmount(balance)}`);
+  if (security > 0) lines.push(`Refundable security deposit: ${formatAmount(security)}`);
+
+  if (b.notes) { lines.push("", `Note: ${b.notes}`); }
+
+  lines.push(
+    "",
+    "Please bring your driving licence when collecting the vehicle.",
+    "The rental agreement will be provided for signature at hand-over.",
+    "",
+    "Kind regards,",
+    company
+  );
+  if (s.phone) lines.push(s.phone);
+  if (s.address) lines.push(s.address);
+
+  return lines.join("\n");
+}
+
+/**
+ * Opens the staff member's mail app with the confirmation written out and the
+ * customer's address already filled in, taken from the booking's customer record.
+ */
+export function emailBooking(bookingId) {
+  const b = state.bookings.find(x => x.id === bookingId);
+  if (!b) return { ok: false, reason: "That booking could not be found." };
+
+  const to = customerForBooking(b)?.email || "";
+  if (!to) {
+    return {
+      ok: false,
+      reason: "No email address saved for this customer. Add one on the Customers page, or pick a saved customer on this booking."
+    };
+  }
+
+  const subject = `${companyName() || "Car rental"} — booking ${bookingRef(b)}`;
+  window.location.href =
+    `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}` +
+    `&body=${encodeURIComponent(confirmationText(b))}`;
+  return { ok: true };
+}
+
+/**
+ * The same confirmation over WhatsApp, which is how a lot of this business is
+ * actually conducted locally. Opens the chat with the message ready to send.
+ */
+export function whatsappBooking(bookingId) {
+  const b = state.bookings.find(x => x.id === bookingId);
+  if (!b) return { ok: false, reason: "That booking could not be found." };
+
+  const raw = b.phone || customerForBooking(b)?.phone || "";
+  // wa.me wants digits only, country code included and no leading plus.
+  const digits = raw.replace(/[^\d]/g, "");
+  if (!digits) {
+    return { ok: false, reason: "No phone number saved for this booking or customer." };
+  }
+
+  window.open(
+    `https://wa.me/${digits}?text=${encodeURIComponent(confirmationText(b))}`,
+    "_blank"
+  );
+  return { ok: true };
+}
+
 /**
  * Opens the agreement in its own window and offers it to print. From the print
  * dialog, "Save as PDF" produces the file.
