@@ -5,6 +5,7 @@
 // element (#booking-form-root) so the shared el()/val() helpers keep working.
 
 import { db, setSync } from "./firebase-init.js";
+import { openAgreement } from "./agreement.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
@@ -33,6 +34,11 @@ export function mountBookingForm() {
 
   el(root, "save-booking").addEventListener("click", saveBooking);
   el(root, "delete-booking").addEventListener("click", deleteEditingBooking);
+  el(root, "print-agreement").addEventListener("click", () => {
+    if (!editingBookingId) return;
+    const r = openAgreement(editingBookingId);
+    if (!r.ok) showError(root, "booking-error", r.reason);
+  });
   el(root, "b-customer").addEventListener("change", toggleNewCustomer);
 
   ["b-start", "b-end"].forEach(n =>
@@ -163,6 +169,7 @@ export function openBookingModal(bookingId, preset) {
   }
 
   el(root, "delete-booking").style.display = editing ? "inline-block" : "none";
+  el(root, "print-agreement").style.display = editing ? "inline-block" : "none";
 
   toggleNewCustomer();
   showError(root, "booking-error", null);

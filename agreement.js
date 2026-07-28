@@ -1,0 +1,222 @@
+// Rental agreement — the printable contract for one booking.
+//
+// Built as a real page and handed to the browser's own print dialog, where
+// "Save as PDF" is a standard destination on every platform including iOS. That
+// is deliberate rather than a shortcut:
+//
+//   * the same button covers printing for signature at the counter, which is
+//     what actually happens to a rental agreement;
+//   * the output is real text — selectable, searchable, a few kilobytes — where
+//     a screenshot-to-PDF library produces a blurry picture of a page;
+//   * long terms and conditions break across pages properly;
+//   * nothing has to be fetched from a CDN that might be blocked or go stale.
+//
+// The trade is one extra step: print, then choose Save as PDF. The document
+// title is set to the booking reference, so the suggested filename is right.
+
+import {
+  state, esc, formatDate, formatAmount, bookingCarLabel, bookingRef,
+  rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor,
+  startTime, endTime, customerForBooking, companyName, companyTerms
+} from "./store.js";
+
+function line(label, value) {
+  return value
+    ? `<tr><th>${esc(label)}</th><td>${esc(value)}</td></tr>`
+    : "";
+}
+
+function companyBlock() {
+  const s = state.settings || {};
+  const bits = [s.address, s.phone, s.email].filter(Boolean);
+  return `
+    <div class="ag-company">
+      ${s.logo ? `<img class="ag-logo" src="${s.logo}" alt="">` : ""}
+      <div>
+        <div class="ag-name">${esc(companyName())}</div>
+        ${bits.length ? `<div class="ag-contact">${esc(bits.join(" · "))}</div>` : ""}
+      </div>
+    </div>`;
+}
+
+function moneyBlock(b) {
+  const days = rentalDays(b);
+  const rate = rateFor(b);
+  const total = rentalTotal(b);
+  const advance = advancePaid(b);
+  const balance = balanceFor(b);
+  const security = b.securityDeposit || 0;
+
+  const basis = hasManualTotal(b)
+    ? `Agreed price for ${days} day${days === 1 ? "" : "s"}`
+    : `${days} day${days === 1 ? "" : "s"} × ${formatAmount(rate)} per day`;
+
+  return `
+    <table class="ag-table">
+      <tr><th>${esc(basis)}</th><td class="ag-num">${esc(formatAmount(total))}</td></tr>
+      ${advance > 0 ? `<tr><th>Less advance already paid</th><td class="ag-num">− ${esc(formatAmount(advance))}</td></tr>` : ""}
+      <tr class="ag-total"><th>${b.paid ? "Total (settled)" : "Balance due"}</th>
+        <td class="ag-num">${esc(formatAmount(b.paid ? total : balance))}</td></tr>
+      ${security > 0 ? `<tr><th>Refundable security deposit</th><td class="ag-num">${esc(formatAmount(security))}</td></tr>` : ""}
+    </table>`;
+}
+
+function documentHtml(b) {
+  const ref = bookingRef(b);
+  const customer = customerForBooking(b);
+  const car = state.cars.find(c => c.id === b.carId);
+  const terms = companyTerms();
+
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>Rental agreement ${esc(ref)}</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 10.5pt; line-height: 1.5; color: #111; margin: 0;
+  }
+  .ag-head { display: flex; justify-content: space-between; align-items: flex-start;
+             gap: 16px; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 16px; }
+  .ag-company { display: flex; gap: 12px; align-items: center; }
+  .ag-logo { max-height: 52px; max-width: 150px; }
+  .ag-name { font-size: 15pt; font-weight: 700; }
+  .ag-contact { font-size: 9pt; color: #444; }
+  .ag-title { text-align: right; }
+  .ag-title h1 { font-size: 13pt; margin: 0 0 4px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .ag-ref { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12pt; font-weight: 700; }
+  .ag-issued { font-size: 8.5pt; color: #555; }
+
+  h2 { font-size: 9pt; text-transform: uppercase; letter-spacing: 0.08em;
+       color: #444; margin: 16px 0 6px; }
+  .ag-table { width: 100%; border-collapse: collapse; }
+  .ag-table th { text-align: left; font-weight: 400; color: #444; width: 42%;
+                 padding: 3px 8px 3px 0; vertical-align: top; }
+  .ag-table td { padding: 3px 0; font-weight: 600; }
+  .ag-num { text-align: right; font-variant-numeric: tabular-nums; }
+  .ag-total th, .ag-total td { border-top: 1px solid #111; padding-top: 6px; font-weight: 700; }
+
+  .ag-cols { display: flex; gap: 24px; }
+  .ag-cols > div { flex: 1; }
+
+  .ag-terms { white-space: pre-wrap; font-size: 9pt; color: #222; }
+
+  .ag-sign { display: flex; gap: 32px; margin-top: 28px; page-break-inside: avoid; }
+  .ag-sign > div { flex: 1; }
+  .ag-rule { border-bottom: 1px solid #111; height: 42px; }
+  .ag-cap { font-size: 8.5pt; color: #444; margin-top: 4px; }
+
+  .ag-foot { margin-top: 22px; border-top: 1px solid #bbb; padding-top: 6px;
+             font-size: 8pt; color: #666; }
+</style></head>
+<body>
+
+  <div class="ag-head">
+    ${companyBlock()}
+    <div class="ag-title">
+      <h1>Rental agreement</h1>
+      <div class="ag-ref">${esc(ref)}</div>
+      <div class="ag-issued">Issued ${esc(formatDate(new Date().toISOString().slice(0, 10)))}</div>
+    </div>
+  </div>
+
+  <div class="ag-cols">
+    <div>
+      <h2>Renter</h2>
+      <table class="ag-table">
+        ${line("Name", b.renter)}
+        ${line("Phone", b.phone || customer?.phone)}
+        ${line("Email", customer?.email)}
+        ${line("Licence number", customer?.license)}
+      </table>
+    </div>
+    <div>
+      <h2>Vehicle</h2>
+      <table class="ag-table">
+        ${line("Vehicle", bookingCarLabel(b))}
+        ${line("Registration", car?.plate)}
+        ${line("Category", car?.category)}
+        ${line("Mileage at hand-over", car?.mileage ? `${car.mileage} km` : "")}
+      </table>
+    </div>
+  </div>
+
+  <h2>Rental period</h2>
+  <div class="ag-cols">
+    <div>
+      <table class="ag-table">
+        ${line("Pick-up date", formatDate(b.startDate))}
+        ${line("Pick-up time", startTime(b))}
+        ${line("Pick-up place", b.pickupLocation)}
+      </table>
+    </div>
+    <div>
+      <table class="ag-table">
+        ${line("Return date", formatDate(b.endDate))}
+        ${line("Return time", endTime(b))}
+        ${line("Return place", b.dropoffLocation)}
+      </table>
+    </div>
+  </div>
+
+  <h2>Charges</h2>
+  ${moneyBlock(b)}
+
+  ${b.notes ? `<h2>Notes</h2><div class="ag-terms">${esc(b.notes)}</div>` : ""}
+
+  ${terms ? `<h2>Terms and conditions</h2><div class="ag-terms">${esc(terms)}</div>` : ""}
+
+  <div class="ag-sign">
+    <div>
+      <div class="ag-rule"></div>
+      <div class="ag-cap">Renter — signature and date</div>
+    </div>
+    <div>
+      <div class="ag-rule"></div>
+      <div class="ag-cap">For ${esc(companyName())} — signature and date</div>
+    </div>
+  </div>
+
+  <div class="ag-foot">
+    Agreement ${esc(ref)} · ${esc(companyName())}
+    ${b.managedBy ? ` · Managed by ${esc(b.managedBy)}` : ""}
+  </div>
+
+</body></html>`;
+}
+
+/**
+ * Opens the agreement in its own window and offers it to print. From the print
+ * dialog, "Save as PDF" produces the file.
+ *
+ * A separate window rather than printing the app itself: the app's own styles
+ * would fight the document's, and the person keeps their place in the planner.
+ */
+export function openAgreement(bookingId) {
+  const b = state.bookings.find(x => x.id === bookingId);
+  if (!b) return { ok: false, reason: "That booking could not be found." };
+
+  const win = window.open("", "_blank");
+  if (!win) {
+    // Pop-up blockers are common and silent, so say what happened rather than
+    // appearing to do nothing at all.
+    return {
+      ok: false,
+      reason: "Your browser blocked the new window. Allow pop-ups for this site and try again."
+    };
+  }
+
+  win.document.open();
+  win.document.write(documentHtml(b));
+  win.document.close();
+
+  // Wait for the logo to load, or it prints as a gap. The timeout is a backstop
+  // in case the image never arrives.
+  const go = () => { try { win.focus(); win.print(); } catch {} };
+  if (win.document.readyState === "complete") setTimeout(go, 250);
+  else win.addEventListener("load", () => setTimeout(go, 250));
+  setTimeout(go, 1500);
+
+  return { ok: true };
+}
