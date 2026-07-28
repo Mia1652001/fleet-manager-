@@ -1545,8 +1545,14 @@ input:focus, select:focus { border-color: var(--text); }
   .planner-bar { margin-bottom: 0.6rem; }
   #view-bookings .panel-toggle { margin-bottom: 0.6rem; }
 
-  /* Shorter vehicle rows: the two lines of text keep their size, it is the
-     padding around them that comes down. */
-  #view-bookings .tl-car { padding-top: 5px; padding-bottom: 5px; }
-  #view-bookings .tl-cell { padding-top: 3px; padding-bottom: 3px; }
+  /* Shorter vehicle rows. This is the biggest lever on how many vehicles fit,
+     since the planner itself cannot grow past the window. The name keeps its
+     size — it is what you read — while the padding, the leading, and the plate
+     underneath all come down a step. About 34px a row becomes about 26px, which
+     is three or four more vehicles on a laptop. */
+  #view-bookings .tl-car { padding-top: 3px; padding-bottom: 3px; line-height: 1.15; }
+  #view-bookings .tl-car strong { line-height: 1.15; }
+  #view-bookings .tl-car .tl-plate { font-size: 8px; line-height: 1.1; }
+  #view-bookings .tl-cell { padding-top: 2px; padding-bottom: 2px; }
+  #view-bookings .tl-bar { margin-top: 2px; margin-bottom: 2px; }
 }
