@@ -1631,3 +1631,17 @@ input:focus, select:focus { border-color: var(--text); }
   .board-cell { padding: 4px; min-height: 38px; }
   .board-chip { font-size: 9px; padding: 3px 5px; }
 }
+
+/* ---------- Board width ----------
+   Lists read better in a narrow centred column, but a board with a column per
+   person needs room or the people fall off the right edge. Same breakout the
+   Bookings planner uses: step outside the page column, up to 1700px, never wider
+   than the window. Self-limiting, so a phone is unaffected — there the board is
+   already as wide as the column and it scrolls sideways instead. */
+@media (min-width: 641px) {
+  #view-tasks .staff-board {
+    --board-w: min(100vw - 3rem, 1700px);
+    width: var(--board-w);
+    margin-left: calc(-1 * max(0px, (var(--board-w) - 100%) / 2));
+  }
+}

@@ -241,17 +241,28 @@ function boardDays(from, to) {
 }
 
 function boardColumns(jobs) {
-  // Everyone the company knows about, so a person with nothing on is visibly
-  // free rather than simply absent — then anyone else who turns up in the jobs
-  // themselves, which covers names typed before the staff list was filled in.
-  const known = staffNames();
-  const inJobs = jobs.map(j => j.staff).filter(Boolean);
+  // Two sources, and deliberately not every name the app has ever seen. The
+  // Settings staff list gets a column whether or not anyone is busy, so you can
+  // see who is free. Beyond that, only people who actually have a job in view.
+  //
+  // Using every historical name filled the board with empty columns for
+  // placeholders and one-off spellings typed into old bookings, which pushed the
+  // real people off the edge of the screen.
+  const fromSettings = Array.isArray(state.settings?.staff)
+    ? state.settings.staff.map(x => String(x).trim()).filter(Boolean)
+    : [];
+  const busyNow = jobs.map(j => (j.staff || "").trim()).filter(Boolean);
+
+  // With no staff list set up yet, fall back to whoever is busy, or the board
+  // would have nothing but an Unassigned column.
+  const source = fromSettings.length ? [...fromSettings, ...busyNow] : busyNow;
+
   const seen = new Map();
-  [...known, ...inJobs].forEach(n => {
-    const k = n.trim().toLowerCase();
-    if (k && !seen.has(k)) seen.set(k, n.trim());
+  source.forEach(n => {
+    const k = n.toLowerCase();
+    if (k && !seen.has(k)) seen.set(k, n);
   });
-  return Array.from(seen.values());
+  return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
 }
 
 function boardChip(j) {
@@ -298,7 +309,10 @@ function renderBoard(jobs, from, to) {
     return `<div class="board-cell board-day${ds === todayStr() ? " today" : ""}">${esc(dayHeading(ds))}</div>${cells}`;
   }).join("");
 
-  box.style.gridTemplateColumns = `minmax(120px, 0.8fr) repeat(${columns.length}, minmax(150px, 1fr))`;
+  // Narrower minimum than before so more people fit before it has to scroll.
+  // A chip truncates rather than forcing its column open, so 120px still reads.
+  box.style.gridTemplateColumns =
+    `minmax(96px, 0.7fr) repeat(${columns.length}, minmax(120px, 1fr))`;
   box.innerHTML = head + rows;
 }
 
