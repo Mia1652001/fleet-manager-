@@ -17,8 +17,7 @@ import {
 
 let root = null;
 let filter = "all";
-let calYear, calMonth;
-let planner = "timeline"; // "timeline" | "month"
+
 
 // The timeline always holds the same stretch of calendar — a month and a half,
 // starting a few days before today. The slider is a zoom, not a range: it makes
@@ -136,8 +135,6 @@ function dstr(d) {
 export function mount(container) {
   root = container;
   const now = new Date();
-  calYear = now.getFullYear();
-  calMonth = now.getMonth();
   timelineAnchor = freshAnchor();
 
   applyPanels();
@@ -170,14 +167,12 @@ export function mount(container) {
   window.addEventListener("resize", () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      if (root.classList.contains("active") && planner === "timeline") render();
+      if (root.classList.contains("active")) render();
     }, 150);
   });
 
   setupCarDragging();
 
-  el(root, "view-timeline").addEventListener("click", () => setPlanner("timeline"));
-  el(root, "view-month").addEventListener("click", () => setPlanner("month"));
 
   // Clicking a booking bar in the timeline opens it for editing
   el(root, "timeline").addEventListener("click", (e) => {
@@ -196,14 +191,14 @@ export function mount(container) {
   wireDragToBook();
 
   el(root, "cal-prev").addEventListener("click", () => {
-    if (planner === "timeline") {
-      timelineAnchor.setDate(timelineAnchor.getDate() - 7); reanchored = true; render();
-    } else shiftMonth(-1);
+    timelineAnchor.setDate(timelineAnchor.getDate() - 7);
+    reanchored = true;
+    render();
   });
   el(root, "cal-next").addEventListener("click", () => {
-    if (planner === "timeline") {
-      timelineAnchor.setDate(timelineAnchor.getDate() + 7); reanchored = true; render();
-    } else shiftMonth(1);
+    timelineAnchor.setDate(timelineAnchor.getDate() + 7);
+    reanchored = true;
+    render();
   });
   // Reaching 2027 by pressing Next twenty-six times is not reasonable. A month
   // input jumps straight to any month of any year, and on a phone it opens the
@@ -213,11 +208,8 @@ export function mount(container) {
   el(root, "jump-year").addEventListener("change", jumpToChosenMonth);
 
   el(root, "cal-today").addEventListener("click", () => {
-    if (planner === "timeline") { timelineAnchor = freshAnchor(); reanchored = true; }
-    else {
-      const d = new Date();
-      calYear = d.getFullYear(); calMonth = d.getMonth();
-    }
+    timelineAnchor = freshAnchor();
+    reanchored = true;
     render();
   });
 
@@ -247,12 +239,6 @@ export function mount(container) {
   onDataChange(() => { if (root.classList.contains("active")) render(); });
 }
 
-function shiftMonth(delta) {
-  calMonth += delta;
-  if (calMonth < 0) { calMonth = 11; calYear--; }
-  if (calMonth > 11) { calMonth = 0; calYear++; }
-  render();
-}
 
 function stateLabel(s) {
   return { "active-b": "Active", upcoming: "Upcoming", overdue: "Overdue", completed: "Completed" }[s] || s;
@@ -261,8 +247,8 @@ function stateLabel(s) {
 export function render() {
   if (!root) return;
   if (showSummary) renderStats();
-  if (planner === "timeline") { renderTimeline(); fitPlannerHeight(); }
-  else renderCalendar();
+  renderTimeline();
+  fitPlannerHeight();
   // After the planner is drawn, so the readout can measure a laid-out element.
   syncZoomLabel();
   syncJumpSelects();
@@ -298,9 +284,7 @@ function buildJumpOptions() {
 // Keeps the two selects showing where the planner currently is, so they read as
 // a position rather than an empty control waiting for input.
 function syncJumpSelects() {
-  const d = planner === "timeline"
-    ? (timelineAnchor || new Date())
-    : new Date(calYear, calMonth, 1);
+  const d = timelineAnchor || new Date();
   const ms = el(root, "jump-month");
   const ys = el(root, "jump-year");
   if (!ms || !ys) return;
@@ -316,12 +300,8 @@ function jumpToChosenMonth() {
   const year = Number(el(root, "jump-year").value);
   if (!Number.isInteger(monthIndex) || !Number.isInteger(year)) return;
 
-  if (planner === "timeline") {
-    timelineAnchor = new Date(year, monthIndex, 1);
-    reanchored = true;          // a new window starts at its first day
-  } else {
-    calYear = year; calMonth = monthIndex;
-  }
+  timelineAnchor = new Date(year, monthIndex, 1);
+  reanchored = true;            // a new window starts at its first day
   render();
 }
 
@@ -494,18 +474,6 @@ function updateToggleLabels() {
     `${showList ? "\u25be" : "\u25b8"} Booking list (${n})`;
 }
 
-function setPlanner(which) {
-  planner = which;
-  el(root, "view-timeline").classList.toggle("active", which === "timeline");
-  el(root, "view-month").classList.toggle("active", which === "month");
-  el(root, "timeline-wrap").style.display = which === "timeline" ? "block" : "none";
-  el(root, "calendar").style.display = which === "month" ? "grid" : "none";
-  // The Days control only means anything to the timeline; a month is a month.
-  el(root, "zoom-wrap").style.display = which === "timeline" ? "" : "none";
-  const legend = root.querySelector(".tl-legend");
-  if (legend) legend.style.display = which === "timeline" ? "flex" : "none";
-  render();
-}
 
 function renderStats() {
   const states = state.bookings.map(bookingState);
@@ -751,35 +719,6 @@ function renderTimeline() {
   }
 }
 
-function renderCalendar() {
-  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  el(root, "cal-title").textContent = `${monthNames[calMonth]} ${calYear}`;
-
-  const first = new Date(calYear, calMonth, 1);
-  const startDow = (first.getDay() + 6) % 7; // Monday-first
-  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-  const t = todayStr();
-
-  let html = ["Mo","Tu","We","Th","Fr","Sa","Su"].map(d => `<div class="cal-dow">${d}</div>`).join("");
-  for (let i = 0; i < startDow; i++) html += `<div class="cal-day other-month"></div>`;
-
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const dayBookings = state.bookings.filter(b => b.status !== "completed" && b.startDate <= dateStr && dateStr <= b.endDate);
-    const shown = dayBookings.slice(0, 2);
-    const extra = dayBookings.length - shown.length;
-
-    html += `
-      <div class="cal-day${dateStr === t ? " today" : ""}">
-        <div class="cal-day-num">${day}</div>
-        ${shown.map(b => `<div class="cal-booking ${bookingState(b)}">${esc(b.renter)}</div>`).join("")}
-        ${extra > 0 ? `<div class="cal-more">+${extra} more</div>` : ""}
-        <div class="cal-dots">${dayBookings.slice(0, 4).map(b => `<div class="cal-dot ${bookingState(b)}"></div>`).join("")}</div>
-      </div>`;
-  }
-
-  el(root, "calendar").innerHTML = html;
-}
 
 // Which bookings the list would show. Shared with the toggle label, so the
 // count on the closed button always matches what opening it reveals.

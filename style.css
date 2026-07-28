@@ -267,38 +267,15 @@ input:focus, select:focus { border-color: var(--text); }
 .cal-title { font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 400; white-space: nowrap; }
 .cal-nav { display: flex; gap: 6px; flex-wrap: wrap; }
 
-.calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 2rem; }
+
 
 .cal-dow { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 6px 0; }
 
-.cal-day {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  min-height: 64px;
-  padding: 6px;
-  font-size: 11px;
-  position: relative;
-}
 
-.cal-day.other-month { opacity: 0.35; }
-.cal-day.today { border-color: var(--text); border-width: 2px; }
-.cal-day-num { color: var(--muted); font-size: 10px; }
 
-.cal-booking {
-  font-size: 9px;
-  background: var(--amber-bg);
-  color: var(--amber-text);
-  border-radius: 2px;
-  padding: 1px 4px;
-  margin-top: 3px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
 
-.cal-booking.active-b { background: var(--green-bg); color: var(--green-text); }
-.cal-booking.overdue { background: var(--red-bg); color: var(--red-text); }
+
+
 .cal-more { font-size: 9px; color: var(--muted); margin-top: 2px; }
 
 .boot { min-height: 100vh; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; letter-spacing: 0.05em; }
@@ -310,9 +287,6 @@ input:focus, select:focus { border-color: var(--text); }
   header { padding: 1rem 1rem 0; }
   .main { padding: 1.25rem 0.9rem; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cal-day { min-height: 48px; padding: 4px; }
-  .cal-booking { display: none; }
-  .cal-day .cal-dots { display: flex; gap: 2px; margin-top: 4px; flex-wrap: wrap; }
 
   /* Stack the date range above the controls instead of squeezing both
      into one row, which forced the title to wrap letter by letter. */
@@ -322,7 +296,6 @@ input:focus, select:focus { border-color: var(--text); }
   .cal-nav .tab, .cal-nav .btn { font-size: 10px; padding: 6px 10px; }
 }
 
-.cal-dots { display: none; }
 @media (max-width: 640px) {
   .cal-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber-text); }
   .cal-dot.active-b { background: var(--green-text); }
@@ -1066,8 +1039,7 @@ input:focus, select:focus { border-color: var(--text); }
    than the window. min() makes it self-limiting, so phones are unaffected. */
 #view-bookings .cal-header,
 #view-bookings .timeline-wrap,
-#view-bookings .tl-legend,
-#view-bookings .calendar {
+#view-bookings .tl-legend {
   --planner-w: min(100vw - 3rem, 1700px);
   width: var(--planner-w);
   margin-left: calc(-1 * max(0px, (var(--planner-w) - 100%) / 2));
@@ -1172,8 +1144,7 @@ input:focus, select:focus { border-color: var(--text); }
      column like everything else. */
   #view-bookings .cal-header,
   #view-bookings .timeline-wrap,
-  #view-bookings .tl-legend,
-  #view-bookings .calendar {
+  #view-bookings .tl-legend {
     width: 100%;
     margin-left: 0;
   }
