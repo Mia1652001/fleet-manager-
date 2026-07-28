@@ -1051,15 +1051,17 @@ input:focus, select:focus { border-color: var(--text); }
    whole page and carried the date row with it. Giving the planner its own
    height makes it the thing that scrolls. */
 #view-bookings .timeline-wrap {
-  /* Sized to the space that is genuinely below it, so nothing is drawn outside
-     its own box. It was briefly position: sticky, to reclaim the height the
-     header takes — but a pinned sticky element is drawn lower than the space it
-     reserves, so it slid down over the legend and the buttons beneath it. That
-     is not fixable by spacing: the slide is bounded by the section, so it always
-     covers exactly whatever follows inside it.
-     The height the header was costing has been taken back by trimming the header
-     instead — see the desktop block further down. */
+  /* Sized to the space genuinely below it. I briefly made this sticky to reclaim
+     the height the header takes, which is what caused the planner to slide down
+     over the legend and buttons: a pinned sticky element is drawn lower than the
+     space it reserves, and its slide is bounded by the section, so it always
+     ends up covering whatever follows inside it. No amount of spacing fixes
+     that. The height is reclaimed by trimming the header instead. */
   max-height: max(320px, calc(100vh - 250px));
+  /* vh counts the area behind a phone browser's toolbars, so it overshoots on
+     iOS; dvh measures what is actually visible. Browsers that do not know dvh
+     ignore this line and keep the one above. JavaScript sets an exact value on
+     the first draw regardless. */
   max-height: max(320px, calc(100dvh - 250px));
   overflow-y: auto;
 }
@@ -1525,13 +1527,12 @@ input:focus, select:focus { border-color: var(--text); }
 /* While dragging, stop the browser turning the gesture into a text selection. */
 .timeline.picking-range { user-select: none; cursor: crosshair; }
 
-/* ---------- A taller planner on desktop, by taking space off the top ----------
-   The planner can never be taller than the space below it, or the frozen date
-   row scrolls away with it. So the way to make it taller is to leave less above
-   it. The masthead and the gaps between the controls were sized generously for a
-   wide screen; none of this makes anything harder to read, and together it is
-   worth roughly four more vehicle rows. Phones already have their own, tighter
-   set of these values. */
+
+/* ---------- Reclaiming planner height on desktop ----------
+   The planner is bounded by the window, because the frozen date row is sticky
+   inside it and only stays put while the whole frame is on screen. So the way to
+   make it taller is to give it more of the window: everything above it comes
+   down a little. Phones already have their own, tighter set of these. */
 @media (min-width: 641px) {
   header { padding: 0.8rem 2rem 0; }
   header h1 { font-size: 1.35rem; }
@@ -1544,8 +1545,8 @@ input:focus, select:focus { border-color: var(--text); }
   .planner-bar { margin-bottom: 0.6rem; }
   #view-bookings .panel-toggle { margin-bottom: 0.6rem; }
 
-  /* Slightly shorter vehicle rows. The two lines of text keep their size; it is
-     the padding around them that comes down. */
+  /* Shorter vehicle rows: the two lines of text keep their size, it is the
+     padding around them that comes down. */
   #view-bookings .tl-car { padding-top: 5px; padding-bottom: 5px; }
   #view-bookings .tl-cell { padding-top: 3px; padding-bottom: 3px; }
 }

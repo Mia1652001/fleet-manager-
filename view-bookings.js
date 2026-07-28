@@ -441,17 +441,29 @@ function paintDragPreview() {
 // than the window would scroll its own top away and take the dates with it.
 // Height is therefore won by taking space off what sits above the planner, not by
 // letting the planner spill past the window.
-const PLANNER_BOTTOM_GAP = 8;     // clear of the window edge, nothing more
+// Room left below the buttons and legend that sit under the planner, so a
+// pinned-looking planner never runs over them. Measured rather than guessed, so
+// it stays right whether the legend is open or closed.
+const PLANNER_BOTTOM_GAP = 8;
 const PLANNER_MIN_HEIGHT = 320;   // a short window still gets a usable planner
 
 function fitPlannerHeight() {
   const wrap = el(root, "timeline-wrap");
   if (!wrap) return;
-  // Measured from where the planner actually starts, so it fills the space below
-  // itself and no more. Document offset rather than viewport offset, so the
-  // answer does not change with how far the page happens to be scrolled.
+
+  // Everything that follows the planner inside this view — the legend, its
+  // toggle, the booking-list toggle. The planner stops short of them rather than
+  // reaching the bottom of the window, so they are always fully visible.
+  let below = 0;
+  for (let n = wrap.nextElementSibling; n; n = n.nextElementSibling) {
+    if (n.classList.contains("card-list") || n.classList.contains("filter-row")) break;
+    below += n.offsetHeight || 0;
+  }
+
+  // Document offset rather than viewport offset, so the answer does not change
+  // with how far the page happens to be scrolled.
   const topInPage = wrap.getBoundingClientRect().top + window.scrollY;
-  const available = window.innerHeight - topInPage - PLANNER_BOTTOM_GAP;
+  const available = window.innerHeight - topInPage - below - PLANNER_BOTTOM_GAP;
   wrap.style.maxHeight = Math.max(PLANNER_MIN_HEIGHT, Math.round(available)) + "px";
 }
 
