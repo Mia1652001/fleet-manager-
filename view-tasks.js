@@ -163,15 +163,32 @@ function shiftDate(days) {
 
 const DONE_LOOKBACK_DAYS = 7;
 
+// Declared here because rangeBounds needs them too: the board has to fetch
+// every day it intends to draw, or the extra rows come out empty.
+const BOARD_MIN_DAYS = 7;    // a board showing one day is not a board
+const BOARD_MAX_DAYS = 31;   // and an open-ended range must not draw a year
+
 function rangeBounds() {
   // Showing completed work is a review action, so reach back a week. Without
   // this, "Today" plus "show completed" turns up nothing unless a job happened
   // to be finished today.
   const from = showDone ? shiftDate(-DONE_LOOKBACK_DAYS) : todayStr();
-  if (range === "today") return { from, to: todayStr() };
-  if (range === "week") return { from, to: shiftDate(6) };
-  if (range === "month") return { from, to: shiftDate(29) };
-  return { from, to: null }; // everything ahead
+  let to =
+    range === "today" ? todayStr() :
+    range === "week" ? shiftDate(6) :
+    range === "month" ? shiftDate(29) :
+    null;                                   // everything ahead
+
+  // The board always draws a week of rows, however narrow the range. Fetching
+  // only the range meant those extra rows were drawn empty — the jobs existed,
+  // the board just had not asked for them, so "Today" looked like a quiet week
+  // and two people on different tabs saw genuinely different amounts of work.
+  if (mode === "board" && to !== null) {
+    const least = shiftDate(BOARD_MIN_DAYS - 1);
+    if (to < least) to = least;
+  }
+
+  return { from, to };
 }
 
 function dayHeading(dateStr) {
@@ -295,9 +312,6 @@ export function render() {
 // Tuesday, down a column for one person's week. The Unassigned column is the
 // point of it — that is where the Saturday collection nobody has been given
 // shows up, which a per-person filter can never reveal.
-
-const BOARD_MIN_DAYS = 7;    // a board showing one day is not a board
-const BOARD_MAX_DAYS = 31;   // and an open-ended range must not draw a year
 
 function boardDays(from, to, jobs) {
   const start = from || todayStr();
