@@ -1166,7 +1166,21 @@ function setupCarDragging() {
     grid.classList.remove("dragging");
     try { grid.releasePointerCapture(e.pointerId); } catch {}
     clearDragMarks();
-    if (to && to !== from) await commitCarOrder(from, to);
+    if (!to || to === from) return;
+
+    // Asked before anything is saved: the order is shared by the whole
+    // company, and on a phone a scroll near the grip can read as a drag —
+    // which is exactly how the fleet got quietly rearranged by accident.
+    const a = state.cars.find(c => c.id === from);
+    const b = state.cars.find(c => c.id === to);
+    if (!a || !b) return;
+    if (!confirm(
+      `Move ${a.make} ${a.model} (${a.plate || "no plate"}) to where ` +
+      `${b.make} ${b.model} (${b.plate || "no plate"}) is in the list?\n\n` +
+      `This changes the planner order for everyone in the company.`
+    )) return;
+
+    await commitCarOrder(from, to);
   };
 
   grid.addEventListener("pointerup", finish);
