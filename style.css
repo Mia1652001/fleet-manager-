@@ -1867,3 +1867,23 @@ input:focus, select:focus { border-color: var(--text); }
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* ---------- Skipped-days markers on the Tasks list and board ----------
+   Drawn wherever the day rows jump over an empty stretch, so two rows months
+   apart can never be mistaken for neighbouring days. */
+.day-gap, .board-gap {
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  padding: 7px 0;
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+}
+.day-gap { margin: 10px 0; }
+.board-gap { grid-column: 1 / -1; background: var(--bg); }
+
+/* A day with no jobs still shows its heading and its "+" — slightly quieter,
+   so the days with work stand out. */
+.day-group.empty .day-head { opacity: 0.75; }
+.day-group.empty { margin-bottom: 4px; }

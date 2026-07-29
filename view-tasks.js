@@ -171,6 +171,64 @@ const DONE_LOOKBACK_DAYS = 7;
 const BOARD_MIN_DAYS = 7;    // a board showing one day is not a board
 const BOARD_MAX_DAYS = 31;   // and an open-ended range must not draw a year
 
+// "Everything ahead" draws a solid month of days before gaps start being
+// skipped — a solid stretch is what makes drag-and-drop land where it looks
+// like it will land.
+const DENSE_AHEAD_DAYS = 30;
+
+function addDay(ds) {
+  const d = new Date(ds + "T12:00");
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// The rows the list and the board both draw: every single day of the chosen
+// range — empty ones included, so any date can be added to or dropped on —
+// plus the day of any job outside it (overdue leftovers, far-ahead bookings).
+// Where days are skipped between drawn ones, a marker row is emitted, because
+// two adjacent rows months apart is exactly how a booking got dragged to
+// 31/10 when 31/08 was meant.
+//
+// Returns a list of { kind: "day", date } and { kind: "gap", skipped } rows.
+function dayRows(from, to, jobs, minDays) {
+  const start = from || todayStr();
+
+  // The dense stretch: the chosen range itself, or a month ahead when the
+  // range is open-ended, never fewer than minDays (the board's week).
+  let horizon = to;
+  if (!horizon) {
+    const h = new Date(start + "T12:00");
+    h.setDate(h.getDate() + DENSE_AHEAD_DAYS - 1);
+    horizon = `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, "0")}-${String(h.getDate()).padStart(2, "0")}`;
+  }
+  if (minDays) {
+    const l = new Date(start + "T12:00");
+    l.setDate(l.getDate() + minDays - 1);
+    const least = `${l.getFullYear()}-${String(l.getMonth() + 1).padStart(2, "0")}-${String(l.getDate()).padStart(2, "0")}`;
+    if (horizon < least) horizon = least;
+  }
+
+  const dates = new Set();
+  let ds = start, n = 0;
+  while (ds <= horizon && n < BOARD_MAX_DAYS) { dates.add(ds); ds = addDay(ds); n++; }
+
+  // Days that carry a job outside the dense stretch still get a row of their
+  // own — a chip must never lose the row it sits in.
+  jobs.forEach(j => { if (j.date) dates.add(j.date); });
+
+  const all = [...dates].sort();
+  const rows = [];
+  all.forEach((d, i) => {
+    if (i > 0 && addDay(all[i - 1]) !== d) {
+      const skipped = Math.round(
+        (new Date(d + "T12:00") - new Date(all[i - 1] + "T12:00")) / 86400000) - 1;
+      rows.push({ kind: "gap", skipped });
+    }
+    rows.push({ kind: "day", date: d });
+  });
+  return rows;
+}
+
 function rangeBounds() {
   // Showing completed work is a review action, so reach back a week. Without
   // this, "Today" plus "show completed" turns up nothing unless a job happened
@@ -281,33 +339,34 @@ export function render() {
   if (mode === "board") { renderBoard(jobs, from, to); return; }
 
   const listEl = el(root, "list");
-  if (jobs.length === 0) {
-    const filtered = staffFilter.size || kindFilter || search;
-    listEl.innerHTML = filtered
-      ? `<div class="empty">Nothing matches these filters. Try widening the date range or clearing the staff and job filters.</div>`
-      : showDone
-      ? `<div class="empty">Nothing completed in the last ${DONE_LOOKBACK_DAYS} days, and nothing outstanding in this range.</div>`
-      : `<div class="empty">Nothing scheduled here. Jobs appear automatically from bookings — or add your own with "+ Add task".</div>`;
+
+  // With filters or a search active and nothing matching, thirty empty day
+  // headings would bury the answer; a sentence says it better.
+  if (jobs.length === 0 && (staffFilter.size || kindFilter || search)) {
+    listEl.innerHTML =
+      `<div class="empty">Nothing matches these filters. Try widening the date range or clearing the staff and job filters.</div>`;
     return;
   }
 
-  // Group by date
-  const groups = [];
-  jobs.forEach(j => {
-    let g = groups.find(x => x.date === j.date);
-    if (!g) { g = { date: j.date, items: [] }; groups.push(g); }
-    g.items.push(j);
-  });
-
-  listEl.innerHTML = groups.map(g => `
-    <div class="day-group">
+  // Every day of the chosen range is shown, empty ones included, each with its
+  // own "+" — so a task can be put on any date, not only on dates that already
+  // have work. Days beyond the range that carry a job still appear, separated
+  // by an explicit marker so distant dates never look adjacent.
+  const rows = dayRows(from, to, jobs, 0);
+  listEl.innerHTML = rows.map(r => {
+    if (r.kind === "gap") {
+      return `<div class="day-gap">· · · ${r.skipped} empty day${r.skipped === 1 ? "" : "s"} skipped · · ·</div>`;
+    }
+    const items = jobs.filter(j => j.date === r.date);
+    return `
+    <div class="day-group${items.length ? "" : " empty"}">
       <div class="day-head">
-        <span>${esc(dayHeading(g.date))}</span>
-        <button class="day-add" data-add-on="${g.date}" title="Add a task on this day">+</button>
+        <span>${esc(dayHeading(r.date))}</span>
+        <button class="day-add" data-add-on="${r.date}" title="Add a task on ${formatDate(r.date)}">+</button>
       </div>
-      ${g.items.map(j => jobRow(j)).join("")}
-    </div>
-  `).join("");
+      ${items.map(j => jobRow(j)).join("")}
+    </div>`;
+  }).join("");
 }
 
 // ---------- The staff board ----------
@@ -315,27 +374,6 @@ export function render() {
 // Tuesday, down a column for one person's week. The Unassigned column is the
 // point of it — that is where the Saturday collection nobody has been given
 // shows up, which a per-person filter can never reveal.
-
-function boardDays(from, to, jobs) {
-  const start = from || todayStr();
-  const days = [];
-  const d = new Date(start + "T12:00");
-  for (let i = 0; i < BOARD_MAX_DAYS; i++) {
-    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    // A week at minimum, even on the Today tab: seeing one row tells you nothing
-    // about how the week is spread, which is the whole point of the board.
-    if (to && ds > to && days.length >= BOARD_MIN_DAYS) break;
-    days.push(ds);
-    d.setDate(d.getDate() + 1);
-  }
-
-  // Anything overdue is carried forward by the schedule regardless of the range,
-  // so its day has to appear or the job would give someone a column while its
-  // chip had no row to sit in — a person looking busy with nothing shown.
-  jobs.forEach(j => { if (j.date && !days.includes(j.date)) days.push(j.date); });
-
-  return days.sort();
-}
 
 function boardColumns(jobs) {
   // Two sources, and deliberately not every name the app has ever seen. The
@@ -697,19 +735,25 @@ function renderBoard(jobs, from, to) {
   // ever and drown the column that is meant to be actionable.
   const assignable = jobs.filter(j => j.kind !== "service");
 
-  const days = boardDays(from, to, assignable);
+  const rowsSpec = dayRows(from, to, assignable, BOARD_MIN_DAYS);
   const people = boardColumns(assignable);
   const columns = [...people, null];        // null is the Unassigned column
 
-  if (days.length === 0 || columns.length === 1 && assignable.length === 0) {
-    box.innerHTML = `<div class="empty">Nothing to show here. Widen the date range, or add staff on the Settings page.</div>`;
+  if (columns.length === 1 && assignable.length === 0 && !people.length && !state.settings?.staff?.length) {
+    // No staff set up and nothing to show: the board would be a wall of empty
+    // Unassigned cells, so a pointer to Settings says more.
+    box.innerHTML = `<div class="empty">Nothing to show here. Jobs appear from bookings — or add staff on the Settings page to plan by person.</div>`;
     return;
   }
 
   const head = `<div class="board-cell board-corner">Day</div>` +
     columns.map(p => `<div class="board-cell board-head${p ? "" : " unassigned"}">${p ? esc(p) : "Unassigned"}</div>`).join("");
 
-  const rows = days.map(ds => {
+  const rows = rowsSpec.map(r => {
+    if (r.kind === "gap") {
+      return `<div class="board-gap">· · · ${r.skipped} empty day${r.skipped === 1 ? "" : "s"} skipped · · ·</div>`;
+    }
+    const ds = r.date;
     const dayJobs = assignable.filter(j => j.date === ds);
     const cells = columns.map(p => {
       const mine = dayJobs.filter(j =>
@@ -717,7 +761,7 @@ function renderBoard(jobs, from, to) {
       // A task added from a cell already knows its day and its person, which is
       // most of the form filled in before it opens.
       const add = `<button type="button" class="board-add" data-add-day="${ds}"
-          data-add-staff="${esc(p || "")}" title="Add a task here">+</button>`;
+          data-add-staff="${esc(p || "")}" title="Add a task on ${formatDate(ds)}">+</button>`;
       return `<div class="board-cell${p ? "" : " unassigned"}"
         data-cell-day="${ds}" data-cell-staff="${esc(p || "")}"
         >${mine.map(boardChip).join("")}${add}</div>`;
