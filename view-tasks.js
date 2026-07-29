@@ -3,6 +3,7 @@
 // bookings automatically; only manual tasks are stored separately.
 import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { openBookingModal } from "./booking-form.js";
 import {
   state, onDataChange, esc, formatDate, todayStr, buildSchedule, staffNames,
   fillTimeOptions, getTime, setTime,
@@ -37,6 +38,17 @@ export function mount(container) {
   el(root, "kind-filter").addEventListener("change", () => {
     kindFilter = el(root, "kind-filter").value; render();
   });
+  el(root, "job-detail-open").addEventListener("click", (e) => {
+    const id = e.currentTarget.dataset.booking;
+    closeModal(root, "job-detail");
+    if (id) openBookingModal(id);
+  });
+  el(root, "job-detail-edit").addEventListener("click", (e) => {
+    const id = e.currentTarget.dataset.task;
+    closeModal(root, "job-detail");
+    if (id) openTaskModal(id);
+  });
+
   el(root, "view-list").addEventListener("click", () => setMode("list"));
   el(root, "view-board").addEventListener("click", () => setMode("board"));
   applyMode();
@@ -70,10 +82,23 @@ export function mount(container) {
   // Ticking a chip on the board does the same as ticking a row in the list —
   // it would be odd to be able to see the work but not mark it done.
   el(root, "board").addEventListener("click", async (e) => {
+    const add = e.target.closest("[data-add-day]");
+    if (add) { openTaskModal(null, add.dataset.addDay, add.dataset.addStaff); return; }
+
+    // The tick box marks a job done; the rest of the chip opens it. A chip is
+    // too narrow to show everything, and on a phone there is no hover to fall
+    // back on, so tapping it has to be the way to read the detail.
+    const box = e.target.closest("[data-tickbox]");
+    if (box) {
+      const chip = box.closest("[data-tick]");
+      if (chip && chip.dataset.kind !== "service") {
+        await toggleDone(chip.dataset.tick, chip.dataset.kind, chip.dataset.ref);
+      }
+      return;
+    }
+
     const chip = e.target.closest("[data-tick]");
-    if (!chip) return;
-    if (chip.dataset.kind === "service") return;   // marked on the Maintenance view
-    await toggleDone(chip.dataset.tick, chip.dataset.kind, chip.dataset.ref);
+    if (chip) openJobDetail(chip.dataset.tick);
   });
 
   el(root, "list").addEventListener("click", async (e) => {
@@ -283,10 +308,52 @@ function boardChip(j) {
     <div class="board-chip kind-${j.kind}${j.done ? " done" : ""}${j.overdue ? " late" : ""}"
          data-tick="${j.id}" data-kind="${j.kind}" data-ref="${ref}"
          title="${esc(`${j.time || ""} ${label} ${sub}`.trim())}">
+      ${j.kind === "service"
+        ? `<span class="board-tick disabled">\u2699</span>`
+        : `<span class="board-tick" data-tickbox="1" title="${j.done ? "Mark as not done" : "Mark as done"}">${j.done ? "\u2713" : ""}</span>`}
       <span class="board-chip-time">${j.time ? esc(j.time) : "—"}</span>
       <span class="board-chip-kind">${kindShort}</span>
       <span class="board-chip-main">${esc(label || "")}${sub ? ` <span class="board-dim">${esc(sub)}</span>` : ""}</span>
     </div>`;
+}
+
+// A chip cannot show everything at its size, and on a phone there is no hover to
+// reveal the rest. Tapping one opens the full detail, which is the only way this
+// information is reachable on a touchscreen at all.
+function openJobDetail(jobId) {
+  const all = buildSchedule({ from: null, to: null, includeDone: true });
+  const j = all.find(x => x.id === jobId);
+  if (!j) return;
+
+  const kindName = { delivery: "Hand over", recovery: "Collect", task: "Task", service: "Service" }[j.kind] || j.kind;
+  const rows = [
+    ["When", `${formatDate(j.date)}${j.time ? ` at ${j.time}` : ""}`],
+    ["Job", kindName],
+    [j.kind === "task" ? "Task" : "Vehicle", j.kind === "task" ? j.customer : j.car],
+    [j.kind === "task" ? "" : "Customer", j.kind === "task" ? "" : j.customer],
+    ["Place", j.location],
+    ["Staff", j.staff],
+    ["Managed by", j.managedBy],
+    ["Delivered by", j.deliveredBy],
+    ["Recovered by", j.recoveredBy],
+    ["Notes", j.notes],
+    ["Status", j.done ? "Done" : j.overdue ? "Running late" : "Outstanding"]
+  ].filter(([k, v]) => k && v);
+
+  el(root, "job-detail-body").innerHTML = rows
+    .map(([k, v]) => `<div class="jd-row"><span class="jd-k">${esc(k)}</span><span class="jd-v">${esc(v)}</span></div>`)
+    .join("");
+
+  // Opening the booking is the useful next step from a delivery or a collection.
+  const openBtn = el(root, "job-detail-open");
+  openBtn.style.display = (j.kind === "delivery" || j.kind === "recovery") ? "inline-block" : "none";
+  openBtn.dataset.booking = j.bookingId || "";
+
+  const editBtn = el(root, "job-detail-edit");
+  editBtn.style.display = j.kind === "task" ? "inline-block" : "none";
+  editBtn.dataset.task = j.taskId || "";
+
+  openModal(root, "job-detail");
 }
 
 function renderBoard(jobs, from, to) {
@@ -313,7 +380,11 @@ function renderBoard(jobs, from, to) {
     const cells = columns.map(p => {
       const mine = dayJobs.filter(j =>
         p ? (j.staff || "").trim().toLowerCase() === p.toLowerCase() : !(j.staff || "").trim());
-      return `<div class="board-cell${p ? "" : " unassigned"}">${mine.map(boardChip).join("")}</div>`;
+      // A task added from a cell already knows its day and its person, which is
+      // most of the form filled in before it opens.
+      const add = `<button type="button" class="board-add" data-add-day="${ds}"
+          data-add-staff="${esc(p || "")}" title="Add a task here">+</button>`;
+      return `<div class="board-cell${p ? "" : " unassigned"}">${mine.map(boardChip).join("")}${add}</div>`;
     }).join("");
     return `<div class="board-cell board-day${ds === todayStr() ? " today" : ""}">${esc(dayHeading(ds))}</div>${cells}`;
   }).join("");
@@ -384,14 +455,15 @@ async function toggleDone(jobId, kind, ref) {
   }
 }
 
-function openTaskModal(id, presetDate) {
+function openTaskModal(id, presetDate, presetStaff) {
   editingTaskId = id || null;
   const t = id ? state.tasks.find(x => x.id === id) : null;
   el(root, "task-modal-title").textContent = t ? "Edit task" : "Add task";
   setVal(root, "t-text", t?.text || "");
   setVal(root, "t-date", t?.date || presetDate || todayStr());
   setTime(root, "t-time", t?.time || "12:00");
-  setVal(root, "t-staff", t?.staff || "");
+  // From a cell on the board, the person is already known from the column.
+  setVal(root, "t-staff", t?.staff || presetStaff || "");
   el(root, "delete-task").style.display = t ? "inline-block" : "none";
   showError(root, "task-error", null);
   openModal(root, "task-modal");

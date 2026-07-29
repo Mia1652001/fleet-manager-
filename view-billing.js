@@ -8,7 +8,9 @@ import {
   settledAmount, isBillable, hasStarted, inPeriod, settledOn, PERIOD_DAYS,
   initPanelToggle,
   el, val, setVal, openModal, closeModal, showError,
-  bookingRef
+  bookingRef,
+  invoiceTotal,
+  deliveryCost, insuranceCost, otherCost, extrasTotal
 } from "./store.js";
 
 // The badge on a card names the same category the tabs sort by, so a card can
@@ -115,7 +117,7 @@ export function render() {
   // What the period is worth in rentals, settled or not, by when they started.
   const booked = billable
     .filter(b => inPeriod(b.startDate))
-    .reduce((sum, b) => sum + rentalTotal(b), 0);
+    .reduce((sum, b) => sum + invoiceTotal(b), 0);
 
   const depositsHeld = billable.reduce((sum, b) => sum + securityHeld(b), 0);
 
@@ -165,6 +167,10 @@ export function render() {
         ${hasManualTotal(b)
           ? `<span>Agreed price: <strong>${formatAmount(total)}</strong> <span style="opacity:0.7;">(${days} day${days === 1 ? "" : "s"})</span></span>`
           : `<span>${days} day${days === 1 ? "" : "s"} × <strong>${formatAmount(rate)}</strong>/day = <strong>${formatAmount(total)}</strong></span>`}
+        ${deliveryCost(b) > 0 ? `<span>Delivery: <strong>${formatAmount(deliveryCost(b))}</strong></span>` : ""}
+        ${insuranceCost(b) > 0 ? `<span>Insurance: <strong>${formatAmount(insuranceCost(b))}</strong></span>` : ""}
+        ${otherCost(b) > 0 ? `<span>Other: <strong>${formatAmount(otherCost(b))}</strong></span>` : ""}
+        ${extrasTotal(b) > 0 ? `<span>Invoice total: <strong>${formatAmount(invoiceTotal(b))}</strong></span>` : ""}
         ${adv > 0 ? `<span>Advance paid: <strong>-${formatAmount(adv)}</strong></span>` : ""}
         ${adv > 0 && !b.paid ? `<span>Balance: <strong>${formatAmount(balance)}</strong></span>` : ""}
         ${b.paid && b.paidAt ? `<span>Paid on: <strong>${formatDate(b.paidAt.slice(0, 10))}</strong></span>` : ""}
@@ -283,10 +289,10 @@ function renderListTotals(list) {
   } else if (filter === "unpaid") {
     money = `${formatAmount(sum(list, balanceFor))} owed`;
   } else if (filter === "upcoming") {
-    money = `${formatAmount(sum(list, rentalTotal))} booked, nothing due yet`;
+    money = `${formatAmount(sum(list, invoiceTotal))} booked, nothing due yet`;
   } else {
     const owed = sum(list.filter(b => categoryOf(b) === "unpaid"), balanceFor);
-    money = `${formatAmount(sum(list, rentalTotal))} in rentals · ${formatAmount(owed)} still owed`;
+    money = `${formatAmount(sum(list, invoiceTotal))} in rentals · ${formatAmount(owed)} still owed`;
   }
 
   // Naming the period matters: without it a filtered total looks like the whole

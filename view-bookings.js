@@ -13,7 +13,8 @@ import {
   initPanelToggle,
   el, val, closeModal,
   bookingRef,
-  requestFocus
+  requestFocus,
+  invoiceTotal
 } from "./store.js";
 
 let root = null;
@@ -683,7 +684,7 @@ function renderTimeline() {
           `${b.renter}\n` +
           `Out: ${formatDate(b.startDate)} ${startTime(b)}${b.pickupLocation ? " · " + b.pickupLocation : ""}\n` +
           `Back: ${formatDate(b.endDate)} ${endTime(b)}${b.dropoffLocation ? " · " + b.dropoffLocation : ""}\n` +
-          `${formatAmount(rentalTotal(b))} · ${b.paid ? "Paid" : "Unpaid"}` +
+          `${formatAmount(invoiceTotal(b))} · ${b.paid ? "Paid" : "Unpaid"}` +
           (b.managedBy ? `\nManaged by ${b.managedBy}` : "") +
           (b.deliveredBy ? `\nDelivered by ${b.deliveredBy}` : "") +
           (b.notes ? `\nNote: ${b.notes}` : "");
@@ -776,7 +777,7 @@ function renderList() {
       <div class="card-details">
         <span>Out: <strong>${formatDate(b.startDate)} ${startTime(b)}</strong>${b.pickupLocation ? " · " + esc(b.pickupLocation) : ""}</span>
         <span>Back: <strong>${formatDate(b.endDate)} ${endTime(b)}</strong>${b.dropoffLocation ? " · " + esc(b.dropoffLocation) : ""}</span>
-        <span>Total: <strong>${formatAmount(rentalTotal(b))}</strong> ${b.paid ? "(paid)" : "(unpaid)"}</span>
+        <span>Total: <strong>${formatAmount(invoiceTotal(b))}</strong> ${b.paid ? "(paid)" : "(unpaid)"}</span>
         ${b.phone ? `<span>Phone: <strong>${esc(b.phone)}</strong></span>` : ""}
       </div>
       ${(b.managedBy || b.deliveredBy || b.notes) ? `

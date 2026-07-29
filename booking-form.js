@@ -135,8 +135,9 @@ export function openBookingModal(bookingId, preset) {
   // is the default; picking a saved customer is still one click away.
   csel.value = "__quick__";
 
-  ["b-name","b-phone","b-email","b-quickname","b-start","b-end",
-   "b-pickup","b-dropoff","b-total","b-managedby","b-deliveredby","b-recoveredby","b-notes"]
+  ["b-name","b-phone","b-email","b-quickname","b-quickphone","b-quickemail","b-start","b-end",
+   "b-pickup","b-dropoff","b-total","b-delivery","b-insurance","b-other",
+   "b-managedby","b-deliveredby","b-recoveredby","b-notes"]
     .forEach(n => setVal(root, n, ""));
   setChecked(root, "b-paid", false);
   setSwatch(root, "b-colour", "");
@@ -156,6 +157,9 @@ export function openBookingModal(bookingId, preset) {
     setVal(root, "b-managedby", editing.managedBy || "");
     setVal(root, "b-deliveredby", editing.deliveredBy || "");
     setVal(root, "b-recoveredby", editing.recoveredBy || "");
+    setVal(root, "b-delivery", editing.deliveryCost ?? "");
+    setVal(root, "b-insurance", editing.insuranceCost ?? "");
+    setVal(root, "b-other", editing.otherCost ?? "");
     setVal(root, "b-notes", editing.notes || "");
     setChecked(root, "b-paid", editing.paid === true);
     setSwatch(root, "b-colour", editing.barColour || "");
@@ -164,6 +168,8 @@ export function openBookingModal(bookingId, preset) {
     } else {
       csel.value = "__quick__";
       setVal(root, "b-quickname", editing.renter || "");
+      setVal(root, "b-quickphone", editing.phone || "");
+      setVal(root, "b-quickemail", editing.email || "");
     }
   }
 
@@ -204,6 +210,14 @@ function settlement() {
   };
 }
 
+// An empty box means "not charged" and is stored as null; a typed figure is
+// stored as a number, never negative.
+function money(raw) {
+  if (raw === "" || raw == null) return null;
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? Math.max(0, n) : null;
+}
+
 async function saveBooking() {
   showError(root, "booking-error", null);
 
@@ -214,9 +228,12 @@ async function saveBooking() {
 
   let customerId, renter, phone, email;
   if (choice === "__quick__") {
-    // A name only — no customer record is created or looked up
+    // No customer record is created or looked up, but the contact details are
+    // still kept on the booking itself — otherwise there is nothing to send a
+    // confirmation to, and this is the path most walk-ins are booked through.
     renter = val(root, "b-quickname");
-    phone = "";
+    phone = val(root, "b-quickphone");
+    email = val(root, "b-quickemail");
     if (!renter) { showError(root, "booking-error", "Enter a name for this booking."); return; }
   } else if (choice === "__new__") {
     renter = val(root, "b-name");
@@ -280,6 +297,11 @@ async function saveBooking() {
       managedBy: val(root, "b-managedby"),
       deliveredBy: val(root, "b-deliveredby"),
       recoveredBy: val(root, "b-recoveredby"),
+      // Blank stays blank rather than becoming a zero, so an invoice only shows
+      // the extras that were actually charged.
+      deliveryCost: money(val(root, "b-delivery")),
+      insuranceCost: money(val(root, "b-insurance")),
+      otherCost: money(val(root, "b-other")),
       notes: val(root, "b-notes"),
       ...settlement(),
       barColour: getSwatch(root, "b-colour")
@@ -287,13 +309,15 @@ async function saveBooking() {
 
     if (editingBookingId) {
       await updateDoc(doc(db, "bookings", editingBookingId),
-        { carId, customerId: customerId ?? null, renter, phone, startDate, endDate, dailyRate, carName, ...details });
+        { carId, customerId: customerId ?? null, renter, phone, email: email || "",
+          startDate, endDate, dailyRate, carName, ...details });
     } else {
       // Generated once, here, so the reference stays the same for the life of the
       // booking however often it is edited afterwards.
       newRef = makeBookingRef();
       await addDoc(collection(db, "bookings"), {
         companyId: state.ctx.companyId, carId, customerId: customerId ?? null, renter, phone,
+        email: email || "",
         startDate, endDate, dailyRate, carName, ...details,
         ref: newRef, status: "open", createdAt: new Date().toISOString()
       });

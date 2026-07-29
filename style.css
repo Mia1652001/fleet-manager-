@@ -1680,3 +1680,66 @@ input:focus, select:focus { border-color: var(--text); }
   .modal-actions .btn-primary { flex: 1 1 100%; padding: 11px; }
   .modal-actions > .btn { flex: 1 1 auto; }
 }
+
+/* The Tasks controls share the Bookings layout, but its filter rows need to sit
+   tight rather than each claiming a full line of their own. */
+#view-tasks .planner-bar .filter-row { margin-bottom: 0; }
+#view-tasks .planner-bar .cal-nav { gap: 6px 10px; }
+@media (min-width: 641px) {
+  #view-tasks .planner-bar .toolbar { flex: 1 1 380px; }
+}
+
+/* ---------- Board: add button, tick box, job detail ---------- */
+/* Faint until the cell is hovered, so a grid of plus signs does not compete with
+   the jobs themselves. On a touchscreen there is no hover, so it stays visible. */
+.board-add {
+  display: block;
+  width: 100%;
+  border: 1px dashed transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.board-cell:hover .board-add { opacity: 1; border-color: var(--border); }
+.board-add:hover { color: var(--text); border-color: var(--text); }
+@media (hover: none) {
+  .board-add { opacity: 0.55; border-color: var(--border); }
+}
+
+.board-tick {
+  flex-shrink: 0;
+  width: 13px; height: 13px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface);
+  font-size: 9px;
+  line-height: 11px;
+  text-align: center;
+  cursor: pointer;
+}
+.board-tick.disabled { border-style: dashed; cursor: default; }
+
+.jd-list { display: flex; flex-direction: column; gap: 2px; margin-bottom: 0.5rem; }
+.jd-row { display: flex; gap: 10px; font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.jd-row:last-child { border-bottom: 0; }
+.jd-k { flex: 0 0 110px; color: var(--muted); }
+.jd-v { flex: 1; min-width: 0; font-weight: 500; }
+@media (max-width: 640px) {
+  .jd-k { flex-basis: 92px; }
+  .jd-row { font-size: 11px; }
+}
+
+/* A field row where every field is the same width. The default makes the first
+   one wider, which suits a date beside a time but left the three staff fields
+   visibly out of step with each other. */
+.field-row.equal .field:first-child { flex: 1; }
+
+/* A quiet "optional" beside a label, so a blank field does not look unfinished. */
+.field-hint { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }

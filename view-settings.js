@@ -103,6 +103,7 @@ export function render() {
   setVal(root, "s-address", s.address || "");
   setVal(root, "s-currency", s.currency || "");
   setVal(root, "s-terms", s.terms || "");
+  setVal(root, "s-note", s.messageNote || "");
   setVal(root, "s-locations", linesFrom(s.locations));
   setVal(root, "s-staff", linesFrom(s.staff));
 
@@ -287,6 +288,7 @@ async function saveSettings() {
     address: val(root, "s-address"),
     currency: val(root, "s-currency"),
     terms: val(root, "s-terms"),
+    messageNote: val(root, "s-note"),
     locations: linesTo(val(root, "s-locations")),
     staff: linesTo(val(root, "s-staff")),
     updatedAt: new Date().toISOString()

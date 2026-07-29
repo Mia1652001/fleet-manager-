@@ -484,6 +484,15 @@
           </div>
 
           <div class="field">
+            <label for="s-note">Message to customers</label>
+            <textarea id="s-note" data-el="s-note" rows="3"
+              placeholder="Leave blank to use the standard wording"></textarea>
+            <p class="settings-note">Added to the end of the email and WhatsApp
+              confirmations, before your company name. Blank uses the standard
+              lines about bringing a licence and signing at hand-over.</p>
+          </div>
+
+          <div class="field">
             <label for="s-terms">Terms and conditions</label>
             <textarea id="s-terms" data-el="s-terms" rows="6"
               placeholder="Deposit, fuel policy, insurance, late return charges..."></textarea>
@@ -536,39 +545,61 @@
       </div>
     </section>
     <section class="view" id="view-tasks">
-      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
 
-      <div class="toolbar">
-        <input type="text" data-el="search" placeholder="Search car, customer or location...">
-        <select data-el="staff-filter"><option value="">All staff</option></select>
-        <select data-el="kind-filter">
-          <option value="">All jobs</option>
-          <option value="delivery">Deliveries only</option>
-          <option value="recovery">Recoveries only</option>
-          <option value="task">Manual tasks only</option>
-          <option value="service">Servicing only</option>
-        </select>
-        <button class="btn-primary" data-el="add-task">+ Add task</button>
-      </div>
+      <!-- Four separate rows of controls used to sit above the work itself,
+           which on a laptop left very little room for the jobs. Wrapped like the
+           Bookings page so a wide screen lays them out on one or two lines. -->
+      <div class="planner-bar">
+        <div class="toolbar">
+          <input type="text" data-el="search" placeholder="Search car, customer or location...">
+          <select data-el="staff-filter"><option value="">All staff</option></select>
+          <select data-el="kind-filter">
+            <option value="">All jobs</option>
+            <option value="delivery">Deliveries only</option>
+            <option value="recovery">Recoveries only</option>
+            <option value="task">Manual tasks only</option>
+            <option value="service">Servicing only</option>
+          </select>
+          <button class="btn-primary" data-el="add-task">+ Add task</button>
+          <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
+        </div>
 
-      <div class="filter-row" data-el="filters">
-        <button class="tab active" data-f="today">Today</button>
-        <button class="tab" data-f="week">Next 7 days</button>
-        <button class="tab" data-f="month">Next 30 days</button>
-        <button class="tab" data-f="all">Everything ahead</button>
-      </div>
-
-      <div class="filter-row">
-        <button class="tab" data-el="toggle-done">Show completed</button>
-        <!-- Same jobs, two ways of reading them: the list to work through a day
-             and tick things off, the board to see across the team at a glance. -->
-        <button class="tab" data-el="view-list">List</button>
-        <button class="tab" data-el="view-board">Board</button>
+        <div class="cal-nav">
+          <div class="filter-row" data-el="filters">
+            <button class="tab active" data-f="today">Today</button>
+            <button class="tab" data-f="week">Next 7 days</button>
+            <button class="tab" data-f="month">Next 30 days</button>
+            <button class="tab" data-f="all">Everything ahead</button>
+          </div>
+          <div class="filter-row">
+            <button class="tab" data-el="toggle-done">Show completed</button>
+            <!-- Same jobs, two ways of reading them: the list to work through a
+                 day and tick things off, the board to see across the team. -->
+            <button class="tab" data-el="view-list">List</button>
+            <button class="tab" data-el="view-board">Board</button>
+          </div>
+        </div>
       </div>
 
       <div data-el="list"><div class="loading-screen">Loading schedule...</div></div>
       <div class="staff-board" data-el="board" style="display:none;"></div>
+
+      <!-- A chip on the board is too small to show everything, and a phone has no
+           hover, so tapping one opens this. -->
+      <div class="overlay" data-el="job-detail">
+        <div class="modal">
+          <h2>Job detail</h2>
+          <div class="jd-list" data-el="job-detail-body"></div>
+          <div class="modal-actions">
+            <div class="modal-actions-side">
+              <button class="btn" data-el="job-detail-open" style="display:none;">Open booking</button>
+              <button class="btn" data-el="job-detail-edit" style="display:none;">Edit task</button>
+            </div>
+            <button class="btn" data-close="job-detail">Close</button>
+          </div>
+        </div>
+      </div>
 
       <!-- Manual task -->
       <div class="overlay" data-el="task-modal">
@@ -617,6 +648,16 @@
       </div>
       <div data-el="b-quick-fields" style="display:none;">
         <div class="field"><label>Name on booking</label><input data-el="b-quickname" placeholder="e.g. Walk-in, or agency name"></div>
+        <!-- Kept on the booking rather than in the customer register, which is
+             the point of this option. Without them there was nothing for the
+             WhatsApp and email buttons to send to, and this is the path the desk
+             actually uses. -->
+        <div class="field-row equal">
+          <div class="field"><label>Phone number</label>
+            <input data-el="b-quickphone" placeholder="e.g. 5712 3456"></div>
+          <div class="field"><label>Email <span class="field-hint">optional</span></label>
+            <input type="email" data-el="b-quickemail" placeholder="e.g. jean@email.com"></div>
+        </div>
       </div>
 
       <div class="field-row">
@@ -640,7 +681,18 @@
         <input data-el="b-total" type="number" min="0" placeholder="auto">
       </div>
 
-      <div class="field-row">
+      <!-- Charged on top of the hire itself, and shown as their own lines on the
+           invoice and the rental agreement. -->
+      <div class="field-row equal">
+        <div class="field"><label>Delivery cost</label>
+          <input type="number" min="0" step="any" data-el="b-delivery" placeholder="0"></div>
+        <div class="field"><label>Insurance cost</label>
+          <input type="number" min="0" step="any" data-el="b-insurance" placeholder="0"></div>
+        <div class="field"><label>Other costs</label>
+          <input type="number" min="0" step="any" data-el="b-other" placeholder="0"></div>
+      </div>
+
+      <div class="field-row equal">
         <div class="field"><label>Managed by</label><input data-el="b-managedby" list="dl-staff" placeholder="Choose or type"></div>
         <div class="field"><label>Delivered by</label><input data-el="b-deliveredby" list="dl-staff" placeholder="Choose or type"></div>
         <div class="field"><label>Recovered by</label><input data-el="b-recoveredby" list="dl-staff" placeholder="Choose or type"></div>

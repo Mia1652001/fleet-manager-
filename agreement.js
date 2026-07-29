@@ -17,7 +17,8 @@
 import {
   state, esc, formatDate, formatAmount, bookingCarLabel, bookingRef,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor,
-  startTime, endTime, customerForBooking, companyName, companyTerms, todayStr
+  startTime, endTime, customerForBooking, companyName, companyTerms, todayStr,
+  deliveryCost, insuranceCost, otherCost, invoiceTotal, extrasTotal
 } from "./store.js";
 
 function line(label, value) {
@@ -51,12 +52,23 @@ function moneyBlock(b) {
     ? `Agreed price for ${days} day${days === 1 ? "" : "s"}`
     : `${days} day${days === 1 ? "" : "s"} × ${formatAmount(rate)} per day`;
 
+  const extras = [
+    ["Delivery", deliveryCost(b)],
+    ["Insurance", insuranceCost(b)],
+    ["Other charges", otherCost(b)]
+  ].filter(([, v]) => v > 0);
+
   return `
     <table class="ag-table">
       <tr><th>${esc(basis)}</th><td class="ag-num">${esc(formatAmount(total))}</td></tr>
+      ${extras.map(([k, v]) =>
+        `<tr><th>${esc(k)}</th><td class="ag-num">${esc(formatAmount(v))}</td></tr>`).join("")}
+      ${extras.length
+        ? `<tr><th>Total charges</th><td class="ag-num">${esc(formatAmount(invoiceTotal(b)))}</td></tr>`
+        : ""}
       ${advance > 0 ? `<tr><th>Less advance already paid</th><td class="ag-num">− ${esc(formatAmount(advance))}</td></tr>` : ""}
       <tr class="ag-total"><th>${b.paid ? "Total (settled)" : "Balance due"}</th>
-        <td class="ag-num">${esc(formatAmount(b.paid ? total : balance))}</td></tr>
+        <td class="ag-num">${esc(formatAmount(b.paid ? invoiceTotal(b) : balance))}</td></tr>
       ${security > 0 ? `<tr><th>Refundable security deposit</th><td class="ag-num">${esc(formatAmount(security))}</td></tr>` : ""}
     </table>`;
 }
@@ -101,6 +113,11 @@ function documentHtml(b) {
   .ag-cols > div { flex: 1; }
 
   .ag-terms { white-space: pre-wrap; font-size: 9pt; color: #222; }
+
+  .ag-damage { display: flex; gap: 18px; align-items: flex-start; page-break-inside: avoid; }
+  .ag-car { width: 46%; max-width: 300px; height: auto; }
+  .ag-damage-key { flex: 1; font-size: 9pt; color: #333; }
+  .ag-damage-lines { margin-top: 10px; line-height: 2.1; font-size: 9pt; }
 
   .ag-sign { display: flex; gap: 32px; margin-top: 28px; page-break-inside: avoid; }
   .ag-sign > div { flex: 1; }
@@ -186,6 +203,33 @@ function documentHtml(b) {
 
   ${terms ? `<h2>Terms and conditions</h2><div class="ag-terms">${esc(terms)}</div>` : ""}
 
+  <h2>Condition at hand-over</h2>
+  <div class="ag-damage">
+    <!-- Drawn rather than an image file, so it prints crisply at any size and
+         needs nothing loaded from anywhere. Marked up by hand at the counter. -->
+    <svg viewBox="0 0 320 150" class="ag-car" xmlns="http://www.w3.org/2000/svg">
+      <g fill="none" stroke="#111" stroke-width="2" stroke-linejoin="round">
+        <rect x="18" y="30" width="284" height="90" rx="30"/>
+        <path d="M96 30 L110 58 L210 58 L224 30"/>
+        <path d="M96 120 L110 92 L210 92 L224 120"/>
+        <rect x="110" y="58" width="100" height="34" rx="6"/>
+        <path d="M18 62 L4 62 L4 88 L18 88"/>
+        <circle cx="72" cy="30" r="9"/><circle cx="72" cy="120" r="9"/>
+        <circle cx="248" cy="30" r="9"/><circle cx="248" cy="120" r="9"/>
+        <path d="M296 60 L308 60 M296 90 L308 90"/>
+      </g>
+    </svg>
+    <div class="ag-damage-key">
+      <div>Mark any existing damage on the diagram before the vehicle leaves.</div>
+      <div class="ag-damage-lines">
+        <div>Fuel level out: ____________ &nbsp;&nbsp; in: ____________</div>
+        <div>Mileage out: ____________ &nbsp;&nbsp; in: ____________</div>
+        <div>Notes: _______________________________________________</div>
+        <div>_____________________________________________________</div>
+      </div>
+    </div>
+  </div>
+
   <div class="ag-sign">
     <div>
       <div class="ag-rule"></div>
@@ -232,6 +276,10 @@ function documentHtml(b) {
 // The signed agreement stays a printed document, which is what actually happens
 // to it at the counter.
 
+export const DEFAULT_MESSAGE_NOTE =
+  "Please bring your driving licence when collecting the vehicle.\n" +
+  "The rental agreement will be provided for signature at hand-over.";
+
 function confirmationText(b) {
   const company = companyName() || "our team";
   const s = state.settings || {};
@@ -261,20 +309,25 @@ function confirmationText(b) {
   } else {
     lines.push(`${days} day${days === 1 ? "" : "s"} at ${formatAmount(rateFor(b))} per day: ${formatAmount(total)}`);
   }
+  // Itemised, or the balance will not add up from the customer's side and the
+  // first thing they do is ring up to ask why.
+  if (deliveryCost(b) > 0) lines.push(`Delivery: ${formatAmount(deliveryCost(b))}`);
+  if (insuranceCost(b) > 0) lines.push(`Insurance: ${formatAmount(insuranceCost(b))}`);
+  if (otherCost(b) > 0) lines.push(`Other charges: ${formatAmount(otherCost(b))}`);
+  if (extrasTotal(b) > 0) lines.push(`Total: ${formatAmount(invoiceTotal(b))}`);
+
   if (advance > 0) lines.push(`Advance already paid: ${formatAmount(advance)}`);
   lines.push(b.paid ? "Paid in full — thank you." : `Balance due: ${formatAmount(balance)}`);
   if (security > 0) lines.push(`Refundable security deposit: ${formatAmount(security)}`);
 
   if (b.notes) { lines.push("", `Note: ${b.notes}`); }
 
-  lines.push(
-    "",
-    "Please bring your driving licence when collecting the vehicle.",
-    "The rental agreement will be provided for signature at hand-over.",
-    "",
-    "Kind regards,",
-    company
-  );
+  // The closing lines are the company's own words. Anything set on the Settings
+  // page replaces the default, so the message reads like them rather than like
+  // the app — and a company with different practices is not stuck saying
+  // something untrue about licences or signatures.
+  const custom = (state.settings?.messageNote || "").trim();
+  lines.push("", custom || DEFAULT_MESSAGE_NOTE, "", "Kind regards,", company);
   if (s.phone) lines.push(s.phone);
   if (s.address) lines.push(s.address);
 
@@ -289,11 +342,14 @@ export function emailBooking(bookingId) {
   const b = state.bookings.find(x => x.id === bookingId);
   if (!b) return { ok: false, reason: "That booking could not be found." };
 
-  const to = customerForBooking(b)?.email || "";
+  // The booking's own address first: a walk-in booked with "just type a name"
+  // has contact details on the booking rather than in the customer register, and
+  // that is the route most bookings are taken through.
+  const to = b.email || customerForBooking(b)?.email || "";
   if (!to) {
     return {
       ok: false,
-      reason: "No email address saved for this customer. Add one on the Customers page, or pick a saved customer on this booking."
+      reason: "No email address for this booking. Type one into the booking, or add it to the customer on the Customers page."
     };
   }
 
@@ -302,6 +358,35 @@ export function emailBooking(bookingId) {
     `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}` +
     `&body=${encodeURIComponent(confirmationText(b))}`;
   return { ok: true };
+}
+
+// wa.me needs digits only, with the country code and no leading plus. Staff
+// write local numbers the local way — "5712 3456" — which on its own opens a
+// chat with nobody. So a bare local number gets the country code put in front.
+//
+// The code is taken from the company's own phone number on the Settings page
+// rather than written in here, so this still works if the app is ever used
+// outside Mauritius. 230 is the fallback when Settings has nothing to go on.
+function companyCountryCode() {
+  const own = String(state.settings?.phone || "");
+  const m = own.match(/^\s*\+\s*(\d{1,3})/);
+  return m ? m[1] : "230";
+}
+
+function waNumber(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return "";
+  const digits = text.replace(/[^\d]/g, "");
+  if (!digits) return "";
+
+  // Written with a country code already, either as +230… or as 00230…
+  if (/^\s*\+/.test(text)) return digits;
+  if (digits.startsWith("00")) return digits.slice(2);
+
+  const cc = companyCountryCode();
+  if (digits.startsWith(cc) && digits.length > cc.length + 5) return digits;
+
+  return cc + digits.replace(/^0+/, "");   // a local number, leading zero dropped
 }
 
 /**
@@ -313,8 +398,7 @@ export function whatsappBooking(bookingId) {
   if (!b) return { ok: false, reason: "That booking could not be found." };
 
   const raw = b.phone || customerForBooking(b)?.phone || "";
-  // wa.me wants digits only, country code included and no leading plus.
-  const digits = raw.replace(/[^\d]/g, "");
+  const digits = waNumber(raw);
   if (!digits) {
     return { ok: false, reason: "No phone number saved for this booking or customer." };
   }

@@ -10,7 +10,8 @@ import {
   inPeriod, settledOn, PERIOD_DAYS,
   sharesStartHandover, sharesEndHandover,
   el,
-  requestFocus
+  requestFocus,
+  invoiceTotal
 } from "./store.js";
 
 let root = null;
@@ -180,7 +181,7 @@ function renderMoney() {
   // What the period's rentals are worth in total, settled or not
   const booked = state.bookings
     .filter(b => inPeriod(b.startDate))
-    .reduce((s, b) => s + rentalTotal(b), 0);
+    .reduce((s, b) => s + invoiceTotal(b), 0);
 
   const deposits = state.bookings.reduce((s, b) => s + securityHeld(b), 0);
 

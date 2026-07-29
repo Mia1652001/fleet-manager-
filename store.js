@@ -193,7 +193,26 @@ export function rentalTotal(b) {
   return Math.max(0, rentalDays(b) * rateFor(b));
 }
 export function advancePaid(b) { return typeof b.advancePaid === "number" ? b.advancePaid : 0; }
-export function balanceFor(b) { return Math.max(0, rentalTotal(b) - advancePaid(b)); }
+// ---------- Extra charges ----------
+// Delivery, insurance and anything else agreed on top of the hire itself. Kept
+// apart from the rental line so an invoice can show what the car cost and what
+// the extras cost, rather than one number nobody can take apart.
+export function deliveryCost(b) { return Math.max(0, Number(b?.deliveryCost) || 0); }
+export function insuranceCost(b) { return Math.max(0, Number(b?.insuranceCost) || 0); }
+export function otherCost(b) { return Math.max(0, Number(b?.otherCost) || 0); }
+
+export function extrasTotal(b) {
+  return deliveryCost(b) + insuranceCost(b) + otherCost(b);
+}
+
+// What the customer actually owes: the hire plus the extras. Everything to do
+// with money owed, booked or received works from this, while rentalTotal stays
+// the hire on its own so an invoice can still show the daily-rate arithmetic.
+export function invoiceTotal(b) {
+  return rentalTotal(b) + extrasTotal(b);
+}
+
+export function balanceFor(b) { return Math.max(0, invoiceTotal(b) - advancePaid(b)); }
 export function securityHeld(b) {
   // Anything not explicitly refunded or kept is still in hand. Requiring the
   // status to say "held" meant a deposit recorded without one was left out of
