@@ -1592,7 +1592,9 @@ input:focus, select:focus { border-color: var(--text); }
   border-radius: 4px;
   background: var(--surface);
   overflow: auto;
-  max-height: calc(100vh - 260px);
+  /* Taller: the range controls collapsed to one line, so the board
+     takes the space back — most of the window is board now. */
+  max-height: calc(100vh - 150px);
   margin-bottom: 2rem;
   -webkit-overflow-scrolling: touch;
 }
@@ -1601,7 +1603,9 @@ input:focus, select:focus { border-color: var(--text); }
   border-bottom: 1px solid var(--border);
   padding: 6px;
   min-width: 0;              /* or a long chip props the whole column open */
-  min-height: 44px;
+  /* Taller rows: an empty day is a drop target, and 44px was a thin one to
+     hit with a dragged chip. */
+  min-height: 72px;
 }
 .board-head, .board-corner {
   position: sticky;
@@ -1911,3 +1915,18 @@ input:focus, select:focus { border-color: var(--text); }
 }
 .tl-daynum.today.month-start .dow { color: var(--bg); }
 .tl-cell.month-start { border-left: 2px solid #d8d2bf; }
+
+/* ---------- Range dropdowns on the Tasks page ----------
+   Styled to sit in the tab row as peers of the Today tab. When a side holds
+   the current range it shows its choice and darkens like an active tab. */
+.tab-select {
+  appearance: auto;
+  color: var(--muted);
+  padding-right: 6px;
+  max-width: 180px;
+}
+.tab-select.active {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}

@@ -91,17 +91,31 @@ export function mount(container) {
     render();
   });
 
-  el(root, "filters").addEventListener("click", (e) => {
-    const t = e.target.closest(".tab");
-    if (!t) return;
-    range = t.dataset.f;
+  // The range: two dropdowns flanking Today. Choosing on one side clears the
+  // other, and the chosen side keeps showing its choice so the control reads
+  // as the current position, not an empty menu.
+  const pastSel = el(root, "range-past");
+  const nextSel = el(root, "range-next");
+  const todayBtn = el(root, "filters").querySelector('[data-f="today"]');
+
+  const setRange = (r) => {
+    range = r;
     // A new range starts folded: days opened from a marker belong to the
     // moment they were needed, not to the view for good.
     revealedDays.clear();
-    el(root, "filters").querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
-    t.classList.add("active");
+    const pastActive = r === "past7" || r === "past30" || r === "pastall";
+    const nextActive = r === "week" || r === "month" || r === "all";
+    if (!pastActive) pastSel.value = "";
+    if (!nextActive) nextSel.value = "";
+    pastSel.classList.toggle("active", pastActive);
+    nextSel.classList.toggle("active", nextActive);
+    todayBtn.classList.toggle("active", r === "today");
     render();
-  });
+  };
+
+  pastSel.addEventListener("change", () => { if (pastSel.value) setRange(pastSel.value); });
+  nextSel.addEventListener("change", () => { if (nextSel.value) setRange(nextSel.value); });
+  todayBtn.addEventListener("click", () => setRange("today"));
 
   root.querySelectorAll("[data-close]").forEach(b =>
     b.addEventListener("click", () => closeModal(root, b.dataset.close)));

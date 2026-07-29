@@ -612,13 +612,19 @@
 
         <div class="cal-nav">
           <div class="filter-row" data-el="filters">
-            <button class="tab" data-f="pastall">Everything before</button>
-            <button class="tab" data-f="past30">Past 30 days</button>
-            <button class="tab" data-f="past7">Past 7 days</button>
+            <select class="tab tab-select" data-el="range-past" title="Look back">
+              <option value="">Past…</option>
+              <option value="past7">Past 7 days</option>
+              <option value="past30">Past 30 days</option>
+              <option value="pastall">Everything before</option>
+            </select>
             <button class="tab active" data-f="today">Today</button>
-            <button class="tab" data-f="week">Next 7 days</button>
-            <button class="tab" data-f="month">Next 30 days</button>
-            <button class="tab" data-f="all">Everything ahead</button>
+            <select class="tab tab-select" data-el="range-next" title="Look ahead">
+              <option value="">Ahead…</option>
+              <option value="week">Next 7 days</option>
+              <option value="month">Next 30 days</option>
+              <option value="all">Everything ahead</option>
+            </select>
           </div>
           <div class="filter-row">
             <button class="tab" data-el="toggle-done">Show completed</button>
