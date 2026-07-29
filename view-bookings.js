@@ -409,7 +409,12 @@ function wireBookingMove() {
   };
 
   grid.addEventListener("pointerup", finish);
+  // A cancel that arrives before any movement is almost always the browser
+  // starting a text selection rather than the user giving up, and dropping the
+  // drag there is why this appeared to do nothing at all. Once a drag is
+  // genuinely under way a cancel is real and is honoured.
   grid.addEventListener("pointercancel", () => {
+    if (barDrag && !barDrag.moved) return;
     barDrag = null;
     grid.classList.remove("moving-bar");
     grid.querySelectorAll(".tl-cell.move-target").forEach(c => c.classList.remove("move-target"));

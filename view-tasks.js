@@ -455,6 +455,9 @@ function wireBoardDrag() {
 
   board.addEventListener("pointerup", finish);
   board.addEventListener("pointercancel", () => {
+    // Same as the planner: a cancel before any movement is the browser starting
+    // a selection, not the user letting go.
+    if (chipDrag && !chipDrag.moved) return;
     chipDrag = null;
     board.classList.remove("dragging-chip");
     board.querySelectorAll(".board-cell.drop-target").forEach(c => c.classList.remove("drop-target"));

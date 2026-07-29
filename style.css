@@ -1853,3 +1853,17 @@ input:focus, select:focus { border-color: var(--text); }
 .move-custom-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 2px 0 6px 22px; }
 .move-custom-row input { flex: 0 1 200px; min-width: 0; }
 .move-custom-row .settings-note { margin: 0; }
+
+/* ---------- Draggable things must not be selectable ----------
+   These all carry text, and pressing on text and moving starts a native text
+   selection — at which point the browser fires pointercancel and the drag is
+   abandoned before it begins. Until the capture was moved off pointerdown (to
+   stop it stealing the click) that side effect was suppressing the selection;
+   this does the job explicitly instead of relying on it. */
+.tl-bar,
+.tl-oos-bar,
+.tl-car,
+.board-chip {
+  user-select: none;
+  -webkit-user-select: none;
+}
