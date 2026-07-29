@@ -95,6 +95,9 @@ export function mount(container) {
     const t = e.target.closest(".tab");
     if (!t) return;
     range = t.dataset.f;
+    // A new range starts folded: days opened from a marker belong to the
+    // moment they were needed, not to the view for good.
+    revealedDays.clear();
     el(root, "filters").querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
     t.classList.add("active");
     render();
@@ -108,6 +111,9 @@ export function mount(container) {
   // Ticking a chip on the board does the same as ticking a row in the list —
   // it would be odd to be able to see the work but not mark it done.
   el(root, "board").addEventListener("click", async (e) => {
+    const gap = e.target.closest("[data-gap-from]");
+    if (gap) { revealGap(gap.dataset.gapFrom, Number(gap.dataset.gapCount)); return; }
+
     const add = e.target.closest("[data-add-day]");
     if (add) { openTaskModal(null, add.dataset.addDay, add.dataset.addStaff); return; }
 
@@ -128,6 +134,9 @@ export function mount(container) {
   });
 
   el(root, "list").addEventListener("click", async (e) => {
+    const gap = e.target.closest("[data-gap-from]");
+    if (gap) { revealGap(gap.dataset.gapFrom, Number(gap.dataset.gapCount)); return; }
+
     const tick = e.target.closest("[data-tick]");
     if (tick) { await toggleDone(tick.dataset.tick, tick.dataset.kind, tick.dataset.ref); return; }
 
@@ -182,14 +191,20 @@ function addDay(ds) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// Days a marker has been clicked open for. They join the drawn rows like any
+// other day — droppable, with their own "+" — and fold away again when the
+// range tab changes.
+let revealedDays = new Set();
+const REVEAL_CHUNK = 31;   // a very long stretch opens a month at a time
+
 // The rows the list and the board both draw: every single day of the chosen
 // range — empty ones included, so any date can be added to or dropped on —
 // plus the day of any job outside it (overdue leftovers, far-ahead bookings).
 // Where days are skipped between drawn ones, a marker row is emitted, because
 // two adjacent rows months apart is exactly how a booking got dragged to
-// 31/10 when 31/08 was meant.
+// 31/10 when 31/08 was meant. Clicking a marker reveals the days it stands for.
 //
-// Returns a list of { kind: "day", date } and { kind: "gap", skipped } rows.
+// Returns a list of { kind: "day", date } and { kind: "gap", skipped, from } rows.
 function dayRows(from, to, jobs, minDays) {
   const start = from || todayStr();
 
@@ -216,17 +231,30 @@ function dayRows(from, to, jobs, minDays) {
   // own — a chip must never lose the row it sits in.
   jobs.forEach(j => { if (j.date) dates.add(j.date); });
 
+  // Days clicked open from a marker are ordinary rows for as long as the
+  // reveal lasts. As they join, the gaps around them shrink or vanish.
+  revealedDays.forEach(d => { if (d >= start) dates.add(d); });
+
   const all = [...dates].sort();
   const rows = [];
   all.forEach((d, i) => {
     if (i > 0 && addDay(all[i - 1]) !== d) {
       const skipped = Math.round(
         (new Date(d + "T12:00") - new Date(all[i - 1] + "T12:00")) / 86400000) - 1;
-      rows.push({ kind: "gap", skipped });
+      rows.push({ kind: "gap", skipped, from: addDay(all[i - 1]) });
     }
     rows.push({ kind: "day", date: d });
   });
   return rows;
+}
+
+// Opens a stretch of skipped days: everything for a short gap, a month at a
+// time for a long one — the remaining stretch keeps a (smaller) marker.
+function revealGap(from, count) {
+  let ds = from;
+  const n = Math.min(count, REVEAL_CHUNK);
+  for (let i = 0; i < n; i++) { revealedDays.add(ds); ds = addDay(ds); }
+  render();
 }
 
 function rangeBounds() {
@@ -355,7 +383,8 @@ export function render() {
   const rows = dayRows(from, to, jobs, 0);
   listEl.innerHTML = rows.map(r => {
     if (r.kind === "gap") {
-      return `<div class="day-gap">· · · ${r.skipped} empty day${r.skipped === 1 ? "" : "s"} skipped · · ·</div>`;
+      return `<button type="button" class="day-gap" data-gap-from="${r.from}" data-gap-count="${r.skipped}"
+        title="Show these days so tasks can be added to them">· · · show ${r.skipped} empty day${r.skipped === 1 ? "" : "s"} · · ·</button>`;
     }
     const items = jobs.filter(j => j.date === r.date);
     return `
@@ -751,7 +780,8 @@ function renderBoard(jobs, from, to) {
 
   const rows = rowsSpec.map(r => {
     if (r.kind === "gap") {
-      return `<div class="board-gap">· · · ${r.skipped} empty day${r.skipped === 1 ? "" : "s"} skipped · · ·</div>`;
+      return `<button type="button" class="board-gap" data-gap-from="${r.from}" data-gap-count="${r.skipped}"
+        title="Show these days so tasks can be dropped on them">· · · show ${r.skipped} empty day${r.skipped === 1 ? "" : "s"} · · ·</button>`;
     }
     const ds = r.date;
     const dayJobs = assignable.filter(j => j.date === ds);

@@ -1870,18 +1870,29 @@ input:focus, select:focus { border-color: var(--text); }
 
 /* ---------- Skipped-days markers on the Tasks list and board ----------
    Drawn wherever the day rows jump over an empty stretch, so two rows months
-   apart can never be mistaken for neighbouring days. */
+   apart can never be mistaken for neighbouring days. Clicking one reveals the
+   days it stands for, so a task can be dragged onto any date. */
 .day-gap, .board-gap {
+  display: block;
+  width: 100%;
+  font-family: inherit;
   text-align: center;
   font-size: 11px;
   color: var(--muted);
   letter-spacing: 0.06em;
   padding: 7px 0;
+  background: var(--bg);
+  border: none;
   border-top: 1px dashed var(--border);
   border-bottom: 1px dashed var(--border);
+  cursor: pointer;
+}
+.day-gap:hover, .board-gap:hover {
+  color: var(--text);
+  background: var(--surface);
 }
 .day-gap { margin: 10px 0; }
-.board-gap { grid-column: 1 / -1; background: var(--bg); }
+.board-gap { grid-column: 1 / -1; }
 
 /* A day with no jobs still shows its heading and its "+" — slightly quieter,
    so the days with work stand out. */
