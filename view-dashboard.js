@@ -225,12 +225,15 @@ function renderMiniTimeline() {
   grid.style.minWidth = (cols.label + DASH_DAYS * 2 * cols.half) + "px";
 
   const dow = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+  const MON3 = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   let html = `<div class="tl-corner" style="grid-row:1;grid-column:1;">Vehicle</div>`;
   days.forEach((d, i) => {
     const ds = dstr(d);
-    const cls = ds === t ? "today" : (d.getDay() === 0 || d.getDay() === 6) ? "weekend" : "";
+    const monthStart = d.getDate() === 1;
+    const cls = (ds === t ? "today" : (d.getDay() === 0 || d.getDay() === 6) ? "weekend" : "")
+      + (monthStart ? " month-start" : "");
     html += `<div class="tl-daynum ${cls}" style="grid-row:1;grid-column:${i * 2 + 2} / span 2;">
-      <span class="dow">${dow[d.getDay()]}</span>${d.getDate()}</div>`;
+      <span class="dow">${monthStart ? MON3[d.getMonth()] : dow[d.getDay()]}</span>${d.getDate()}</div>`;
   });
 
   cars.forEach((car, idx) => {
@@ -244,7 +247,8 @@ function renderMiniTimeline() {
 
     days.forEach((d, i) => {
       const ds = dstr(d);
-      const cls = ds === t ? "today" : (d.getDay() === 0 || d.getDay() === 6) ? "weekend" : "";
+      const cls = (ds === t ? "today" : (d.getDay() === 0 || d.getDay() === 6) ? "weekend" : "")
+        + (d.getDate() === 1 ? " month-start" : "");
       html += `<div class="tl-cell addable ${cls}" data-add-car="${car.id}" data-add-date="${ds}"
         title="Add a booking for this car on ${formatDate(ds)}"
         style="grid-row:${row};grid-column:${i * 2 + 2} / span 2;"></div>`;

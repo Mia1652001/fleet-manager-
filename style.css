@@ -1898,3 +1898,16 @@ input:focus, select:focus { border-color: var(--text); }
    so the days with work stand out. */
 .day-group.empty .day-head { opacity: 0.75; }
 .day-group.empty { margin-bottom: 4px; }
+
+/* ---------- Month boundaries on the planners ----------
+   The first day of a month names the month where the weekday would sit, and
+   the boundary carries a line down the whole grid — so day 31 next to day 1
+   can never be read as one continuous month. */
+.tl-daynum.month-start { border-left: 2px solid #b9b29f; }
+.tl-daynum.month-start .dow {
+  color: var(--text);
+  font-weight: 500;
+  opacity: 1;
+}
+.tl-daynum.today.month-start .dow { color: var(--bg); }
+.tl-cell.month-start { border-left: 2px solid #d8d2bf; }

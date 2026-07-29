@@ -907,8 +907,12 @@ function renderTimeline() {
     const ds = dstr(d);
     const dow = d.getDay();
     const cls = ds === t ? "today" : (dow === 0 || dow === 6) ? "weekend" : "";
-    html += `<div class="tl-daynum ${cls}" style="grid-row:1;grid-column:${i * 2 + 2} / span 2;">
-      <span class="dow">${dowShort[dow]}</span>${d.getDate()}</div>`;
+    // The first of a month announces the month where the weekday would be, and
+    // the column carries a marker line — so 31 sitting next to 1 can never be
+    // read as the same month again.
+    const monthStart = d.getDate() === 1;
+    html += `<div class="tl-daynum ${cls}${monthStart ? " month-start" : ""}" style="grid-row:1;grid-column:${i * 2 + 2} / span 2;">
+      <span class="dow">${monthStart ? MONTH_NAMES[d.getMonth()] : dowShort[dow]}</span>${d.getDate()}</div>`;
   });
 
   cars.forEach((car, i) => {
@@ -927,9 +931,10 @@ function renderTimeline() {
       const ds = dstr(d);
       const dow = d.getDay();
       const cls = ds === t ? "today" : (dow === 0 || dow === 6) ? "weekend" : "";
+      const ms = d.getDate() === 1 ? " month-start" : "";
       // row and day index are carried on the cell so a drag can work out which
       // span it covers without having to measure anything on screen.
-      html += `<div class="tl-cell addable ${cls}" data-add-car="${car.id}" data-add-date="${ds}"
+      html += `<div class="tl-cell addable ${cls}${ms}" data-add-car="${car.id}" data-add-date="${ds}"
         data-row="${row}" data-idx="${i2}"
         title="Drag across days to book a range, or click for a single day"
         style="grid-row:${row};grid-column:${i2 * 2 + 2} / span 2;"></div>`;
