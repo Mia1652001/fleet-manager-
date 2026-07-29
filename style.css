@@ -1754,3 +1754,49 @@ input:focus, select:focus { border-color: var(--text); }
   outline: 2px dashed var(--blue-text);
   outline-offset: -3px;
 }
+
+/* ---------- Multi-select picker ---------- */
+.multi-pick { position: relative; display: inline-block; }
+.multi-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 60;                 /* above the board's sticky header row */
+  min-width: 170px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(26,24,20,0.14);
+  padding: 5px;
+}
+.multi-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.multi-row:hover { background: var(--bg); }
+.multi-clear {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  padding: 5px 6px;
+  margin-bottom: 3px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+}
+.multi-clear:hover { color: var(--text); }

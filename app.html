@@ -553,7 +553,13 @@
       <div class="planner-bar">
         <div class="toolbar">
           <input type="text" data-el="search" placeholder="Search car, customer or location...">
-          <select data-el="staff-filter"><option value="">All staff</option></select>
+          <!-- A button and a tick-list rather than a plain select: several people
+               can be picked at once, and a native multi-select needs ctrl-click
+               on a desktop and barely works on a phone. -->
+          <span class="multi-pick">
+            <button type="button" class="btn" data-el="staff-filter-btn">All staff</button>
+            <div class="multi-panel" data-el="staff-filter-panel" style="display:none;"></div>
+          </span>
           <select data-el="kind-filter">
             <option value="">All jobs</option>
             <option value="delivery">Deliveries only</option>

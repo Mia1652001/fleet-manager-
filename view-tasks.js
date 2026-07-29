@@ -16,7 +16,9 @@ let root = null;
 let summaryOpen = () => true;   // set on mount; see initPanelToggle
 let range = "today";
 let showDone = false;
-let staffFilter = "";
+// Empty means everyone. Otherwise a set of names, plus "__none__" standing for
+// jobs with nobody assigned, which is a filter in its own right.
+let staffFilter = new Set();
 let kindFilter = "";
 let editingTaskId = null;
 // "list" to work through a day, "board" to see across the team. Remembered per
@@ -33,8 +35,26 @@ export function mount(container) {
   fillTimeOptions(root, "t-time");
   el(root, "search").addEventListener("input", render);
 
-  el(root, "staff-filter").addEventListener("change", () => {
-    staffFilter = el(root, "staff-filter").value; render();
+  el(root, "staff-filter-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    const panel = el(root, "staff-filter-panel");
+    panel.style.display = panel.style.display === "none" ? "block" : "none";
+  });
+
+  el(root, "staff-filter-panel").addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (e.target.closest("[data-clear-staff]")) { staffFilter.clear(); render(); return; }
+    const box = e.target.closest("input[data-staff]");
+    if (!box) return;
+    const v = box.dataset.staff;
+    if (box.checked) staffFilter.add(v); else staffFilter.delete(v);
+    render();
+  });
+
+  // Clicking anywhere else puts the list away, which is what a dropdown does.
+  document.addEventListener("click", () => {
+    const panel = el(root, "staff-filter-panel");
+    if (panel) panel.style.display = "none";
   });
   el(root, "kind-filter").addEventListener("change", () => {
     kindFilter = el(root, "kind-filter").value; render();
@@ -170,17 +190,36 @@ function kindLabel(kind) {
 
 // ---------- Render ----------
 function refreshStaffOptions() {
-  const sel = el(root, "staff-filter");
+  const panel = el(root, "staff-filter-panel");
   const names = staffNames();
-  const wanted = ["", "__none__", ...names].join("|");
-  if (sel.dataset.built === wanted) return;   // nothing changed
-  sel.innerHTML =
-    `<option value="">All staff</option>` +
-    `<option value="__none__">Unassigned</option>` +
-    names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
-  sel.value = names.includes(staffFilter) || staffFilter === "__none__" ? staffFilter : "";
-  staffFilter = sel.value;
-  sel.dataset.built = wanted;
+
+  // Anyone who has left since a filter was set should not keep filtering.
+  [...staffFilter].forEach(v => {
+    if (v !== "__none__" && !names.includes(v)) staffFilter.delete(v);
+  });
+
+  const wanted = ["__none__", ...names].join("|");
+  if (panel.dataset.built !== wanted) {
+    panel.innerHTML =
+      `<button type="button" class="multi-clear" data-clear-staff>Everyone</button>` +
+      [["__none__", "Unassigned"], ...names.map(n => [n, n])]
+        .map(([v, label]) => `
+          <label class="multi-row">
+            <input type="checkbox" data-staff="${esc(v)}"> <span>${esc(label)}</span>
+          </label>`).join("");
+    panel.dataset.built = wanted;
+  }
+
+  panel.querySelectorAll("input[data-staff]").forEach(b => {
+    b.checked = staffFilter.has(b.dataset.staff);
+  });
+
+  // The button says who is selected, so the filter is visible without opening it.
+  const chosen = [...staffFilter].map(v => v === "__none__" ? "Unassigned" : v);
+  el(root, "staff-filter-btn").textContent =
+    chosen.length === 0 ? "All staff"
+    : chosen.length <= 2 ? chosen.join(", ")
+    : `${chosen.length} of ${names.length + 1} selected`;
 }
 
 export function render() {
@@ -197,9 +236,13 @@ export function render() {
     // Match either role, so a job managed by one person and delivered by
     // another shows up for both of them.
     const matchesStaff =
-      !staffFilter ? true :
-      staffFilter === "__none__" ? !j.staff && !j.managedBy && !j.deliveredBy && !j.recoveredBy :
-      [j.staff, j.managedBy, j.deliveredBy, j.recoveredBy].includes(staffFilter);
+      staffFilter.size === 0 ? true :
+      // Any one of the chosen people being on the job is enough — picking three
+      // staff should show all their work together, not only jobs shared by all.
+      [...staffFilter].some(v =>
+        v === "__none__"
+          ? !j.staff && !j.managedBy && !j.deliveredBy && !j.recoveredBy
+          : [j.staff, j.managedBy, j.deliveredBy, j.recoveredBy].includes(v));
     return matchesSearch && matchesKind && matchesStaff;
   });
 
@@ -219,7 +262,7 @@ export function render() {
 
   const listEl = el(root, "list");
   if (jobs.length === 0) {
-    const filtered = staffFilter || kindFilter || search;
+    const filtered = staffFilter.size || kindFilter || search;
     listEl.innerHTML = filtered
       ? `<div class="empty">Nothing matches these filters. Try widening the date range or clearing the staff and job filters.</div>`
       : showDone
