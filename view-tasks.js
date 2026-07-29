@@ -8,7 +8,8 @@ import {
   state, onDataChange, esc, formatDate, todayStr, buildSchedule, staffNames,
   fillTimeOptions, getTime, setTime,
   initPanelToggle, loadPref, savePref,
-  el, val, setVal, openModal, closeModal, showError
+  el, val, setVal, openModal, closeModal, showError,
+  showToast
 } from "./store.js";
 
 let root = null;
@@ -38,6 +39,8 @@ export function mount(container) {
   el(root, "kind-filter").addEventListener("change", () => {
     kindFilter = el(root, "kind-filter").value; render();
   });
+  wireBoardDrag();
+
   el(root, "job-detail-open").addEventListener("click", (e) => {
     const id = e.currentTarget.dataset.booking;
     closeModal(root, "job-detail");
@@ -317,6 +320,114 @@ function boardChip(j) {
     </div>`;
 }
 
+// ---------- Drag a job to another person ----------
+// Reassigning by dragging is the whole point of a board: you can see who is
+// overloaded and move something across without opening anything. Mouse and
+// trackpad only — on a touchscreen the same gesture scrolls the board sideways,
+// and taking that over would make the board unusable to gain a shortcut.
+//
+// Only the person changes. Dropping on a different day as well would quietly
+// move a delivery to another date, which is a far bigger thing to do by accident
+// than reassigning it, so a drop outside the row it started in is ignored.
+
+let chipDrag = null;
+
+function wireBoardDrag() {
+  const board = el(root, "board");
+  if (!board) return;
+
+  board.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "touch" || e.button !== 0) return;
+    if (e.target.closest("[data-tickbox]") || e.target.closest("[data-add-day]")) return;
+    const chip = e.target.closest("[data-tick]");
+    if (!chip || chip.dataset.kind === "service") return;   // servicing has nobody to assign
+
+    const cell = chip.closest("[data-cell-day]");
+    if (!cell) return;
+
+    chipDrag = {
+      jobId: chip.dataset.tick,
+      kind: chip.dataset.kind,
+      ref: chip.dataset.ref,
+      fromStaff: cell.dataset.cellStaff || "",
+      day: cell.dataset.cellDay,
+      moved: false,
+      pointerId: e.pointerId
+    };
+    try { board.setPointerCapture(e.pointerId); } catch {}
+  });
+
+  board.addEventListener("pointermove", (e) => {
+    if (!chipDrag) return;
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const cell = under && under.closest && under.closest("[data-cell-day]");
+
+    board.querySelectorAll(".board-cell.drop-target").forEach(c => c.classList.remove("drop-target"));
+    if (!cell || cell.dataset.cellDay !== chipDrag.day) return;
+    if ((cell.dataset.cellStaff || "") === chipDrag.fromStaff) return;
+
+    chipDrag.moved = true;
+    chipDrag.toStaff = cell.dataset.cellStaff || "";
+    cell.classList.add("drop-target");
+    board.classList.add("dragging-chip");
+    e.preventDefault();
+  });
+
+  const finish = async () => {
+    if (!chipDrag) return;
+    const drag = chipDrag;
+    chipDrag = null;
+    try { board.releasePointerCapture(drag.pointerId); } catch {}
+    board.classList.remove("dragging-chip");
+    board.querySelectorAll(".board-cell.drop-target").forEach(c => c.classList.remove("drop-target"));
+
+    if (!drag.moved || drag.toStaff === undefined) return;
+
+    // The click that follows a drag would otherwise open the job detail panel.
+    board.addEventListener("click", ev => {
+      ev.preventDefault(); ev.stopPropagation();
+    }, { capture: true, once: true });
+
+    await reassign(drag);
+  };
+
+  board.addEventListener("pointerup", finish);
+  board.addEventListener("pointercancel", () => {
+    chipDrag = null;
+    board.classList.remove("dragging-chip");
+    board.querySelectorAll(".board-cell.drop-target").forEach(c => c.classList.remove("drop-target"));
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && chipDrag) {
+      chipDrag = null;
+      board.classList.remove("dragging-chip");
+      board.querySelectorAll(".board-cell.drop-target").forEach(c => c.classList.remove("drop-target"));
+    }
+  });
+}
+
+// Which field to write depends on what kind of job it is: a hand-over belongs to
+// whoever delivers, a collection to whoever recovers, and a manual task has a
+// staff field of its own. Dropping into Unassigned clears it.
+async function reassign({ kind, ref, toStaff }) {
+  const name = toStaff || "";
+  setSync("saving");
+  try {
+    if (kind === "task") {
+      await updateDoc(doc(db, "tasks", ref), { staff: name });
+    } else if (kind === "delivery") {
+      await updateDoc(doc(db, "bookings", ref), { deliveredBy: name });
+    } else if (kind === "recovery") {
+      await updateDoc(doc(db, "bookings", ref), { recoveredBy: name });
+    }
+    showToast(name ? `Moved to ${name}` : "Moved to Unassigned");
+  } catch (e) {
+    alert("Couldn't reassign (" + (e.code || e.message) + "). Try again.");
+    setSync("error");
+  }
+}
+
 // A chip cannot show everything at its size, and on a phone there is no hover to
 // reveal the rest. Tapping one opens the full detail, which is the only way this
 // information is reachable on a touchscreen at all.
@@ -384,7 +495,9 @@ function renderBoard(jobs, from, to) {
       // most of the form filled in before it opens.
       const add = `<button type="button" class="board-add" data-add-day="${ds}"
           data-add-staff="${esc(p || "")}" title="Add a task here">+</button>`;
-      return `<div class="board-cell${p ? "" : " unassigned"}">${mine.map(boardChip).join("")}${add}</div>`;
+      return `<div class="board-cell${p ? "" : " unassigned"}"
+        data-cell-day="${ds}" data-cell-staff="${esc(p || "")}"
+        >${mine.map(boardChip).join("")}${add}</div>`;
     }).join("");
     return `<div class="board-cell board-day${ds === todayStr() ? " today" : ""}">${esc(dayHeading(ds))}</div>${cells}`;
   }).join("");

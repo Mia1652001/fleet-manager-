@@ -129,8 +129,8 @@ export function openBookingModal(bookingId, preset) {
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(c => `<option value="${c.id}">${esc(c.name)}${c.phone ? " · " + esc(c.phone) : ""}</option>`)
     .join("")
-    + `<option value="__new__">+ New customer (save to register)</option>`
-    + `<option value="__quick__">Just type a name (don't save)</option>`;
+    + `<option value="__new__">+ New customer (adds to the register)</option>`
+    + `<option value="__quick__">Just this booking (not added to the register)</option>`;
   // They mostly take a name rather than creating a customer record, so this
   // is the default; picking a saved customer is still one click away.
   csel.value = "__quick__";
@@ -275,7 +275,11 @@ async function saveBooking() {
   setSync("saving");
   let newRef = null;
   try {
-    if (!customerId) {
+    // Only the "New customer" option adds to the register. The quick option used
+    // to create a record too, despite saying it would not — which is why names
+    // like "Blocked" and "customer 1" ended up in the customer list. The contact
+    // details live on the booking instead, so a confirmation can still be sent.
+    if (!customerId && choice === "__new__") {
       const ref = await addDoc(collection(db, "customers"), {
         companyId: state.ctx.companyId, name: renter, phone, email: email || "",
         license: "", notes: "", createdAt: new Date().toISOString()

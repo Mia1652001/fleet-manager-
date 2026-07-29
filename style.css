@@ -1743,3 +1743,14 @@ input:focus, select:focus { border-color: var(--text); }
 
 /* A quiet "optional" beside a label, so a blank field does not look unfinished. */
 .field-hint { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+
+/* ---------- Dragging a job to another person ---------- */
+.staff-board.dragging-chip { cursor: grabbing; user-select: none; }
+.staff-board.dragging-chip .board-chip { cursor: grabbing; }
+/* Only the cell you are actually over lights up, and only when the drop would
+   do something — the row it came from and its own column stay plain. */
+.board-cell.drop-target {
+  background: rgba(46,90,140,0.12);
+  outline: 2px dashed var(--blue-text);
+  outline-offset: -3px;
+}
