@@ -294,7 +294,14 @@ function buildJumpOptions() {
 // Keeps the two selects showing where the planner currently is, so they read as
 // a position rather than an empty control waiting for input.
 function syncJumpSelects() {
-  const d = timelineAnchor || new Date();
+  // Read three days into the window, not its first day: the window deliberately
+  // starts 3 days back for context, so on the 1st–3rd of a month the first
+  // column is still last month — and the dropdowns reading "Jul" on August 1st
+  // looks stuck rather than truthful. Three days in is today for the default
+  // anchor, and still the chosen month after a jump (which lands on the 1st).
+  const base = timelineAnchor || new Date();
+  const d = new Date(base);
+  d.setDate(d.getDate() + 3);
   const ms = el(root, "jump-month");
   const ys = el(root, "jump-year");
   if (!ms || !ys) return;
