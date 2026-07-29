@@ -314,6 +314,26 @@ function jumpToChosenMonth() {
   render();
 }
 
+// The day cells sit underneath the booking bars, so elementFromPoint — which
+// returns only the topmost element — hands back a bar whenever the pointer is
+// over one. During a drag it almost always is: the bar being dragged, or one in
+// the row being dragged onto. The cell was never found and the drag did nothing.
+//
+// elementsFromPoint returns the whole stack at that point, so the cell can be
+// picked out from underneath.
+function nodeAtPoint(x, y, selector) {
+  const stack = document.elementsFromPoint ? document.elementsFromPoint(x, y) : [];
+  for (const node of stack) {
+    const hit = node.closest && node.closest(selector);
+    if (hit) return hit;
+  }
+  // Older browsers without elementsFromPoint still get the simple behaviour.
+  const one = document.elementFromPoint(x, y);
+  return one && one.closest ? one.closest(selector) : null;
+}
+
+const cellAtPoint = (x, y) => nodeAtPoint(x, y, "[data-add-car]");
+
 // ---------- Drag a booking onto another car ----------
 // Moving a rental to a different vehicle is a normal thing to need — a car comes
 // back damaged, or a better one frees up. Dragging the bar is the obvious
@@ -353,8 +373,7 @@ function wireBookingMove() {
     // does not do, and treating it as a move would be a nasty surprise.
     if (!barDrag.moved && Math.abs(e.clientY - barDrag.startY) < 8) return;
 
-    const under = document.elementFromPoint(e.clientX, e.clientY);
-    const cell = under && under.closest && under.closest("[data-add-car]");
+    const cell = cellAtPoint(e.clientX, e.clientY);
     grid.querySelectorAll(".tl-cell.move-target").forEach(c => c.classList.remove("move-target"));
     if (!cell) return;
 
@@ -540,10 +559,9 @@ function wireDragToBook() {
 
   grid.addEventListener("pointermove", (e) => {
     if (!cellDrag) return;
-    // elementFromPoint rather than the event target: with the pointer captured
-    // every move reports the grid itself, not the cell underneath.
-    const under = document.elementFromPoint(e.clientX, e.clientY);
-    const cell = under && under.closest && under.closest("[data-add-car]");
+    // Looked up by position rather than from the event target: once the pointer
+    // is captured every move reports the grid itself, not the cell underneath.
+    const cell = cellAtPoint(e.clientX, e.clientY);
     // Staying on the same vehicle keeps the gesture meaning one thing; dragging
     // diagonally across rows would be ambiguous about which car was intended.
     if (!cell || cell.dataset.row !== cellDrag.row) return;
@@ -1031,8 +1049,7 @@ function setupCarDragging() {
   grid.addEventListener("pointermove", (e) => {
     if (!dragCarId) return;
     e.preventDefault();
-    const over = document.elementFromPoint(e.clientX, e.clientY);
-    const row = over && over.closest("[data-carrow]");
+    const row = nodeAtPoint(e.clientX, e.clientY, "[data-carrow]");
     const id = row ? row.dataset.carrow : null;
     if (id !== dragOverId) { dragOverId = id; markDragRow(); }
   });
