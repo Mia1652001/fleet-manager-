@@ -7,6 +7,7 @@ import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
   settledAmount, isBillable, hasStarted, inPeriod, settledOn, PERIOD_DAYS,
+  brokerNames,
   initPanelToggle,
   el, val, setVal, openModal, closeModal, showError,
   bookingRef,
@@ -30,6 +31,10 @@ let filter = "unpaid";
 // the two together give one month of one year.
 let periodYear = "";
 let periodMonth = "";
+// "" means every broker. A dropdown rather than free text, built from the
+// same Settings list the booking form offers, so the filter can only ever
+// select a broker that actually exists.
+let periodBroker = "";
 let depositBookingId = null;
 
 export function mount(container) {
@@ -45,6 +50,9 @@ export function mount(container) {
   });
   el(root, "period-month").addEventListener("change", () => {
     periodMonth = el(root, "period-month").value; render();
+  });
+  el(root, "period-broker").addEventListener("change", () => {
+    periodBroker = el(root, "period-broker").value; render();
   });
 
   el(root, "search").addEventListener("input", render);
@@ -132,6 +140,7 @@ export function render() {
   `;
 
   refreshPeriodOptions();
+  refreshBrokerOptions();
   renderTabCounts(search);
   let list = invoicesFor(filter, search);
   list.sort((a, b) => (a.paid - b.paid) || b.startDate.localeCompare(a.startDate));
@@ -139,10 +148,10 @@ export function render() {
 
   const listEl = el(root, "list");
   if (list.length === 0) {
-    // Say which period is empty, or "February 2026 shows nothing" looks like a
+    // Say which filter is empty, or "February 2026 shows nothing" looks like a
     // fault rather than an accurate answer.
-    listEl.innerHTML = (periodYear || periodMonth)
-      ? `<div class="empty">No invoices in ${esc(periodLabel())}. Widen the period above to see more.</div>`
+    listEl.innerHTML = (periodYear || periodMonth || periodBroker)
+      ? `<div class="empty">No invoices ${periodBroker ? `for ${esc(periodBroker)} ` : ""}in ${esc(periodLabel())}. Widen the filters above to see more.</div>`
       : '<div class="empty">No invoices here. Invoices appear when a booking starts.</div>';
     return;
   }
@@ -260,13 +269,39 @@ function refreshPeriodOptions() {
   sel.value = periodYear;
 }
 
-// The two conditions are checked separately, which is what lets either one work
-// on its own. The previous version made the month meaningless unless a year was
-// also chosen, so picking "October" quietly filtered nothing at all.
+// The broker list comes from Settings — the same one the booking form offers —
+// so a chosen filter can never quietly point at a name nobody uses any more.
+// Rebuilt whenever the underlying names change, same pattern as the years above.
+function refreshBrokerOptions() {
+  const sel = el(root, "period-broker");
+  if (!sel) return;
+  const names = brokerNames();
+  const signature = names.join("|");
+  if (sel.dataset.built === signature) return;
+
+  sel.innerHTML = `<option value="">All brokers</option>` +
+    names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+  sel.dataset.built = signature;
+  // A broker removed from Settings after being chosen falls back to "all"
+  // rather than silently filtering on a name that no longer appears anywhere.
+  // Matched loosely, the way names are matched everywhere else in the app.
+  const keep = names.find(n => n.toLowerCase() === periodBroker.toLowerCase());
+  sel.value = keep || "";
+  periodBroker = sel.value;
+}
+
+// The three conditions are checked separately, which is what lets any one of
+// them work on its own. Folding the month into the year used to mean picking
+// "October" alone filtered nothing at all — the broker filter follows the
+// same rule so it never depends on a date filter also being set.
 function inChosenPeriod(b) {
   const d = b.startDate || "";
   if (periodYear && d.slice(0, 4) !== periodYear) return false;
   if (periodMonth && d.slice(5, 7) !== periodMonth) return false;
+  // Loose match: "popo" typed on a booking still counts for "Popo" in
+  // Settings, the same way the suggestion lists treat spellings.
+  if (periodBroker &&
+      (b.broker || "").trim().toLowerCase() !== periodBroker.trim().toLowerCase()) return false;
   return true;
 }
 
@@ -309,7 +344,11 @@ function renderListTotals(list) {
 
   // Naming the period matters: without it a filtered total looks like the whole
   // picture, and someone could read "3 invoices" as the company's entire ledger.
-  const scope = (periodYear || periodMonth) ? ` · ${periodLabel()}` : "";
+  // The broker filter is part of that scope for the same reason.
+  const bits = [];
+  if (periodYear || periodMonth) bits.push(periodLabel());
+  if (periodBroker) bits.push(`broker: ${periodBroker}`);
+  const scope = bits.length ? ` · ${bits.join(" · ")}` : "";
   el(root, "list-total").textContent = `${count}${scope} · ${money}`;
 }
 
