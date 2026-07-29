@@ -62,6 +62,7 @@ export function mount(container) {
     kindFilter = el(root, "kind-filter").value; render();
   });
   wireBoardDrag();
+  wireTaskMoveModal();
 
   el(root, "job-detail-open").addEventListener("click", (e) => {
     const id = e.currentTarget.dataset.booking;
@@ -369,7 +370,7 @@ function boardChip(j) {
   return `
     <div class="board-chip kind-${j.kind}${j.done ? " done" : ""}${j.overdue ? " late" : ""}"
          data-tick="${j.id}" data-kind="${j.kind}" data-ref="${ref}"
-         title="${esc(`${j.time || ""} ${label} ${sub}`.trim())}">
+         title="${esc(`${j.time || ""} ${label} ${sub}${j.dateMoved ? " · moved, booking unchanged" : ""}`.trim())}">
       ${j.kind === "service"
         ? `<span class="board-tick disabled">\u2699</span>`
         : `<span class="board-tick" data-tickbox="1" title="${j.done ? "Mark as not done" : "Mark as done"}">${j.done ? "\u2713" : ""}</span>`}
@@ -488,9 +489,10 @@ function wireBoardDrag() {
 // own. Dropping into Unassigned clears it.
 //
 // A day change on a manual task is a plain postponement and applies straight
-// away. On a delivery or collection it moves the booking's own pick-up or
-// return date, so it is validated, clash-checked, and confirmed first — and if
-// the confirmation is declined, nothing at all is changed.
+// away. On a delivery or collection the day carries a real decision — move the
+// job alone (the car is dropped early, the rental unchanged) or move the
+// booking's own date with it — so those open a dialog that asks which, and
+// nothing at all changes until it is answered.
 async function applyBoardDrop({ kind, ref, fromStaff, day, toStaff, toDay }) {
   const name = toStaff || "";
   const staffChanged = name !== fromStaff;
@@ -513,56 +515,136 @@ async function applyBoardDrop({ kind, ref, fromStaff, day, toStaff, toDay }) {
     const b = state.bookings.find(x => x.id === ref);
     if (!b) return;
 
-    const update = {};
-    if (staffChanged) update[kind === "delivery" ? "deliveredBy" : "recoveredBy"] = name;
-
-    if (dayChanged) {
-      // The new rental interval this drop implies, keeping the existing times.
-      const newStartAt = kind === "delivery" ? `${toDay}T${startTime(b)}` : `${b.startDate}T${startTime(b)}`;
-      const newEndAt = kind === "recovery" ? `${toDay}T${endTime(b)}` : `${b.endDate}T${endTime(b)}`;
-
-      if (newEndAt <= newStartAt) {
-        showToast(kind === "delivery"
-          ? "The pick-up can't be after the return. Edit the booking instead."
-          : "The return can't be before the pick-up. Edit the booking instead.", "warn");
-        return;
-      }
-
-      const clash = findClash({ carId: b.carId, startAt: newStartAt, endAt: newEndAt, ignoreId: b.id });
-      if (clash) {
-        showToast(`That car is already out ${describeInterval(clash)} (${clash.renter})`, "warn");
-        return;
-      }
-
-      // Say what this does to the bill before doing it. Shifting one end
-      // changes the number of days, and the total with it — unless the price
-      // was agreed as a fixed figure, which stays as agreed.
-      const newStart = kind === "delivery" ? toDay : b.startDate;
-      const newEnd = kind === "recovery" ? toDay : b.endDate;
-      const newDays = rentalDays({ startDate: newStart, endDate: newEnd });
-      const priceLine = hasManualTotal(b)
-        ? `The agreed price stays ${formatAmount(rentalTotal(b))}.`
-        : `The total becomes ${formatAmount(newDays * rateFor(b))} (${newDays} day${newDays === 1 ? "" : "s"}).`;
-      const what = kind === "delivery" ? "pick-up" : "return";
-      const from = kind === "delivery" ? b.startDate : b.endDate;
-      if (!confirm(
-        `Move the ${what} for ${b.renter || "this booking"} from ${formatDate(from)} to ${formatDate(toDay)}?\n\n${priceLine}`
-      )) return;
-
-      if (kind === "delivery") update.startDate = toDay;
-      else update.endDate = toDay;
+    if (!dayChanged) {
+      // Person only — no dialog needed, nothing about the dates is touched.
+      if (!staffChanged) return;
+      setSync("saving");
+      await updateDoc(doc(db, "bookings", ref),
+        { [kind === "delivery" ? "deliveredBy" : "recoveredBy"]: name });
+      showToast(name ? `Moved to ${name}` : "Moved to Unassigned");
+      return;
     }
 
-    if (!Object.keys(update).length) return;
-    setSync("saving");
-    await updateDoc(doc(db, "bookings", ref), update);
-    showToast(dayChanged
-      ? `${kind === "delivery" ? "Pick-up" : "Return"} moved to ${formatDate(toDay)}${staffChanged ? (name ? `, ${name}` : "") : ""}`
-      : (name ? `Moved to ${name}` : "Moved to Unassigned"));
+    openTaskMoveModal({ kind, booking: b, toDay, staffChanged, name });
   } catch (e) {
     alert("Couldn't move it (" + (e.code || e.message) + "). Try again.");
     setSync("error");
   }
+}
+
+// ---------- The move dialog for deliveries and collections ----------
+// Two different things can be meant by dragging a hand-over to another day,
+// and they have very different consequences, so the choice is made explicit:
+//
+//   * Move the task only — the job goes on the new day's work list, the
+//     booking and its price stay exactly as they are. This is the airport
+//     case: the car is dropped on the 30th for a rental starting the 1st.
+//   * Move the booking too — the pick-up or return date itself changes, the
+//     price changes with the number of days, and the calendar is checked for
+//     clashes first.
+
+let pendingTaskMove = null;
+
+function wireTaskMoveModal() {
+  el(root, "tm-confirm").addEventListener("click", confirmTaskMove);
+  root.querySelectorAll('[data-close="task-move-modal"]').forEach(btn =>
+    btn.addEventListener("click", () => { pendingTaskMove = null; closeModal(root, "task-move-modal"); }));
+}
+
+function openTaskMoveModal({ kind, booking: b, toDay, staffChanged, name }) {
+  const what = kind === "delivery" ? "hand-over" : "collection";
+  const bookingField = kind === "delivery" ? "Pick-up" : "Return";
+  const fromDay = kind === "delivery" ? (b.deliveryDate || b.startDate) : (b.recoveryDate || b.endDate);
+
+  // Everything option B would do is worked out now, so an impossible move is
+  // greyed out with its reason instead of failing after being chosen.
+  const newStart = kind === "delivery" ? toDay : b.startDate;
+  const newEnd = kind === "recovery" ? toDay : b.endDate;
+  const newStartAt = `${newStart}T${startTime(b)}`;
+  const newEndAt = `${newEnd}T${endTime(b)}`;
+
+  let bookingBlocked = "";
+  if (newEndAt <= newStartAt) {
+    bookingBlocked = kind === "delivery"
+      ? "Not possible: the pick-up would be after the return."
+      : "Not possible: the return would be before the pick-up.";
+  } else {
+    const clash = findClash({ carId: b.carId, startAt: newStartAt, endAt: newEndAt, ignoreId: b.id });
+    if (clash) bookingBlocked = `Not possible: the car is already out ${describeInterval(clash)} (${clash.renter}).`;
+  }
+
+  const newDays = rentalDays({ startDate: newStart, endDate: newEnd });
+  const priceLine = hasManualTotal(b)
+    ? `${newDays} day${newDays === 1 ? "" : "s"}; the agreed price stays ${formatAmount(rentalTotal(b))}.`
+    : `${newDays} day${newDays === 1 ? "" : "s"}; the total becomes ${formatAmount(newDays * rateFor(b))}.`;
+
+  pendingTaskMove = { kind, bookingId: b.id, toDay, staffChanged, name, bookingBlocked };
+
+  el(root, "tm-title").textContent = `Move this ${what}`;
+  el(root, "tm-summary").innerHTML = `
+    <div class="jd-row"><span class="jd-k">Booking</span><span class="jd-v">${esc(b.renter || "")} · ${formatDate(b.startDate)} – ${formatDate(b.endDate)}</span></div>
+    <div class="jd-row"><span class="jd-k">${esc(what[0].toUpperCase() + what.slice(1))}</span><span class="jd-v">${formatDate(fromDay)} → ${formatDate(toDay)}</span></div>`;
+
+  el(root, "tm-task-hint").textContent =
+    `The ${what} goes on ${formatDate(toDay)}'s work list. The booking stays ` +
+    `${formatDate(b.startDate)} – ${formatDate(b.endDate)} and the price does not change.`;
+
+  el(root, "tm-booking-label").textContent = `Move the booking's ${bookingField.toLowerCase()} date too`;
+  el(root, "tm-booking-hint").textContent = bookingBlocked ||
+    `${bookingField} becomes ${formatDate(toDay)} — ${priceLine}`;
+
+  const optTask = el(root, "tm-task-only");
+  const optBooking = el(root, "tm-booking-too");
+  optBooking.disabled = !!bookingBlocked;
+  optTask.checked = true;
+  optBooking.checked = false;
+
+  showError(root, "tm-error", null);
+  openModal(root, "task-move-modal");
+}
+
+async function confirmTaskMove() {
+  if (!pendingTaskMove) return;
+  const { kind, bookingId, toDay, staffChanged, name, bookingBlocked } = pendingTaskMove;
+  const b = state.bookings.find(x => x.id === bookingId);
+  if (!b) { closeModal(root, "task-move-modal"); pendingTaskMove = null; return; }
+
+  const moveBooking = el(root, "tm-booking-too").checked;
+  if (moveBooking && bookingBlocked) {
+    showError(root, "tm-error", bookingBlocked);
+    return;
+  }
+
+  const update = {};
+  if (staffChanged) update[kind === "delivery" ? "deliveredBy" : "recoveredBy"] = name;
+
+  if (moveBooking) {
+    // The booking's own date moves, and any task-only override is cleared so
+    // the job follows the booking again rather than sitting on a stale day.
+    if (kind === "delivery") { update.startDate = toDay; update.deliveryDate = null; }
+    else { update.endDate = toDay; update.recoveryDate = null; }
+  } else {
+    // Only the work list changes. Setting the override back to the booking's
+    // own date means "no override" — dragging a job home undoes the move.
+    if (kind === "delivery") update.deliveryDate = toDay === b.startDate ? null : toDay;
+    else update.recoveryDate = toDay === b.endDate ? null : toDay;
+  }
+
+  const btn = el(root, "tm-confirm");
+  btn.disabled = true; btn.textContent = "Moving...";
+  setSync("saving");
+  try {
+    await updateDoc(doc(db, "bookings", bookingId), update);
+    closeModal(root, "task-move-modal");
+    pendingTaskMove = null;
+    showToast(moveBooking
+      ? `${kind === "delivery" ? "Pick-up" : "Return"} moved to ${formatDate(toDay)}`
+      : `${kind === "delivery" ? "Hand-over" : "Collection"} moved to ${formatDate(toDay)} — booking unchanged`);
+  } catch (e) {
+    showError(root, "tm-error", "Couldn't move it (" + (e.code || e.message) + "). Try again.");
+    setSync("error");
+  }
+  btn.disabled = false; btn.textContent = "Move";
 }
 
 // A chip cannot show everything at its size, and on a phone there is no hover to
@@ -574,8 +656,12 @@ function openJobDetail(jobId) {
   if (!j) return;
 
   const kindName = { delivery: "Hand over", recovery: "Collect", task: "Task", service: "Service" }[j.kind] || j.kind;
+  // A moved job shows the booking's own dates too, or a hand-over sitting two
+  // days before its rental would read as a data error rather than a decision.
+  const jb = j.bookingId ? state.bookings.find(x => x.id === j.bookingId) : null;
   const rows = [
-    ["When", `${formatDate(j.date)}${j.time ? ` at ${j.time}` : ""}`],
+    ["When", `${formatDate(j.date)}${j.time ? ` at ${j.time}` : ""}${j.dateMoved ? " (moved — booking unchanged)" : ""}`],
+    ["Booking period", j.dateMoved && jb ? `${formatDate(jb.startDate)} – ${formatDate(jb.endDate)}` : ""],
     ["Job", kindName],
     [j.kind === "task" ? "Task" : "Vehicle", j.kind === "task" ? j.customer : j.car],
     [j.kind === "task" ? "" : "Customer", j.kind === "task" ? "" : j.customer],
@@ -662,7 +748,8 @@ function jobRow(j) {
   const sub = [
     j.kind !== "task" && j.customer ? esc(j.customer) : "",
     j.location ? esc(j.location) : "",
-    j.staff ? `<span class="job-staff">${esc(j.staff)}</span>` : ""
+    j.staff ? `<span class="job-staff">${esc(j.staff)}</span>` : "",
+    j.dateMoved ? `<span title="This job was moved on its own — the booking's dates are unchanged">moved · booking unchanged</span>` : ""
   ].filter(Boolean).join(" · ");
 
   return `

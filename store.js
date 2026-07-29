@@ -431,12 +431,20 @@ export function recoveryDone(b) { return b.status === "completed"; }
 
 function bookingJobs(b) {
   const carText = bookingCarLabel(b);
+  // A job normally sits on the booking's own date, but the desk can move the
+  // job alone — drop the car at the airport two days before the rental starts —
+  // without touching the booking or its price. That override lives in
+  // deliveryDate / recoveryDate and is cleared whenever the booking's own
+  // dates are edited, so the job follows the booking again.
+  const outDate = b.deliveryDate || b.startDate;
+  const inDate = b.recoveryDate || b.endDate;
   return [
     {
       id: `${b.id}:out`,
       kind: "delivery",
       bookingId: b.id,
-      date: b.startDate,
+      date: outDate,
+      dateMoved: outDate !== b.startDate,
       time: startTime(b),
       car: carText,
       location: b.pickupLocation || "",
@@ -452,7 +460,8 @@ function bookingJobs(b) {
       id: `${b.id}:in`,
       kind: "recovery",
       bookingId: b.id,
-      date: b.endDate,
+      date: inDate,
+      dateMoved: inDate !== b.endDate,
       time: endTime(b),
       car: carText,
       location: b.dropoffLocation || "",

@@ -34,22 +34,31 @@ export const INTERVALS = [
 // ---------- Preferences ----------
 // Kept on the device rather than in the database, because the folder a backup
 // writes to is a property of this computer and cannot be shared with anyone.
+//
+// Namespaced by company: two companies signing in on the same device must not
+// share a backup clock — otherwise company B is told "backed up yesterday"
+// because company A was, and with the folder shared, B's data would even be
+// written into A's folder. Every key carries the company id.
+
+function pkey(k) {
+  return `backup:${state.ctx?.companyId || "none"}:${k}`;
+}
 
 export function backupPrefs() {
   return {
-    categories: loadPref("backupCategories", CATEGORIES.map(c => c.key)),
-    interval: loadPref("backupInterval", "weekly"),
-    lastRun: loadPref("backupLastRun", null),
-    auto: loadPref("backupAuto", false)
+    categories: loadPref(pkey("categories"), CATEGORIES.map(c => c.key)),
+    interval: loadPref(pkey("interval"), "weekly"),
+    lastRun: loadPref(pkey("lastRun"), null),
+    auto: loadPref(pkey("auto"), false)
   };
 }
 
 export function saveBackupPrefs(patch) {
   const p = { ...backupPrefs(), ...patch };
-  savePref("backupCategories", p.categories);
-  savePref("backupInterval", p.interval);
-  savePref("backupLastRun", p.lastRun);
-  savePref("backupAuto", p.auto);
+  savePref(pkey("categories"), p.categories);
+  savePref(pkey("interval"), p.interval);
+  savePref(pkey("lastRun"), p.lastRun);
+  savePref(pkey("auto"), p.auto);
   return p;
 }
 
@@ -231,17 +240,22 @@ export function folderSupported() {
   return typeof window.showDirectoryPicker === "function";
 }
 
+// The stored folder is per company too, for the same reason as the preferences.
+function folderKey() {
+  return `folder:${state.ctx?.companyId || "none"}`;
+}
+
 // Asks for a folder. Must be called straight from a click — the browser refuses
 // otherwise, by design.
 export async function chooseFolder() {
   if (!folderSupported()) throw new Error("This browser cannot save to a folder.");
   const handle = await window.showDirectoryPicker({ mode: "readwrite" });
-  await idbPut("folder", handle);
+  await idbPut(folderKey(), handle);
   return handle.name;
 }
 
 export async function forgetFolder() {
-  await idbPut("folder", null);
+  await idbPut(folderKey(), null);
 }
 
 // Permission is not permanent: the browser may ask again after a restart, and it
@@ -249,7 +263,7 @@ export async function forgetFolder() {
 // one, and the automatic path uses the silent version.
 export async function folderStatus() {
   if (!folderSupported()) return { supported: false, name: null, ready: false };
-  const handle = await idbGet("folder");
+  const handle = await idbGet(folderKey());
   if (!handle) return { supported: true, name: null, ready: false };
   let perm = "prompt";
   try { perm = await handle.queryPermission({ mode: "readwrite" }); } catch {}
@@ -257,7 +271,7 @@ export async function folderStatus() {
 }
 
 async function folderForWriting({ mayPrompt }) {
-  const handle = await idbGet("folder");
+  const handle = await idbGet(folderKey());
   if (!handle) return null;
   let perm = "prompt";
   try { perm = await handle.queryPermission({ mode: "readwrite" }); } catch {}

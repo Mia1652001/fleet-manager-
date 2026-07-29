@@ -666,6 +666,34 @@
           </div>
         </div>
       </div>
+
+      <!-- Moving a delivery or collection to another day. The job can move on
+           its own — the car dropped at the airport before the rental starts —
+           or take the booking's dates with it. The choice is explicit, so a
+           drag can never change what a customer is charged by accident. -->
+      <div class="overlay" data-el="task-move-modal">
+        <div class="modal">
+          <h2 data-el="tm-title">Move this job</h2>
+          <div class="form-error" data-el="tm-error"></div>
+          <div class="jd-list" data-el="tm-summary"></div>
+          <div class="field" style="margin-top:12px;">
+            <label class="check-row" style="align-items:flex-start;">
+              <input type="radio" name="tm-choice" data-el="tm-task-only" checked>
+              <span><strong>Move the task only</strong><br>
+                <span style="font-size:12px;color:var(--muted);" data-el="tm-task-hint"></span></span>
+            </label>
+            <label class="check-row" style="align-items:flex-start;margin-top:8px;">
+              <input type="radio" name="tm-choice" data-el="tm-booking-too">
+              <span><strong data-el="tm-booking-label">Move the booking too</strong><br>
+                <span style="font-size:12px;color:var(--muted);" data-el="tm-booking-hint"></span></span>
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button class="btn" data-close="task-move-modal">Cancel</button>
+            <button class="btn-primary" data-el="tm-confirm">Move</button>
+          </div>
+        </div>
+      </div>
     </section>
 
   </div>

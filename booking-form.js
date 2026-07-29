@@ -391,9 +391,16 @@ async function saveBooking() {
     };
 
     if (editingBookingId) {
+      // If a date is edited here, any task-only override on that end is
+      // cleared, so the hand-over or collection follows the booking again
+      // rather than sitting on a day that no longer means anything.
+      const prev = state.bookings.find(x => x.id === editingBookingId);
+      const clearOverrides = {};
+      if (prev?.deliveryDate && prev.startDate !== startDate) clearOverrides.deliveryDate = null;
+      if (prev?.recoveryDate && prev.endDate !== endDate) clearOverrides.recoveryDate = null;
       await updateDoc(doc(db, "bookings", editingBookingId),
         { carId, customerId: customerId ?? null, renter, phone, email: email || "",
-          startDate, endDate, dailyRate, carName, ...details });
+          startDate, endDate, dailyRate, carName, ...details, ...clearOverrides });
     } else {
       // Generated once, here, so the reference stays the same for the life of the
       // booking however often it is edited afterwards.

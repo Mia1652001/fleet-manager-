@@ -505,7 +505,12 @@ async function askToShiftDates(b, delta) {
 
   setSync("saving");
   try {
-    await updateDoc(doc(db, "bookings", b.id), { startDate: newStart, endDate: newEnd });
+    // Both dates move, so any task-only override is stale and is cleared —
+    // the hand-over and collection follow the booking to its new days.
+    const update = { startDate: newStart, endDate: newEnd };
+    if (b.deliveryDate) update.deliveryDate = null;
+    if (b.recoveryDate) update.recoveryDate = null;
+    await updateDoc(doc(db, "bookings", b.id), update);
     showToast(`Moved to ${formatDate(newStart)} – ${formatDate(newEnd)}`);
   } catch (e) {
     alert("Couldn't move it (" + (e.code || e.message) + "). Try again.");
@@ -590,8 +595,14 @@ async function doMove() {
   setSync("saving");
   try {
     const update = { carId: toCarId, carName: toName };
-    // A diagonal drag shifted the dates as well as the car.
-    if (dayDelta) { update.startDate = newStart; update.endDate = newEnd; }
+    // A diagonal drag shifted the dates as well as the car; task-only
+    // overrides are stale after a date change and go with it.
+    if (dayDelta) {
+      update.startDate = newStart; update.endDate = newEnd;
+      const b = state.bookings.find(x => x.id === bookingId);
+      if (b?.deliveryDate) update.deliveryDate = null;
+      if (b?.recoveryDate) update.recoveryDate = null;
+    }
     if (useNewRate) {
       // Clearing any agreed total as well, or the new rate would be recorded but
       // the invoice would go on using the old fixed price and quietly disagree.

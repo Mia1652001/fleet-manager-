@@ -153,6 +153,12 @@ function startApp() {
   // Runs on every sign-in, not just the first: if a second person signs in on
   // the same device without reloading, the screen has to be redrawn from their
   // company's data rather than left showing the previous person's.
+  //
+  // That includes any dialog left open at sign-out: a modal keeps its "open"
+  // flag through the hidden login screen, and would otherwise reappear — with
+  // the previous company's half-filled form in it — the moment the next person
+  // signs in.
+  document.querySelectorAll(".overlay.open").forEach(o => o.classList.remove("open"));
   showView(currentViewFromHash());
 
   startListeners();
@@ -317,6 +323,8 @@ let backupWaitTries = 0;
 const BACKUP_WAIT_MAX = 25;      // × 2s = wait up to ~50s for a slow connection
 
 async function checkBackupDue() {
+  // A retry can arrive after a sign-out; there is nobody to back up for then.
+  if (!state.ctx) return;
   if (!backupDue()) { hideBackupBanner(); return; }
 
   // If a folder is already set up and permitted, just do it — silently, without
