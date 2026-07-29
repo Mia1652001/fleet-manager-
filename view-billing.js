@@ -1,6 +1,7 @@
 // Billing view — each started booking is an invoice, with advance and
 // security deposits tracked separately.
 import { db, setSync } from "./firebase-init.js";
+import { openBookingModal } from "./booking-form.js";
 import { updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName,
@@ -71,6 +72,7 @@ export function mount(container) {
     if (!b) return;
 
     if (btn.dataset.act === "deposits") { openDepositModal(id); return; }
+    if (btn.dataset.act === "open") { openBookingModal(id); return; }
     if (btn.dataset.act === "email") { contactByEmail(b); return; }
     if (btn.dataset.act === "sms") { contactBySms(b); return; }
 
@@ -153,6 +155,10 @@ export function render() {
     const balance = balanceFor(b);
     const sec = b.securityDeposit || 0;
     const secStatus = b.securityStatus || "held";
+    // Looked up once: the buttons and the missing-contact note below all need it.
+    const cust = customerForBooking(b);
+    const hasEmail = !!(b.email || cust?.email);
+    const hasPhone = !!(b.phone || cust?.phone);
     return `
     <div class="item-card ${b.paid ? "completed" : "upcoming"}">
       <div class="card-top">
@@ -182,13 +188,18 @@ export function render() {
         <span>Security deposit: <strong>${formatAmount(sec)}</strong></span>
         <span>Status: <strong>${secStatus === "held" ? "Held (refundable)" : secStatus === "refunded" ? "Refunded" : "Kept"}</strong></span>
       </div>` : ""}
+      ${!b.paid && !hasPhone && !hasEmail ? `
+      <div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;">
+        <span style="color:var(--muted);">No phone or email saved — open the booking and add one, then a reminder can be sent</span>
+      </div>` : ""}
       <div class="card-actions">
         ${b.paid
           ? `<button class="btn" data-act="markunpaid" data-id="${b.id}">Mark as unpaid</button>`
           : `<button class="btn" data-act="markpaid" data-id="${b.id}">Mark balance paid</button>`}
         <button class="btn" data-act="deposits" data-id="${b.id}">Deposits</button>
-        ${!b.paid && (b.email || customerForBooking(b)?.email) ? `<button class="btn" data-act="email" data-id="${b.id}">Email reminder</button>` : ""}
-        ${!b.paid && (b.phone || customerForBooking(b)?.phone) ? `<button class="btn" data-act="sms" data-id="${b.id}">SMS reminder</button>` : ""}
+        <button class="btn" data-act="open" data-id="${b.id}">View booking</button>
+        ${!b.paid && hasEmail ? `<button class="btn" data-act="email" data-id="${b.id}">Email reminder</button>` : ""}
+        ${!b.paid && hasPhone ? `<button class="btn" data-act="sms" data-id="${b.id}">SMS reminder</button>` : ""}
         ${sec > 0 && secStatus === "held" ? `
           <button class="btn" data-act="refund" data-id="${b.id}">Refund deposit</button>
           <button class="btn" data-act="keep" data-id="${b.id}">Keep deposit</button>` : ""}
