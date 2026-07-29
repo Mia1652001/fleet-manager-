@@ -53,13 +53,15 @@ export function mount(container) {
     </label>`).join("");
 
   // One row per foreign currency: "1 € = Rs ___". Built once; values are
-  // filled on render like every other settings field.
-  el(root, "s-fxrates").innerHTML = FX_CURRENCIES.map(c => `
-    <div class="field-row equal" data-fxrow="${esc(c.sym)}" style="margin-bottom:6px;">
-      <label style="align-self:center;white-space:nowrap;">1 ${esc(c.sym)} (${esc(c.label)}) =</label>
-      <input type="number" min="0" step="any" data-fxrate="${esc(c.sym)}"
-        placeholder="e.g. 48" style="max-width:140px;">
-    </div>`).join("");
+  // filled on render like every other settings field. A single grid rather
+  // than one row per currency, so every input lines up against the longest
+  // label instead of each row placing its own box.
+  const fxBox = el(root, "s-fxrates");
+  fxBox.style.cssText = "display:grid;grid-template-columns:max-content minmax(110px,160px);gap:8px 12px;align-items:center;";
+  fxBox.innerHTML = FX_CURRENCIES.map(c => `
+    <label data-fxrow="${esc(c.sym)}" style="white-space:nowrap;margin:0;">1 ${esc(c.sym)} (${esc(c.label)}) =</label>
+    <input type="number" min="0" step="any" data-fxrate="${esc(c.sym)}" data-fxrow="${esc(c.sym)}"
+      placeholder="e.g. 48">`).join("");
 
   el(root, "save-settings").addEventListener("click", saveSettings);
   el(root, "s-logo-file").addEventListener("change", onLogoPicked);
