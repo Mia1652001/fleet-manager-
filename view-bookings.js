@@ -15,7 +15,7 @@ import {
   bookingRef,
   requestFocus,
   invoiceTotal,
-  findClash, describeInterval, hasManualTotal, rateFor, rentalDays,
+  findClash, describeInterval, hasManualTotal, rateFor, rentalDays, fxPair, extrasTotal,
   showToast, openModal, showError,
   setVal
 } from "./store.js";
@@ -1110,7 +1110,7 @@ function renderList() {
       <div class="card-details">
         <span>Out: <strong>${formatDate(b.startDate)} ${startTime(b)}</strong>${b.pickupLocation ? " · " + esc(b.pickupLocation) : ""}</span>
         <span>Back: <strong>${formatDate(b.endDate)} ${endTime(b)}</strong>${b.dropoffLocation ? " · " + esc(b.dropoffLocation) : ""}</span>
-        <span>Total: <strong>${formatAmount(invoiceTotal(b))}</strong> ${b.paid ? "(paid)" : "(unpaid)"}</span>
+        <span>Total: <strong>${fxPair(b, invoiceTotal(b), extrasTotal(b) === 0 ? b.fxTotal : null)}</strong> ${b.paid ? "(paid)" : "(unpaid)"}</span>
         ${b.phone ? `<span>Phone: <strong>${esc(b.phone)}</strong></span>` : ""}
       </div>
       ${(b.managedBy || b.deliveredBy || b.broker || b.notes) ? `

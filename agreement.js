@@ -18,7 +18,7 @@ import {
   state, esc, formatDate, formatAmount, bookingCarLabel, bookingRef,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor,
   startTime, endTime, customerForBooking, companyName, companyTerms, todayStr,
-  deliveryCost, insuranceCost, otherCost, invoiceTotal, extrasTotal
+  deliveryCost, insuranceCost, otherCost, invoiceTotal, extrasTotal, fxPair
 } from "./store.js";
 
 function line(label, value) {
@@ -60,16 +60,16 @@ function moneyBlock(b) {
 
   return `
     <table class="ag-table">
-      <tr><th>${esc(basis)}</th><td class="ag-num">${esc(formatAmount(total))}</td></tr>
+      <tr><th>${esc(basis)}</th><td class="ag-num">${esc(fxPair(b, total, b.fxTotal))}</td></tr>
       ${extras.map(([k, v]) =>
         `<tr><th>${esc(k)}</th><td class="ag-num">${esc(formatAmount(v))}</td></tr>`).join("")}
       ${extras.length
         ? `<tr><th>Total charges</th><td class="ag-num">${esc(formatAmount(invoiceTotal(b)))}</td></tr>`
         : ""}
-      ${advance > 0 ? `<tr><th>Less advance already paid</th><td class="ag-num">− ${esc(formatAmount(advance))}</td></tr>` : ""}
+      ${advance > 0 ? `<tr><th>Less advance already paid</th><td class="ag-num">− ${esc(fxPair(b, advance, b.fxAdvance))}</td></tr>` : ""}
       <tr class="ag-total"><th>${b.paid ? "Total (settled)" : "Balance due"}</th>
         <td class="ag-num">${esc(formatAmount(b.paid ? invoiceTotal(b) : balance))}</td></tr>
-      ${security > 0 ? `<tr><th>Refundable security deposit</th><td class="ag-num">${esc(formatAmount(security))}</td></tr>` : ""}
+      ${security > 0 ? `<tr><th>Refundable security deposit</th><td class="ag-num">${esc(fxPair(b, security, b.fxSecurity))}</td></tr>` : ""}
     </table>`;
 }
 
@@ -301,7 +301,7 @@ function confirmationText(b) {
   ];
 
   if (hasManualTotal(b)) {
-    lines.push(`Agreed price (${days} day${days === 1 ? "" : "s"}): ${formatAmount(total)}`);
+    lines.push(`Agreed price (${days} day${days === 1 ? "" : "s"}): ${fxPair(b, total, b.fxTotal)}`);
   } else {
     lines.push(`${days} day${days === 1 ? "" : "s"} at ${formatAmount(rateFor(b))} per day: ${formatAmount(total)}`);
   }
@@ -312,9 +312,9 @@ function confirmationText(b) {
   if (otherCost(b) > 0) lines.push(`Other charges: ${formatAmount(otherCost(b))}`);
   if (extrasTotal(b) > 0) lines.push(`Total: ${formatAmount(invoiceTotal(b))}`);
 
-  if (advance > 0) lines.push(`Advance already paid: ${formatAmount(advance)}`);
+  if (advance > 0) lines.push(`Advance already paid: ${fxPair(b, advance, b.fxAdvance)}`);
   lines.push(b.paid ? "Paid in full — thank you." : `Balance due: ${formatAmount(balance)}`);
-  if (security > 0) lines.push(`Refundable security deposit: ${formatAmount(security)}`);
+  if (security > 0) lines.push(`Refundable security deposit: ${fxPair(b, security, b.fxSecurity)}`);
 
   if (b.notes) { lines.push("", `Note: ${b.notes}`); }
 

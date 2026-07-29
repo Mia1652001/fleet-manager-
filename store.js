@@ -50,6 +50,31 @@ export function companyName() {
   return state.settings?.companyName || state.ctx?.companyName || "";
 }
 
+// ---------- Foreign-currency bookings ----------
+// Some clients pay in euros or dollars, in cash. The books stay in the
+// company's own currency — every total, report and export adds up the home
+// figures exactly as before — and the foreign amount rides alongside for
+// display: the desk records both ("€300 = Rs 15,000"), which captures the
+// rate actually agreed rather than a rate looked up somewhere.
+export const FX_CURRENCIES = [
+  { sym: "€", label: "Euro" },
+  { sym: "$", label: "US dollar" },
+  { sym: "£", label: "British pound" },
+  { sym: "₹", label: "Indian rupee" },
+  { sym: "R", label: "South African rand" },
+  { sym: "Rs", label: "Mauritian rupee" }
+];
+
+// "€ 300 (Rs 15,000)" when a foreign amount exists, plain "Rs 15,000" otherwise.
+export function fxPair(b, homeAmount, fxAmount) {
+  const sym = b?.fxCurrency;
+  if (sym && typeof fxAmount === "number" && fxAmount > 0) {
+    const n = Number(fxAmount).toLocaleString("en-US", { maximumFractionDigits: 2 });
+    return `${sym} ${n} (${formatAmount(homeAmount)})`;
+  }
+  return formatAmount(homeAmount);
+}
+
 export function companyTerms() { return state.settings?.terms || ""; }
 
 

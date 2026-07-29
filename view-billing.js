@@ -7,7 +7,7 @@ import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
   settledAmount, isBillable, hasStarted, inPeriod, settledOn, PERIOD_DAYS,
-  brokerNames,
+  brokerNames, fxPair,
   initPanelToggle,
   el, val, setVal, openModal, closeModal, showError,
   bookingRef,
@@ -181,13 +181,13 @@ export function render() {
         <span>Period: <strong>${formatDate(b.startDate)} – ${formatDate(b.endDate)}</strong></span>
         ${b.broker ? `<span>Broker: <strong>${esc(b.broker)}</strong></span>` : ""}
         ${hasManualTotal(b)
-          ? `<span>Agreed price: <strong>${formatAmount(total)}</strong> <span style="opacity:0.7;">(${days} day${days === 1 ? "" : "s"})</span></span>`
+          ? `<span>Agreed price: <strong>${fxPair(b, total, b.fxTotal)}</strong> <span style="opacity:0.7;">(${days} day${days === 1 ? "" : "s"})</span></span>`
           : `<span>${days} day${days === 1 ? "" : "s"} × <strong>${formatAmount(rate)}</strong>/day = <strong>${formatAmount(total)}</strong></span>`}
         ${deliveryCost(b) > 0 ? `<span>Delivery: <strong>${formatAmount(deliveryCost(b))}</strong></span>` : ""}
         ${insuranceCost(b) > 0 ? `<span>Insurance: <strong>${formatAmount(insuranceCost(b))}</strong></span>` : ""}
         ${otherCost(b) > 0 ? `<span>Other: <strong>${formatAmount(otherCost(b))}</strong></span>` : ""}
         ${extrasTotal(b) > 0 ? `<span>Invoice total: <strong>${formatAmount(invoiceTotal(b))}</strong></span>` : ""}
-        ${adv > 0 ? `<span>Advance paid: <strong>-${formatAmount(adv)}</strong></span>` : ""}
+        ${adv > 0 ? `<span>Advance paid: <strong>-${fxPair(b, adv, b.fxAdvance)}</strong></span>` : ""}
         ${adv > 0 && !b.paid ? `<span>Balance: <strong>${formatAmount(balance)}</strong></span>` : ""}
         ${b.paid && b.paidAt ? `<span>Paid on: <strong>${formatDate(b.paidAt.slice(0, 10))}</strong></span>` : ""}
         ${b.paid && settledAmount(b) !== total ? `<span>Counted as received: <strong>${formatAmount(settledAmount(b))}</strong> <span style="opacity:0.7;">(the advance came in earlier)</span></span>` : ""}
@@ -195,7 +195,7 @@ export function render() {
       </div>
       ${sec > 0 ? `
       <div class="card-details" style="margin-top:6px;">
-        <span>Security deposit: <strong>${formatAmount(sec)}</strong></span>
+        <span>Security deposit: <strong>${fxPair(b, sec, b.fxSecurity)}</strong></span>
         <span>Status: <strong>${secStatus === "held" ? "Held (refundable)" : secStatus === "refunded" ? "Refunded" : "Kept"}</strong></span>
       </div>` : ""}
       ${!b.paid && !hasPhone && !hasEmail ? `
@@ -366,6 +366,24 @@ function openDepositModal(id) {
   const b = state.bookings.find(x => x.id === id);
   setVal(root, "dep-advance", b?.advancePaid || "");
   setVal(root, "dep-security", b?.securityDeposit || "");
+
+  // Foreign-currency bookings take deposits in that currency too: the foreign
+  // amounts lead, and the Rs fields underneath become the agreed conversion —
+  // the figure the books actually record.
+  const sym = b?.fxCurrency || "";
+  const home = state.settings?.currency || "Rs";
+  el(root, "dep-fx-row").style.display = sym ? "flex" : "none";
+  if (sym) {
+    el(root, "dep-fxadvance-label").textContent = `Advance in ${sym}`;
+    el(root, "dep-fxsecurity-label").textContent = `Security in ${sym}`;
+    el(root, "dep-advance-label").textContent = `= Advance in ${home} (reduces balance owed)`;
+    el(root, "dep-security-label").textContent = `= Security in ${home} (refundable, held separately)`;
+    setVal(root, "dep-fxadvance", b?.fxAdvance ?? "");
+    setVal(root, "dep-fxsecurity", b?.fxSecurity ?? "");
+  } else {
+    el(root, "dep-advance-label").textContent = "Advance paid (reduces balance owed)";
+    el(root, "dep-security-label").textContent = "Security deposit (refundable, held separately)";
+  }
   showError(root, "deposit-error", null);
   openModal(root, "deposit-modal");
 }
@@ -381,11 +399,26 @@ async function saveDeposits() {
   }
 
   const b = state.bookings.find(x => x.id === depositBookingId);
+
+  // Foreign amounts need their Rs twin: a €100 advance with no Rs value gives
+  // the books nothing to record.
+  const sym = b?.fxCurrency || "";
+  const fxAdvance = sym ? (parseFloat(val(root, "dep-fxadvance")) || 0) : 0;
+  const fxSecurity = sym ? (parseFloat(val(root, "dep-fxsecurity")) || 0) : 0;
+  if (fxAdvance > 0 && advance <= 0) {
+    showError(root, "deposit-error", `Enter the agreed value of the ${sym} advance in the field below it.`); return;
+  }
+  if (fxSecurity > 0 && security <= 0) {
+    showError(root, "deposit-error", `Enter the agreed value of the ${sym} security deposit in the field below it.`); return;
+  }
+
   const btn = el(root, "save-deposit");
   btn.disabled = true; btn.textContent = "Saving...";
   setSync("saving");
   try {
-    const update = { advancePaid: advance, securityDeposit: security };
+    const update = { advancePaid: advance, securityDeposit: security,
+      fxAdvance: fxAdvance > 0 ? fxAdvance : null,
+      fxSecurity: fxSecurity > 0 ? fxSecurity : null };
     if (security > 0 && !b.securityStatus) update.securityStatus = "held";
     if (security === 0) update.securityStatus = null;
     await updateDoc(doc(db, "bookings", depositBookingId), update);

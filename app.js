@@ -418,7 +418,7 @@ function toCsv(headers, rows) {
 }
 
 function exportBookingsCsv() {
-  const headers = ["Reference","Customer","Phone","Car","Pick-up","Return","Days","Daily rate","Rental total","Advance paid","Balance","Security deposit","Deposit status","Paid","Paid on","Status","Broker"];
+  const headers = ["Reference","Customer","Phone","Car","Pick-up","Return","Days","Daily rate","Rental total","Advance paid","Balance","Security deposit","Deposit status","Paid","Paid on","Status","Broker","Currency","Total (foreign)","Advance (foreign)","Security (foreign)"];
   const rows = state.bookings
     .slice()
     .sort((a,b) => b.startDate.localeCompare(a.startDate))
@@ -430,7 +430,8 @@ function exportBookingsCsv() {
       b.securityDeposit || 0, b.securityStatus || "",
       b.paid ? "Yes" : "No", b.paidAt ? b.paidAt.slice(0,10) : "",
       b.status === "completed" ? "Completed" : "Open",
-      b.broker || ""
+      b.broker || "",
+      b.fxCurrency || "", b.fxTotal || "", b.fxAdvance || "", b.fxSecurity || ""
     ]);
   download(`bookings-${safeName()}-${stamp()}.csv`, toCsv(headers, rows), "text/csv");
 }

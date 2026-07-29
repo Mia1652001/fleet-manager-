@@ -86,6 +86,7 @@ function bookingRows() {
   return [
     ["Reference","Customer","Phone","Car","Pick-up","Pick-up time","Return","Return time",
      "Days","Daily rate","Rental total","Delivery","Insurance","Other","Invoice total",
+     "Currency","Total (foreign)","Advance (foreign)","Security (foreign)",
      "Advance paid","Balance",
      "Security deposit","Deposit status","Paid","Settled on","Status",
      "Pick-up place","Drop-off place","Broker","Managed by","Delivered by","Recovered by","Notes"],
@@ -96,6 +97,7 @@ function bookingRows() {
         b.startDate || "", b.startTime || "", b.endDate || "", b.endTime || "",
         rentalDays(b), rateFor(b), rentalTotal(b),
         deliveryCost(b), insuranceCost(b), otherCost(b), invoiceTotal(b),
+        b.fxCurrency || "", b.fxTotal || "", b.fxAdvance || "", b.fxSecurity || "",
         advancePaid(b), balanceFor(b),
         b.securityDeposit || 0, b.securityStatus || "",
         b.paid ? "Yes" : "No", b.paid ? settledOn(b) : "",

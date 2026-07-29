@@ -10,7 +10,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstat
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
   makeBookingRef, bookingRef, showToast,
-  staffNames, locationNames, brokerNames,
+  staffNames, locationNames, brokerNames, FX_CURRENCIES,
   startTime, endTime,
   fillTimeOptions, getTime, setTime, onTimeChange,
   getSwatch, setSwatch,
@@ -52,6 +52,7 @@ export function mountBookingForm() {
     if (!r.ok) showError(root, "booking-error", r.reason);
   });
   el(root, "b-customer").addEventListener("change", toggleNewCustomer);
+  el(root, "b-currency").addEventListener("change", syncCurrencyFields);
 
   el(root, "b-contact-toggle").addEventListener("click", () => {
     const box = el(root, "b-contact-edit");
@@ -185,6 +186,28 @@ function fillSuggestions() {
   put("dl-brokers", brokerNames());
 }
 
+// ---------- Booking currency ----------
+// The foreign amount leads and the Rs figure follows: the desk types both,
+// which records the exchange the two sides actually agreed. The Rs figure is
+// what every total and report uses; the foreign one rides along for display.
+function fillCurrencyOptions() {
+  const sel = el(root, "b-currency");
+  const home = state.settings?.currency || "Rs";
+  sel.innerHTML = `<option value="">${esc(home)} — company currency</option>` +
+    FX_CURRENCIES.filter(c => c.sym !== home)
+      .map(c => `<option value="${esc(c.sym)}">${esc(c.sym)} — ${esc(c.label)}</option>`).join("");
+}
+
+function syncCurrencyFields() {
+  const sym = el(root, "b-currency").value;
+  const home = state.settings?.currency || "Rs";
+  el(root, "b-fx-field").style.display = sym ? "block" : "none";
+  el(root, "b-fxtotal-label").textContent = `Total in ${sym || "—"}`;
+  el(root, "b-total-label").textContent = sym
+    ? `= Total in ${home} (the agreed conversion — this is what the books record)`
+    : "Total price (leave blank to calculate from daily rate)";
+}
+
 export function openBookingModal(bookingId, preset) {
   if (state.cars.length === 0) { alert("Add at least one car in the Fleet view first."); return; }
 
@@ -203,6 +226,7 @@ export function openBookingModal(bookingId, preset) {
     .join("");
 
   fillSuggestions();
+  fillCurrencyOptions();
 
   const csel = el(root, "b-customer");
   csel.innerHTML = state.customers.slice()
@@ -219,6 +243,9 @@ export function openBookingModal(bookingId, preset) {
    "b-pickup","b-dropoff","b-total","b-delivery","b-insurance","b-other",
    "b-managedby","b-deliveredby","b-recoveredby","b-broker","b-notes"]
     .forEach(n => setVal(root, n, ""));
+  el(root, "b-currency").value = "";
+  setVal(root, "b-fxtotal", "");
+  syncCurrencyFields();
   setChecked(root, "b-paid", false);
   setSwatch(root, "b-colour", "");
   // Sensible default times so staff only change them when it matters
@@ -238,6 +265,9 @@ export function openBookingModal(bookingId, preset) {
     setVal(root, "b-deliveredby", editing.deliveredBy || "");
     setVal(root, "b-recoveredby", editing.recoveredBy || "");
     setVal(root, "b-broker", editing.broker || "");
+    el(root, "b-currency").value = editing.fxCurrency || "";
+    setVal(root, "b-fxtotal", editing.fxTotal ?? "");
+    syncCurrencyFields();
     setVal(root, "b-delivery", editing.deliveryCost ?? "");
     setVal(root, "b-insurance", editing.insuranceCost ?? "");
     setVal(root, "b-other", editing.otherCost ?? "");
@@ -373,12 +403,29 @@ async function saveBooking() {
     const carName = car ? `${car.year || ""} ${car.make} ${car.model} (${car.plate || "no plate"})`.trim() : "";
 
     const totalRaw = val(root, "b-total");
+    const fxSym = el(root, "b-currency").value;
+    const fxTotalRaw = val(root, "b-fxtotal");
+    // A foreign total without its Rs twin has no value the books can use, so
+    // the pair is required together. (Currency alone, with no foreign total,
+    // is fine — the deposits may be the only foreign part.)
+    if (fxSym && fxTotalRaw !== "" && totalRaw === "") {
+      showError(root, "booking-error",
+        `You entered a total in ${fxSym} — also enter the agreed value in ` +
+        `${state.settings?.currency || "Rs"} in the field below it. That figure is what the books record.`);
+      btn.disabled = false; btn.textContent = "Save booking";
+      return;
+    }
     const details = {
       startTime: startTimeVal,
       endTime: endTimeVal,
       pickupLocation: val(root, "b-pickup"),
       dropoffLocation: val(root, "b-dropoff"),
       totalPrice: totalRaw === "" ? null : (parseFloat(totalRaw) || 0),
+      // Switching back to the company currency clears every foreign figure,
+      // so nothing stale can keep displaying against the Rs amounts.
+      fxCurrency: fxSym || "",
+      fxTotal: fxSym ? money(fxTotalRaw) : null,
+      ...(fxSym ? {} : { fxAdvance: null, fxSecurity: null }),
       managedBy: val(root, "b-managedby"),
       deliveredBy: val(root, "b-deliveredby"),
       recoveredBy: val(root, "b-recoveredby"),

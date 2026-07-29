@@ -412,8 +412,16 @@
         <div class="modal">
           <h2>Deposits</h2>
           <div class="form-error" data-el="deposit-error"></div>
-          <div class="field"><label>Advance paid (reduces balance owed)</label><input data-el="dep-advance" type="number" min="0" placeholder="e.g. 2000"></div>
-          <div class="field"><label>Security deposit (refundable, held separately)</label><input data-el="dep-security" type="number" min="0" placeholder="e.g. 5000"></div>
+          <!-- Shown only for bookings taken in a foreign currency: the foreign
+               amounts lead, the Rs figures below become the agreed conversion. -->
+          <div class="field-row equal" data-el="dep-fx-row" style="display:none;">
+            <div class="field"><label data-el="dep-fxadvance-label">Advance in €</label>
+              <input data-el="dep-fxadvance" type="number" min="0" step="any" placeholder="e.g. 100"></div>
+            <div class="field"><label data-el="dep-fxsecurity-label">Security in €</label>
+              <input data-el="dep-fxsecurity" type="number" min="0" step="any" placeholder="e.g. 300"></div>
+          </div>
+          <div class="field"><label data-el="dep-advance-label">Advance paid (reduces balance owed)</label><input data-el="dep-advance" type="number" min="0" placeholder="e.g. 2000"></div>
+          <div class="field"><label data-el="dep-security-label">Security deposit (refundable, held separately)</label><input data-el="dep-security" type="number" min="0" placeholder="e.g. 5000"></div>
           <div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;">Advance payment is deducted from the rental total. Security deposit is a refundable hold — mark it refunded or kept when the car comes back.</div>
           <div class="modal-actions">
             <button class="btn" data-close="deposit-modal">Cancel</button>
@@ -794,8 +802,17 @@
       </div>
       <div class="field"><label>Drop-off location</label><input data-el="b-dropoff" list="dl-locations" placeholder="Choose or type"></div>
 
+      <div class="field-row">
+        <div class="field"><label>Booking currency</label>
+          <select data-el="b-currency"></select></div>
+        <div class="field" data-el="b-fx-field" style="display:none;">
+          <label data-el="b-fxtotal-label">Total in €</label>
+          <input data-el="b-fxtotal" type="number" min="0" step="any" placeholder="e.g. 300">
+        </div>
+      </div>
+
       <div class="field">
-        <label>Total price (leave blank to calculate from daily rate)</label>
+        <label data-el="b-total-label">Total price (leave blank to calculate from daily rate)</label>
         <input data-el="b-total" type="number" min="0" placeholder="auto">
       </div>
 
