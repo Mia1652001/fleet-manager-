@@ -233,7 +233,9 @@ function dayRows(from, to, jobs, minDays) {
 
   // Days clicked open from a marker are ordinary rows for as long as the
   // reveal lasts. As they join, the gaps around them shrink or vanish.
-  revealedDays.forEach(d => { if (d >= start) dates.add(d); });
+  // Not filtered by direction: past gaps open the same way future ones do,
+  // and the set is cleared whenever the range tab changes.
+  revealedDays.forEach(d => dates.add(d));
 
   const all = [...dates].sort();
   const rows = [];
@@ -257,7 +259,22 @@ function revealGap(from, count) {
   render();
 }
 
+const PAST_DAYS = 30;
+
+// The three past ranges mirror the three forward ones.
+function isPast() {
+  return range === "past7" || range === "past30" || range === "pastall";
+}
+
 function rangeBounds() {
+  // The past tabs look backwards, ending yesterday — today's work stays on
+  // Today. "Everything before" fetches all history; the display draws the
+  // last month solid and reaches older days through the skipped-days markers,
+  // the same way "Everything ahead" treats the far future.
+  if (range === "past7") return { from: shiftDate(-7), to: shiftDate(-1) };
+  if (range === "past30") return { from: shiftDate(-PAST_DAYS), to: shiftDate(-1) };
+  if (range === "pastall") return { from: null, to: shiftDate(-1) };
+
   // Showing completed work is a review action, so reach back a week. Without
   // this, "Today" plus "show completed" turns up nothing unless a job happened
   // to be finished today.
@@ -334,7 +351,14 @@ export function render() {
   const search = el(root, "search").value.toLowerCase();
   const { from, to } = rangeBounds();
 
-  const all = buildSchedule({ from, to, includeDone: showDone });
+  // The past tabs show completed work without needing the toggle: reviewing
+  // what happened is the reason to look back. The toggle still governs the
+  // forward-looking ranges.
+  const all = buildSchedule({ from, to, includeDone: showDone || isPast() });
+
+  // "Everything before" fetches unbounded history, but the drawn rows start a
+  // month back — older days arrive through the skipped-days markers.
+  const denseFrom = range === "pastall" ? shiftDate(-(DENSE_AHEAD_DAYS - 1)) : from;
 
   const jobs = all.filter(j => {
     const matchesSearch = `${j.car} ${j.customer} ${j.location} ${j.staff}`.toLowerCase().includes(search);
@@ -364,7 +388,7 @@ export function render() {
     <div class="stat"><div class="stat-label">Running late</div><div class="stat-val red">${lateJobs.length}</div></div>
   `;
 
-  if (mode === "board") { renderBoard(jobs, from, to); return; }
+  if (mode === "board") { renderBoard(jobs, denseFrom, to); return; }
 
   const listEl = el(root, "list");
 
@@ -380,7 +404,11 @@ export function render() {
   // own "+" — so a task can be put on any date, not only on dates that already
   // have work. Days beyond the range that carry a job still appear, separated
   // by an explicit marker so distant dates never look adjacent.
-  const rows = dayRows(from, to, jobs, 0);
+  const rows = dayRows(denseFrom, to, jobs, 0);
+  // History reads newest-first: yesterday at the top, the month falling away
+  // below it. The gap markers reverse with the days and stay between the same
+  // neighbours, so their counts remain right.
+  if (isPast()) rows.reverse();
   listEl.innerHTML = rows.map(r => {
     if (r.kind === "gap") {
       return `<button type="button" class="day-gap" data-gap-from="${r.from}" data-gap-count="${r.skipped}"
@@ -764,7 +792,8 @@ function renderBoard(jobs, from, to) {
   // ever and drown the column that is meant to be actionable.
   const assignable = jobs.filter(j => j.kind !== "service");
 
-  const rowsSpec = dayRows(from, to, assignable, BOARD_MIN_DAYS);
+  const rowsSpec = dayRows(from, to, assignable, isPast() ? 0 : BOARD_MIN_DAYS);
+  if (isPast()) rowsSpec.reverse();   // history reads newest-first
   const people = boardColumns(assignable);
   const columns = [...people, null];        // null is the Unassigned column
 
