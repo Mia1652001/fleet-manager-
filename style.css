@@ -1815,3 +1815,25 @@ input:focus, select:focus { border-color: var(--text); }
    field, so it reads quietly until something is missing. */
 .contact-note { margin: -0.4rem 0 0.9rem; }
 .contact-note.warn { color: var(--red-text); }
+
+/* ---------- Contact details on the booking form ---------- */
+.contact-box { margin: -0.4rem 0 1rem; }
+.contact-edit { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+.contact-edit input { flex: 1 1 150px; min-width: 0; }
+.contact-edit .btn-primary { flex: 0 0 auto; padding: 8px 14px; font-size: 11px; }
+.contact-links { display: flex; gap: 14px; flex-wrap: wrap; }
+/* Plain text buttons: these are asides, not actions competing with Save. */
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-btn:hover { color: var(--text); }
+@media (max-width: 640px) {
+  .contact-edit .btn-primary { flex: 1 1 100%; }
+}

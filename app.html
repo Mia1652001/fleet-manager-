@@ -679,7 +679,24 @@
       <!-- With a saved customer chosen, neither block below is shown, so the
            phone number was nowhere on the form and staff could not tell whether
            WhatsApp would work until they pressed it. -->
-      <p class="settings-note contact-note" data-el="b-contact-note" style="display:none;"></p>
+      <div class="contact-box" data-el="b-contact-box" style="display:none;">
+        <p class="settings-note contact-note" data-el="b-contact-note"></p>
+
+        <!-- Filling this in here writes to the customer's record, not to this
+             booking. A number typed onto one booking would leave the customer
+             still blank, so the next booking would be missing it again and the
+             company would end up with two numbers for one person. -->
+        <div class="contact-edit" data-el="b-contact-edit" style="display:none;">
+          <input data-el="b-cust-phone" placeholder="Phone number">
+          <input type="email" data-el="b-cust-email" placeholder="Email">
+          <button type="button" class="btn-primary" data-el="b-cust-save">Save to customer</button>
+        </div>
+
+        <div class="contact-links">
+          <button type="button" class="link-btn" data-el="b-contact-toggle"></button>
+          <button type="button" class="link-btn" data-el="b-contact-full">Edit full customer</button>
+        </div>
+      </div>
 
       <div data-el="b-new-fields" style="display:none;">
         <div class="field"><label>New customer name</label><input data-el="b-name" placeholder="Full name"></div>

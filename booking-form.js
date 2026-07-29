@@ -14,11 +14,13 @@ import {
   startTime, endTime,
   fillTimeOptions, getTime, setTime, onTimeChange,
   getSwatch, setSwatch,
-  el, val, setVal, checked, setChecked, openModal, closeModal, showError
+  el, val, setVal, checked, setChecked, openModal, closeModal, showError,
+  requestFocus
 } from "./store.js";
 
 let root = null;
 let editingBookingId = null;
+let contactCustomerId = null;   // whose details the inline editor is editing
 
 // Views can ask to be told when a booking is saved or deleted
 const listeners = new Set();
@@ -50,6 +52,21 @@ export function mountBookingForm() {
     if (!r.ok) showError(root, "booking-error", r.reason);
   });
   el(root, "b-customer").addEventListener("change", toggleNewCustomer);
+
+  el(root, "b-contact-toggle").addEventListener("click", () => {
+    const box = el(root, "b-contact-edit");
+    box.style.display = box.style.display === "none" ? "flex" : "none";
+    if (box.style.display === "flex") el(root, "b-cust-phone").focus();
+  });
+  el(root, "b-cust-save").addEventListener("click", saveCustomerContact);
+  el(root, "b-contact-full").addEventListener("click", () => {
+    if (!contactCustomerId) return;
+    // Everything else about a customer — licence, notes — lives on their own
+    // page, so this hands over rather than rebuilding that form in here.
+    requestFocus("customers", contactCustomerId);
+    closeModal(root, "booking-modal");
+    location.hash = "#customers";
+  });
 
   ["b-start", "b-end"].forEach(n =>
     el(root, n).addEventListener("change", keepReturnAfterPickup));
@@ -99,24 +116,59 @@ function toggleNewCustomer() {
 // missing number is called out here, before someone presses WhatsApp and finds
 // out the hard way.
 function showSavedContact(choice) {
-  const note = el(root, "b-contact-note");
-  if (!note) return;
+  const box = el(root, "b-contact-box");
+  if (!box) return;
 
   const c = (choice && choice !== "__new__" && choice !== "__quick__")
     ? state.customers.find(x => x.id === choice)
     : null;
 
-  if (!c) { note.style.display = "none"; note.textContent = ""; return; }
+  contactCustomerId = c ? c.id : null;
+  if (!c) { box.style.display = "none"; return; }
 
   const bits = [];
   if (c.phone) bits.push(`Phone ${c.phone}`);
   if (c.email) bits.push(c.email);
 
-  note.style.display = "block";
+  box.style.display = "block";
+  const note = el(root, "b-contact-note");
   note.classList.toggle("warn", !c.phone);
   note.textContent = bits.length
-    ? `${bits.join(" · ")} — from this customer's record. Edit it on the Customers page.`
-    : "No phone or email saved for this customer. Add one on the Customers page to send a confirmation.";
+    ? `${bits.join(" · ")} — from ${c.name}'s record`
+    : `No phone or email saved for ${c.name} — a confirmation cannot be sent`;
+
+  el(root, "b-contact-toggle").textContent = bits.length
+    ? "Change phone or email" : "+ Add phone or email";
+
+  // Closed each time the form opens, so it never appears mid-edit from a
+  // previous booking.
+  el(root, "b-contact-edit").style.display = "none";
+  setVal(root, "b-cust-phone", c.phone || "");
+  setVal(root, "b-cust-email", c.email || "");
+}
+
+// Saved straight to the customer, not held until the booking is saved: it is a
+// different record, and pressing Cancel on a booking should not throw away a
+// phone number somebody deliberately went and found.
+async function saveCustomerContact() {
+  if (!contactCustomerId) return;
+  const btn = el(root, "b-cust-save");
+  btn.disabled = true; btn.textContent = "Saving...";
+  setSync("saving");
+  try {
+    await updateDoc(doc(db, "customers", contactCustomerId), {
+      phone: val(root, "b-cust-phone"),
+      email: val(root, "b-cust-email")
+    });
+    showToast("Saved to the customer record");
+    // state.customers has already been updated by the listener, so this redraws
+    // the line with the new details rather than the old ones.
+    showSavedContact(el(root, "b-customer").value);
+  } catch (e) {
+    showError(root, "booking-error", "Couldn't save the contact details (" + (e.code || e.message) + ").");
+    setSync("error");
+  }
+  btn.disabled = false; btn.textContent = "Save to customer";
 }
 
 // Refilled each time the form opens rather than once at startup, so a location

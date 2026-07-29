@@ -4,7 +4,8 @@ import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstat
 import {
   state, onDataChange, esc, formatDate, bookingCarLabel,
   initPanelToggle,
-  el, val, setVal, openModal, closeModal, showError
+  el, val, setVal, openModal, closeModal, showError,
+  takeFocus
 } from "./store.js";
 
 let root = null;
@@ -95,6 +96,15 @@ function rentalCount(customerId) {
 
 export function render() {
   if (!root) return;
+
+  // Arriving from a booking: clear the search and the letter, or the customer
+  // being jumped to might not be in the list and the jump would do nothing.
+  const focusId = takeFocus("customers");
+  if (focusId) {
+    setVal(root, "search", "");
+    letter = "";
+  }
+
   const search = el(root, "search").value.toLowerCase();
 
   if (summaryOpen()) el(root, "stats").innerHTML = `
@@ -127,7 +137,7 @@ export function render() {
   listEl.innerHTML = list.map(c => {
     const n = rentalCount(c.id);
     return `
-    <div class="item-card">
+    <div class="item-card" data-customer-id="${c.id}">
       <div class="card-top">
         <div>
           <div class="card-title">${esc(c.name)}</div>
@@ -146,6 +156,21 @@ export function render() {
       </div>
     </div>`;
   }).join("");
+
+  if (focusId) revealCustomer(focusId);
+}
+
+// Brings the customer into view and opens them for editing straight away —
+// arriving here from a booking, editing is the whole reason for the trip.
+function revealCustomer(id) {
+  const card = el(root, "list").querySelector(`[data-customer-id="${id}"]`);
+  if (card) {
+    card.classList.add("just-focused");
+    setTimeout(() => card.classList.remove("just-focused"), 2600);
+    // Deferred, or the view switch scrolls the page back to the top afterwards.
+    setTimeout(() => card.scrollIntoView({ block: "center", behavior: "smooth" }), 0);
+  }
+  if (state.customers.some(c => c.id === id)) openCustomerModal(id);
 }
 
 function openCustomerModal(id) {
