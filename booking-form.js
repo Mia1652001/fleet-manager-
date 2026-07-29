@@ -10,7 +10,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstat
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
   makeBookingRef, bookingRef, showToast,
-  staffNames, locationNames,
+  staffNames, locationNames, brokerNames,
   startTime, endTime,
   fillTimeOptions, getTime, setTime, onTimeChange,
   getSwatch, setSwatch,
@@ -182,6 +182,7 @@ function fillSuggestions() {
   };
   put("dl-locations", locationNames());
   put("dl-staff", staffNames());
+  put("dl-brokers", brokerNames());
 }
 
 export function openBookingModal(bookingId, preset) {
@@ -216,7 +217,7 @@ export function openBookingModal(bookingId, preset) {
 
   ["b-name","b-phone","b-email","b-quickname","b-quickphone","b-quickemail","b-start","b-end",
    "b-pickup","b-dropoff","b-total","b-delivery","b-insurance","b-other",
-   "b-managedby","b-deliveredby","b-recoveredby","b-notes"]
+   "b-managedby","b-deliveredby","b-recoveredby","b-broker","b-notes"]
     .forEach(n => setVal(root, n, ""));
   setChecked(root, "b-paid", false);
   setSwatch(root, "b-colour", "");
@@ -236,6 +237,7 @@ export function openBookingModal(bookingId, preset) {
     setVal(root, "b-managedby", editing.managedBy || "");
     setVal(root, "b-deliveredby", editing.deliveredBy || "");
     setVal(root, "b-recoveredby", editing.recoveredBy || "");
+    setVal(root, "b-broker", editing.broker || "");
     setVal(root, "b-delivery", editing.deliveryCost ?? "");
     setVal(root, "b-insurance", editing.insuranceCost ?? "");
     setVal(root, "b-other", editing.otherCost ?? "");
@@ -380,6 +382,7 @@ async function saveBooking() {
       managedBy: val(root, "b-managedby"),
       deliveredBy: val(root, "b-deliveredby"),
       recoveredBy: val(root, "b-recoveredby"),
+      broker: val(root, "b-broker"),
       // Blank stays blank rather than becoming a zero, so an invoice only shows
       // the extras that were actually charged.
       deliveryCost: money(val(root, "b-delivery")),

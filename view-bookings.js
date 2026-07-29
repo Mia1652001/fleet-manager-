@@ -1016,6 +1016,7 @@ function renderTimeline() {
           `Out: ${formatDate(b.startDate)} ${startTime(b)}${b.pickupLocation ? " · " + b.pickupLocation : ""}\n` +
           `Back: ${formatDate(b.endDate)} ${endTime(b)}${b.dropoffLocation ? " · " + b.dropoffLocation : ""}\n` +
           `${formatAmount(invoiceTotal(b))} · ${b.paid ? "Paid" : "Unpaid"}` +
+          (b.broker ? `\nBroker: ${b.broker}` : "") +
           (b.managedBy ? `\nManaged by ${b.managedBy}` : "") +
           (b.deliveredBy ? `\nDelivered by ${b.deliveredBy}` : "") +
           (b.notes ? `\nNote: ${b.notes}` : "");
@@ -1112,8 +1113,9 @@ function renderList() {
         <span>Total: <strong>${formatAmount(invoiceTotal(b))}</strong> ${b.paid ? "(paid)" : "(unpaid)"}</span>
         ${b.phone ? `<span>Phone: <strong>${esc(b.phone)}</strong></span>` : ""}
       </div>
-      ${(b.managedBy || b.deliveredBy || b.notes) ? `
+      ${(b.managedBy || b.deliveredBy || b.broker || b.notes) ? `
       <div class="card-details">
+        ${b.broker ? `<span>Broker: <strong>${esc(b.broker)}</strong></span>` : ""}
         ${b.managedBy ? `<span>Managed by: <strong>${esc(b.managedBy)}</strong></span>` : ""}
         ${b.deliveredBy ? `<span>Delivered by: <strong>${esc(b.deliveredBy)}</strong></span>` : ""}
         ${b.notes ? `<span>Note: <strong>${esc(b.notes)}</strong></span>` : ""}

@@ -110,6 +110,7 @@ export function render() {
   setVal(root, "s-note", s.messageNote || "");
   setVal(root, "s-locations", linesFrom(s.locations));
   setVal(root, "s-staff", linesFrom(s.staff));
+  setVal(root, "s-brokers", linesFrom(s.brokers));
 
   if (!logoTouched) logoData = s.logo || null;
   paintLogo();
@@ -295,6 +296,7 @@ async function saveSettings() {
     messageNote: val(root, "s-note"),
     locations: linesTo(val(root, "s-locations")),
     staff: linesTo(val(root, "s-staff")),
+    brokers: linesTo(val(root, "s-brokers")),
     updatedAt: new Date().toISOString()
   };
   if (logoTouched) data.logo = logoData || null;

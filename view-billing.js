@@ -170,6 +170,7 @@ export function render() {
       </div>
       <div class="card-details">
         <span>Period: <strong>${formatDate(b.startDate)} – ${formatDate(b.endDate)}</strong></span>
+        ${b.broker ? `<span>Broker: <strong>${esc(b.broker)}</strong></span>` : ""}
         ${hasManualTotal(b)
           ? `<span>Agreed price: <strong>${formatAmount(total)}</strong> <span style="opacity:0.7;">(${days} day${days === 1 ? "" : "s"})</span></span>`
           : `<span>${days} day${days === 1 ? "" : "s"} × <strong>${formatAmount(rate)}</strong>/day = <strong>${formatAmount(total)}</strong></span>`}

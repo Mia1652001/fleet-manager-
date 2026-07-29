@@ -165,6 +165,7 @@ function documentHtml(b) {
         ${line("Phone", b.phone || customer?.phone)}
         ${line("Email", customer?.email)}
         ${line("Licence number", customer?.license)}
+        ${line("Broker", b.broker)}
       </table>
     </div>
     <div>
@@ -238,7 +239,7 @@ function documentHtml(b) {
 
   <div class="ag-foot">
     Agreement ${esc(ref)} · ${esc(companyName())}
-    ${b.managedBy ? ` · Managed by ${esc(b.managedBy)}` : ""}
+    ${b.broker ? ` · Broker ${esc(b.broker)}` : ""}${b.managedBy ? ` · Managed by ${esc(b.managedBy)}` : ""}
   </div>
 
 <script>

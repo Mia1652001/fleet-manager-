@@ -571,6 +571,12 @@ export function locationNames() {
   return mergeNames(state.bookings.flatMap(b => [b.pickupLocation, b.dropoffLocation]));
 }
 
+export function brokerNames() {
+  const own = settingsList("brokers");
+  if (own.length) return mergeNames(own);
+  return mergeNames(state.bookings.map(b => b.broker));
+}
+
 // Returns jobs within [from, to], plus anything overdue and still not done —
 // an unfinished job from last week must not quietly disappear.
 export function buildSchedule({ from, to, includeDone }) {
