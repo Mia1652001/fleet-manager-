@@ -90,6 +90,33 @@ function toggleNewCustomer() {
   const v = el(root, "b-customer").value;
   el(root, "b-new-fields").style.display = v === "__new__" ? "block" : "none";
   el(root, "b-quick-fields").style.display = v === "__quick__" ? "block" : "none";
+  showSavedContact(v);
+}
+
+// For a saved customer the details belong to their record rather than to this
+// booking, so they are shown rather than offered for editing — two editable
+// copies of one phone number is how a customer ends up with two of them. A
+// missing number is called out here, before someone presses WhatsApp and finds
+// out the hard way.
+function showSavedContact(choice) {
+  const note = el(root, "b-contact-note");
+  if (!note) return;
+
+  const c = (choice && choice !== "__new__" && choice !== "__quick__")
+    ? state.customers.find(x => x.id === choice)
+    : null;
+
+  if (!c) { note.style.display = "none"; note.textContent = ""; return; }
+
+  const bits = [];
+  if (c.phone) bits.push(`Phone ${c.phone}`);
+  if (c.email) bits.push(c.email);
+
+  note.style.display = "block";
+  note.classList.toggle("warn", !c.phone);
+  note.textContent = bits.length
+    ? `${bits.join(" · ")} — from this customer's record. Edit it on the Customers page.`
+    : "No phone or email saved for this customer. Add one on the Customers page to send a confirmation.";
 }
 
 // Refilled each time the form opens rather than once at startup, so a location

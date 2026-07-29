@@ -1810,3 +1810,8 @@ input:focus, select:focus { border-color: var(--text); }
 
 .move-summary { margin-bottom: 1rem; }
 .move-summary .jd-row:last-child { border-bottom: 0; }
+
+/* The saved customer's contact details on the booking form — information, not a
+   field, so it reads quietly until something is missing. */
+.contact-note { margin: -0.4rem 0 0.9rem; }
+.contact-note.warn { color: var(--red-text); }

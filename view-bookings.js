@@ -342,7 +342,8 @@ function wireBookingMove() {
       pointerId: e.pointerId,
       startY: e.clientY
     };
-    try { grid.setPointerCapture(e.pointerId); } catch {}
+    // Captured only once it is a real drag, or the click that follows would be
+    // retargeted to the grid and tapping a booking would stop opening it.
   });
 
   grid.addEventListener("pointermove", (e) => {
@@ -360,6 +361,9 @@ function wireBookingMove() {
     const b = state.bookings.find(x => x.id === barDrag.bookingId);
     if (!b || cell.dataset.addCar === b.carId) return;   // its own row does nothing
 
+    if (!barDrag.moved) {
+      try { grid.setPointerCapture(e.pointerId); } catch {}
+    }
     barDrag.moved = true;
     barDrag.toCarId = cell.dataset.addCar;
     grid.classList.add("moving-bar");
@@ -372,7 +376,7 @@ function wireBookingMove() {
     if (!barDrag) return;
     const drag = barDrag;
     barDrag = null;
-    try { grid.releasePointerCapture(drag.pointerId); } catch {}
+    if (drag.moved) { try { grid.releasePointerCapture(drag.pointerId); } catch {} }
     grid.classList.remove("moving-bar");
     grid.querySelectorAll(".tl-cell.move-target").forEach(c => c.classList.remove("move-target"));
     if (!drag.moved || !drag.toCarId) return;
@@ -499,10 +503,10 @@ function wireDragToBook() {
       moved: false,
       pointerId: e.pointerId
     };
-    grid.classList.add("picking-range");
-    // Without capture the drag dies the moment the pointer crosses a bar or
-    // leaves the grid, which happens constantly on a busy planner.
-    try { grid.setPointerCapture(e.pointerId); } catch {}
+    // Capture is needed once dragging, or the drag dies the moment the pointer
+    // crosses a bar. But taking it here retargets the click that follows to the
+    // grid, so clicking a single day would stop opening the form. Taken on the
+    // first real movement instead — see pointermove.
   });
 
   grid.addEventListener("pointermove", (e) => {
@@ -517,6 +521,10 @@ function wireDragToBook() {
 
     const idx = Number(cell.dataset.idx);
     if (idx === cellDrag.to) return;
+    if (!cellDrag.moved) {
+      grid.classList.add("picking-range");
+      try { grid.setPointerCapture(e.pointerId); } catch {}
+    }
     cellDrag.to = idx;
     cellDrag.moved = true;
     e.preventDefault();
@@ -527,7 +535,7 @@ function wireDragToBook() {
     if (!cellDrag) return;
     const drag = cellDrag;
     cellDrag = null;
-    try { grid.releasePointerCapture(drag.pointerId); } catch {}
+    if (drag.moved) { try { grid.releasePointerCapture(drag.pointerId); } catch {} }
     clearDragPreview();
 
     if (!drag.moved) return;                          // a plain click; leave it be

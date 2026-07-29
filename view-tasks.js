@@ -397,7 +397,9 @@ function wireBoardDrag() {
       moved: false,
       pointerId: e.pointerId
     };
-    try { board.setPointerCapture(e.pointerId); } catch {}
+    // Capture is taken only once this turns out to be a drag — see pointermove.
+    // Capturing here retargets the follow-up click to the board, so a plain tap
+    // never reached the chip and opening a job stopped working entirely.
   });
 
   board.addEventListener("pointermove", (e) => {
@@ -409,6 +411,9 @@ function wireBoardDrag() {
     if (!cell || cell.dataset.cellDay !== chipDrag.day) return;
     if ((cell.dataset.cellStaff || "") === chipDrag.fromStaff) return;
 
+    if (!chipDrag.moved) {
+      try { board.setPointerCapture(e.pointerId); } catch {}
+    }
     chipDrag.moved = true;
     chipDrag.toStaff = cell.dataset.cellStaff || "";
     cell.classList.add("drop-target");
@@ -420,7 +425,7 @@ function wireBoardDrag() {
     if (!chipDrag) return;
     const drag = chipDrag;
     chipDrag = null;
-    try { board.releasePointerCapture(drag.pointerId); } catch {}
+    if (drag.moved) { try { board.releasePointerCapture(drag.pointerId); } catch {} }
     board.classList.remove("dragging-chip");
     board.querySelectorAll(".board-cell.drop-target").forEach(c => c.classList.remove("drop-target"));
 

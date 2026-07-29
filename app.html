@@ -676,6 +676,11 @@
       <div class="form-error" data-el="booking-error"></div>
       <div class="field"><label>Car</label><select data-el="b-car"></select></div>
       <div class="field"><label>Customer</label><select data-el="b-customer"></select></div>
+      <!-- With a saved customer chosen, neither block below is shown, so the
+           phone number was nowhere on the form and staff could not tell whether
+           WhatsApp would work until they pressed it. -->
+      <p class="settings-note contact-note" data-el="b-contact-note" style="display:none;"></p>
+
       <div data-el="b-new-fields" style="display:none;">
         <div class="field"><label>New customer name</label><input data-el="b-name" placeholder="Full name"></div>
         <div class="field"><label>Phone number</label><input data-el="b-phone" placeholder="e.g. 5712 3456"></div>
