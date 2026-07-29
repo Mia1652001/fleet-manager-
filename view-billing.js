@@ -3,7 +3,7 @@
 import { db, setSync } from "./firebase-init.js";
 import { updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
-  state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking,
+  state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
   settledAmount, isBillable, hasStarted, inPeriod, settledOn, PERIOD_DAYS,
   initPanelToggle,
@@ -187,7 +187,7 @@ export function render() {
           ? `<button class="btn" data-act="markunpaid" data-id="${b.id}">Mark as unpaid</button>`
           : `<button class="btn" data-act="markpaid" data-id="${b.id}">Mark balance paid</button>`}
         <button class="btn" data-act="deposits" data-id="${b.id}">Deposits</button>
-        ${!b.paid && customerForBooking(b)?.email ? `<button class="btn" data-act="email" data-id="${b.id}">Email reminder</button>` : ""}
+        ${!b.paid && (b.email || customerForBooking(b)?.email) ? `<button class="btn" data-act="email" data-id="${b.id}">Email reminder</button>` : ""}
         ${!b.paid && (b.phone || customerForBooking(b)?.phone) ? `<button class="btn" data-act="sms" data-id="${b.id}">SMS reminder</button>` : ""}
         ${sec > 0 && secStatus === "held" ? `
           <button class="btn" data-act="refund" data-id="${b.id}">Refund deposit</button>
@@ -354,7 +354,9 @@ async function saveDeposits() {
 // automatically and no extra service is needed.
 
 function reminderText(b) {
-  const company = state.ctx.companyName || "our team";
+  // The name set on the Settings page, not the login label — the agreement and
+  // the confirmation email already use it, so the reminder must match.
+  const company = companyName() || "our team";
   const owed = formatAmount(balanceFor(b));
   const lines = [
     `Dear ${b.renter || "customer"},`,
@@ -374,9 +376,13 @@ function reminderText(b) {
 }
 
 function contactByEmail(b) {
+  // The booking's own address first: a walk-in booked with "just type a name"
+  // keeps its contact details on the booking rather than in the register, and
+  // that is the path most bookings are taken through. Same order as the
+  // confirmation email on the booking form, so the two never disagree.
   const c = customerForBooking(b);
-  const to = c?.email || "";
-  if (!to) { alert("No email address saved for this customer. Add one on the Customers view."); return; }
+  const to = b.email || c?.email || "";
+  if (!to) { alert("No email address for this booking. Type one into the booking, or add it to the customer on the Customers view."); return; }
   const subject = `Payment reminder - car rental ${formatDate(b.startDate)}`;
   window.location.href =
     `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(reminderText(b))}`;
@@ -387,7 +393,10 @@ function contactBySms(b) {
   const to = (b.phone || c?.phone || "").replace(/\s+/g, "");
   if (!to) { alert("No phone number saved for this customer."); return; }
   const short =
-    `Reminder from ${state.ctx.companyName || "us"}: ${formatAmount(balanceFor(b))} outstanding for your rental ` +
+    `Reminder from ${companyName() || "us"}: ${formatAmount(balanceFor(b))} outstanding for your rental ` +
     `(${formatDate(b.startDate)} - ${formatDate(b.endDate)}). Please contact us to arrange payment. Thank you.`;
-  window.location.href = `sms:${to}?&body=${encodeURIComponent(short)}`;
+  // "?body=" is the standard form and works on modern iPhones and Android
+  // alike. The old "?&body=" was an iPhone-only trick: some Android phones
+  // opened the messaging app with the number filled in but the message blank.
+  window.location.href = `sms:${to}?body=${encodeURIComponent(short)}`;
 }

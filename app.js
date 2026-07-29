@@ -34,6 +34,15 @@ const VIEWS = {
 let wired = false;
 let unsubs = [];
 
+// Which collections have delivered at least once since sign-in. The automatic
+// backup must not run before all of them have: 2.5 seconds after opening, a
+// fresh device or a slow connection may not have loaded anything yet, and a
+// backup built from that would be an empty file that silently replaces the
+// reminder to take a real one.
+let loadedCollections = new Set();
+const ALL_COLLECTIONS = 5; // cars, bookings, customers, tasks, settings
+function allDataLoaded() { return loadedCollections.size >= ALL_COLLECTIONS; }
+
 // ---------- Boot ----------
 onAuthStateChanged(auth, async (user) => {
   document.getElementById("boot").style.display = "none";
@@ -112,7 +121,15 @@ function startApp() {
     document.getElementById("logout-btn").addEventListener("click", async () => {
       stopListeners();
       await signOut(auth);
+      // Everything, settings included: leaving the settings behind meant the
+      // next person to sign in on this device briefly saw the previous
+      // company's currency, logo and name until their own snapshot arrived.
       state.ctx = null; state.cars = []; state.bookings = []; state.customers = []; state.tasks = [];
+      state.settings = {};
+      loadedCollections = new Set();
+      document.title = "Fleet Manager";
+      const logo = document.getElementById("company-logo");
+      if (logo) { logo.innerHTML = ""; logo.style.display = "none"; }
     });
 
     // The booking form is shared, so it is mounted once for the whole app
@@ -141,12 +158,14 @@ function startApp() {
   startListeners();
 
   // After the listeners, so the check runs against data that has actually loaded.
+  backupWaitTries = 0;
   setTimeout(() => { checkBackupDue(); }, 2500);
 }
 
 // ---------- Live data ----------
 function startListeners() {
   stopListeners();
+  loadedCollections = new Set();   // fresh sign-in, nothing has arrived yet
   const cid = state.ctx.companyId;
 
   // Every listener reports "live" once its data has come back. Only the cars one
@@ -155,24 +174,28 @@ function startListeners() {
   // nothing was left to say so until somebody happened to edit a car.
   unsubs.push(onSnapshot(query(collection(db, "cars"), where("companyId", "==", cid)), snap => {
     state.cars = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loadedCollections.add("cars");
     setSync("live");
     notifyDataChange();
   }, () => setSync("error")));
 
   unsubs.push(onSnapshot(query(collection(db, "bookings"), where("companyId", "==", cid)), snap => {
     state.bookings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loadedCollections.add("bookings");
     setSync("live");
     notifyDataChange();
   }, () => setSync("error")));
 
   unsubs.push(onSnapshot(query(collection(db, "customers"), where("companyId", "==", cid)), snap => {
     state.customers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loadedCollections.add("customers");
     setSync("live");
     notifyDataChange();
   }, () => setSync("error")));
 
   unsubs.push(onSnapshot(query(collection(db, "tasks"), where("companyId", "==", cid)), snap => {
     state.tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loadedCollections.add("tasks");
     setSync("live");
     notifyDataChange();
   }, () => setSync("error")));
@@ -182,6 +205,7 @@ function startListeners() {
   // so a change shows up across the app immediately.
   unsubs.push(onSnapshot(doc(db, "settings", cid), snap => {
     state.settings = snap.exists() ? snap.data() : {};
+    loadedCollections.add("settings");
     applyCompanyIdentity();
     setSync("live");
     notifyDataChange();
@@ -289,6 +313,9 @@ function hideBackupBanner() {
   if (b) b.style.display = "none";
 }
 
+let backupWaitTries = 0;
+const BACKUP_WAIT_MAX = 25;      // × 2s = wait up to ~50s for a slow connection
+
 async function checkBackupDue() {
   if (!backupDue()) { hideBackupBanner(); return; }
 
@@ -296,10 +323,23 @@ async function checkBackupDue() {
   // prompting, because an unexpected permission dialog on load is alarming and
   // the browser would refuse it anyway outside a click.
   if (backupPrefs().auto) {
-    try {
-      const r = await runBackup({ mayPrompt: false });
-      if (r.ok && /saved to/.test(r.where)) { hideBackupBanner(); return; }
-    } catch { /* fall through to the banner */ }
+    // Never write a backup before the data has actually arrived. On a fresh
+    // device or a slow connection the listeners can still be empty at this
+    // point, and a backup taken then would be an empty file that also pushes
+    // the next real backup a whole interval into the future. Wait and retry;
+    // if the data still has not come, fall through to the visible banner
+    // instead of writing anything.
+    if (!allDataLoaded()) {
+      if (backupWaitTries++ < BACKUP_WAIT_MAX) {
+        setTimeout(checkBackupDue, 2000);
+        return;
+      }
+    } else {
+      try {
+        const r = await runBackup({ mayPrompt: false });
+        if (r.ok && /saved to/.test(r.where)) { hideBackupBanner(); return; }
+      } catch { /* fall through to the banner */ }
+    }
   }
 
   if (sessionStorage.getItem("backupBannerHidden")) return;
