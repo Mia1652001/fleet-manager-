@@ -1305,7 +1305,15 @@ input:focus, select:focus { border-color: var(--text); }
   letter-spacing: 0;
   color: var(--text);
 }
-.check-row input { cursor: pointer; }
+/* ".field input" stretches every input in a field to the full width, which is
+   right for a text box and wrong for a tick box. Once these rows became flex the
+   checkbox took the whole row and pushed its own label to the far edge. */
+.check-row input,
+.multi-row input {
+  width: auto;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
 
 /* Logo picker */
 .logo-row { display: flex; gap: 12px; align-items: flex-start; }
