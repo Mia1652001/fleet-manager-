@@ -396,6 +396,13 @@ function wireBookingMove() {
     grid.querySelectorAll(".tl-cell.move-target").forEach(c => c.classList.remove("move-target"));
   });
 
+  ["move-keep", "move-new", "move-custom"].forEach(name =>
+    el(root, name).addEventListener("change", () => {
+      const custom = el(root, "move-custom").checked;
+      el(root, "move-custom-row").style.display = custom ? "flex" : "none";
+      if (custom) el(root, "move-custom-total").focus();
+    }));
+
   el(root, "move-confirm").addEventListener("click", doMove);
   root.querySelectorAll('[data-close="move-modal"]').forEach(b =>
     b.addEventListener("click", () => { pendingMove = null; closeModal(root, "move-modal"); }));
@@ -444,6 +451,10 @@ function askToMove(bookingId, toCarId) {
   newOpt.disabled = newRate <= 0;
 
   el(root, "move-keep").checked = true;
+  setVal(root, "move-custom-total", "");
+  el(root, "move-custom-row").style.display = "none";
+  el(root, "move-custom-hint").textContent = `for the whole ${days} day${days === 1 ? "" : "s"}`;
+
   showError(root, "move-error", null);
   openModal(root, "move-modal");
 }
@@ -452,6 +463,17 @@ async function doMove() {
   if (!pendingMove) return;
   const { bookingId, toCarId, toName, newRate } = pendingMove;
   const useNewRate = el(root, "move-new").checked;
+  const useCustom = el(root, "move-custom").checked;
+
+  let customTotal = null;
+  if (useCustom) {
+    const raw = val(root, "move-custom-total");
+    customTotal = raw === "" ? null : parseFloat(raw);
+    if (customTotal === null || !Number.isFinite(customTotal) || customTotal < 0) {
+      showError(root, "move-error", "Enter the price for this rental, or pick one of the options above.");
+      return;
+    }
+  }
 
   const btn = el(root, "move-confirm");
   btn.disabled = true; btn.textContent = "Moving...";
@@ -463,6 +485,13 @@ async function doMove() {
       // the invoice would go on using the old fixed price and quietly disagree.
       update.dailyRate = newRate;
       update.totalPrice = null;
+    } else if (useCustom) {
+      // The typed figure is the whole rental, so it is stored as the agreed
+      // total. The daily rate is brought in line with the new car where it has
+      // one, so the record does not keep quoting the old car's rate — the total
+      // is what the invoice uses either way.
+      update.totalPrice = customTotal;
+      if (newRate > 0) update.dailyRate = newRate;
     }
     await updateDoc(doc(db, "bookings", bookingId), update);
     closeModal(root, "move-modal");

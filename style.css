@@ -1292,6 +1292,9 @@ input:focus, select:focus { border-color: var(--text); }
 .saved-note { font-size: 11px; color: var(--green-text); }
 
 .check-list { display: flex; flex-direction: column; gap: 4px; }
+/* Beats ".field label", which would otherwise shout these in capitals — that is
+   right for a field's own label, wrong for the text of a choice. */
+.field .check-row,
 .check-row {
   display: flex;
   align-items: center;
@@ -1837,3 +1840,8 @@ input:focus, select:focus { border-color: var(--text); }
 @media (max-width: 640px) {
   .contact-edit .btn-primary { flex: 1 1 100%; }
 }
+
+/* The price box under "Set a price for this rental" */
+.move-custom-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 2px 0 6px 22px; }
+.move-custom-row input { flex: 0 1 200px; min-width: 0; }
+.move-custom-row .settings-note { margin: 0; }

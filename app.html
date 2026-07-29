@@ -317,6 +317,17 @@
             <input type="radio" name="move-price" value="new" data-el="move-new">
             <span data-el="move-new-label"></span>
           </label>
+          <!-- Needed more often than it sounds: the new car may have no rate set,
+               or the swap is a goodwill one at a price neither rate reflects. -->
+          <label class="check-row">
+            <input type="radio" name="move-price" value="custom" data-el="move-custom">
+            <span>Set a price for this rental</span>
+          </label>
+          <div class="move-custom-row" data-el="move-custom-row" style="display:none;">
+            <input type="number" min="0" step="any" data-el="move-custom-total"
+                   placeholder="Total for the whole rental">
+            <span class="settings-note" data-el="move-custom-hint"></span>
+          </div>
         </div>
 
         <div class="error" data-el="move-error"></div>
