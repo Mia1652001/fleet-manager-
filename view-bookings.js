@@ -14,7 +14,9 @@ import {
   el, val, closeModal,
   bookingRef,
   requestFocus,
-  invoiceTotal
+  invoiceTotal,
+  findClash, describeInterval, hasManualTotal, rateFor, rentalDays,
+  showToast, openModal, showError
 } from "./store.js";
 
 let root = null;
@@ -195,6 +197,7 @@ export function mount(container) {
   });
 
   wireDragToBook();
+  wireBookingMove();
 
   el(root, "cal-prev").addEventListener("click", () => {
     timelineAnchor.setDate(timelineAnchor.getDate() - 7);
@@ -309,6 +312,163 @@ function jumpToChosenMonth() {
   timelineAnchor = new Date(year, monthIndex, 1);
   reanchored = true;            // a new window starts at its first day
   render();
+}
+
+// ---------- Drag a booking onto another car ----------
+// Moving a rental to a different vehicle is a normal thing to need — a car comes
+// back damaged, or a better one frees up. Dragging the bar is the obvious
+// gesture, but it changes what the customer is charged, so it always stops for
+// confirmation rather than acting on the drop.
+//
+// Mouse and trackpad only, like the other planner drags: on a touchscreen this
+// gesture scrolls the planner.
+
+let barDrag = null;
+let pendingMove = null;
+
+function wireBookingMove() {
+  const grid = el(root, "timeline");
+  if (!grid) return;
+
+  grid.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "touch" || e.button !== 0) return;
+    const bar = e.target.closest("[data-booking]");
+    if (!bar) return;
+
+    barDrag = {
+      bookingId: bar.dataset.booking,
+      fromRow: bar.style.gridRow,
+      moved: false,
+      pointerId: e.pointerId,
+      startY: e.clientY
+    };
+    try { grid.setPointerCapture(e.pointerId); } catch {}
+  });
+
+  grid.addEventListener("pointermove", (e) => {
+    if (!barDrag) return;
+    // A threshold, so a slightly unsteady click is still a click. Vertical
+    // movement only: dragging sideways is how you would adjust dates, which this
+    // does not do, and treating it as a move would be a nasty surprise.
+    if (!barDrag.moved && Math.abs(e.clientY - barDrag.startY) < 8) return;
+
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const cell = under && under.closest && under.closest("[data-add-car]");
+    grid.querySelectorAll(".tl-cell.move-target").forEach(c => c.classList.remove("move-target"));
+    if (!cell) return;
+
+    const b = state.bookings.find(x => x.id === barDrag.bookingId);
+    if (!b || cell.dataset.addCar === b.carId) return;   // its own row does nothing
+
+    barDrag.moved = true;
+    barDrag.toCarId = cell.dataset.addCar;
+    grid.classList.add("moving-bar");
+    grid.querySelectorAll(`[data-row="${cell.dataset.row}"]`)
+        .forEach(c => c.classList.add("move-target"));
+    e.preventDefault();
+  });
+
+  const finish = () => {
+    if (!barDrag) return;
+    const drag = barDrag;
+    barDrag = null;
+    try { grid.releasePointerCapture(drag.pointerId); } catch {}
+    grid.classList.remove("moving-bar");
+    grid.querySelectorAll(".tl-cell.move-target").forEach(c => c.classList.remove("move-target"));
+    if (!drag.moved || !drag.toCarId) return;
+
+    // Otherwise the click that follows opens the booking form on top of this.
+    grid.addEventListener("click", ev => {
+      ev.preventDefault(); ev.stopPropagation();
+    }, { capture: true, once: true });
+
+    askToMove(drag.bookingId, drag.toCarId);
+  };
+
+  grid.addEventListener("pointerup", finish);
+  grid.addEventListener("pointercancel", () => {
+    barDrag = null;
+    grid.classList.remove("moving-bar");
+    grid.querySelectorAll(".tl-cell.move-target").forEach(c => c.classList.remove("move-target"));
+  });
+
+  el(root, "move-confirm").addEventListener("click", doMove);
+  root.querySelectorAll('[data-close="move-modal"]').forEach(b =>
+    b.addEventListener("click", () => { pendingMove = null; closeModal(root, "move-modal"); }));
+}
+
+function askToMove(bookingId, toCarId) {
+  const b = state.bookings.find(x => x.id === bookingId);
+  const toCar = state.cars.find(c => c.id === toCarId);
+  if (!b || !toCar) return;
+
+  // Checked before anything is asked: there is no point offering a price choice
+  // for a move that cannot happen.
+  const clash = findClash({
+    carId: toCarId,
+    startAt: `${b.startDate}T${startTime(b)}`,
+    endAt: `${b.endDate}T${endTime(b)}`,
+    ignoreId: bookingId
+  });
+  if (clash) {
+    showToast(`${toCar.make} ${toCar.model} is already out ${describeInterval(clash)} (${clash.renter})`, "warn");
+    return;
+  }
+
+  const toName = `${toCar.year || ""} ${toCar.make} ${toCar.model} (${toCar.plate || "no plate"})`.trim();
+  const newRate = toCar.dailyRate || 0;
+  const days = rentalDays(b);
+
+  pendingMove = { bookingId, toCarId, toName, newRate };
+
+  el(root, "move-summary").innerHTML = `
+    <div class="jd-row"><span class="jd-k">Booking</span><span class="jd-v">${esc(bookingRef(b))} · ${esc(b.renter || "")}</span></div>
+    <div class="jd-row"><span class="jd-k">Dates</span><span class="jd-v">${formatDate(b.startDate)} – ${formatDate(b.endDate)} (${days} day${days === 1 ? "" : "s"})</span></div>
+    <div class="jd-row"><span class="jd-k">From</span><span class="jd-v">${esc(bookingCarLabel(b))}</span></div>
+    <div class="jd-row"><span class="jd-k">To</span><span class="jd-v">${esc(toName)}</span></div>`;
+
+  const keptTotal = rentalTotal(b);
+  el(root, "move-keep-label").textContent = hasManualTotal(b)
+    ? `Keep the agreed price — ${formatAmount(keptTotal)}`
+    : `Keep the agreed rate — ${formatAmount(rateFor(b))}/day, ${formatAmount(keptTotal)}`;
+
+  const newTotal = days * newRate;
+  const newOpt = el(root, "move-new");
+  el(root, "move-new-label").textContent = newRate > 0
+    ? `Use this car's rate — ${formatAmount(newRate)}/day, ${formatAmount(newTotal)}`
+    : "This car has no daily rate set";
+  newOpt.disabled = newRate <= 0;
+
+  el(root, "move-keep").checked = true;
+  showError(root, "move-error", null);
+  openModal(root, "move-modal");
+}
+
+async function doMove() {
+  if (!pendingMove) return;
+  const { bookingId, toCarId, toName, newRate } = pendingMove;
+  const useNewRate = el(root, "move-new").checked;
+
+  const btn = el(root, "move-confirm");
+  btn.disabled = true; btn.textContent = "Moving...";
+  setSync("saving");
+  try {
+    const update = { carId: toCarId, carName: toName };
+    if (useNewRate) {
+      // Clearing any agreed total as well, or the new rate would be recorded but
+      // the invoice would go on using the old fixed price and quietly disagree.
+      update.dailyRate = newRate;
+      update.totalPrice = null;
+    }
+    await updateDoc(doc(db, "bookings", bookingId), update);
+    closeModal(root, "move-modal");
+    pendingMove = null;
+    showToast(`Moved to ${toName}`);
+  } catch (e) {
+    showError(root, "move-error", "Couldn't move it (" + (e.code || e.message) + "). Try again.");
+    setSync("error");
+  }
+  btn.disabled = false; btn.textContent = "Move booking";
 }
 
 // ---------- Drag across days to book a range ----------

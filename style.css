@@ -1800,3 +1800,13 @@ input:focus, select:focus { border-color: var(--text); }
   cursor: pointer;
 }
 .multi-clear:hover { color: var(--text); }
+
+/* ---------- Moving a booking to another car ---------- */
+.timeline.moving-bar { cursor: grabbing; user-select: none; }
+.timeline.moving-bar .tl-bar { cursor: grabbing; }
+/* The whole target row lights up, not just the cell under the pointer — the row
+   is what the booking is moving to, so that is what should be shown. */
+.tl-cell.move-target { background: rgba(46,90,140,0.14); }
+
+.move-summary { margin-bottom: 1rem; }
+.move-summary .jd-row:last-child { border-bottom: 0; }

@@ -539,19 +539,27 @@ function mergeNames(...groups) {
   return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
 }
 
+// Once a list has been set up on the Settings page it is the only source. These
+// used to also gather every value ever typed into a booking, which kept old
+// placeholders and one-off spellings — "Popo", "staff", "BB" — in the suggestion
+// lists for good, with no way to be rid of them short of editing old records.
+//
+// Before the list is filled in there is nothing to offer, so it still falls back
+// to what the data contains. That keeps the app useful from the first day, and
+// means filling in Settings tidies the lists rather than being a precondition.
 export function staffNames() {
+  const own = settingsList("staff");
+  if (own.length) return mergeNames(own);
   return mergeNames(
-    settingsList("staff"),
     state.bookings.flatMap(b => [b.deliveredBy, b.managedBy, b.recoveredBy]),
     (state.tasks || []).map(t => t.staff)
   );
 }
 
 export function locationNames() {
-  return mergeNames(
-    settingsList("locations"),
-    state.bookings.flatMap(b => [b.pickupLocation, b.dropoffLocation])
-  );
+  const own = settingsList("locations");
+  if (own.length) return mergeNames(own);
+  return mergeNames(state.bookings.flatMap(b => [b.pickupLocation, b.dropoffLocation]));
 }
 
 // Returns jobs within [from, to], plus anything overdue and still not done —

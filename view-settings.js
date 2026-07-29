@@ -102,6 +102,10 @@ export function render() {
   setVal(root, "s-email", s.email || "");
   setVal(root, "s-address", s.address || "");
   setVal(root, "s-currency", s.currency || "");
+  // Show the matching preset rather than "Choose a currency…" next to a symbol
+  // that is plainly already set — it reads as though nothing has been chosen.
+  const preset = el(root, "s-currency-preset");
+  preset.value = CURRENCY_PRESETS.some(c => c.value === (s.currency || "")) ? s.currency : "";
   setVal(root, "s-terms", s.terms || "");
   setVal(root, "s-note", s.messageNote || "");
   setVal(root, "s-locations", linesFrom(s.locations));

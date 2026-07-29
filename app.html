@@ -300,6 +300,33 @@
       </div>
       <div class="card-list" data-el="list"><div class="loading-screen">Loading bookings...</div></div>
 
+    <!-- Shown when a booking is dragged onto a different vehicle. A move like this
+         changes what the customer is charged, so it is never done silently. -->
+    <div class="overlay" data-el="move-modal" id="move-modal-root">
+      <div class="modal">
+        <h2>Move booking to another car</h2>
+        <div class="move-summary" data-el="move-summary"></div>
+
+        <div class="field" data-el="move-price-field">
+          <label>What should the price be?</label>
+          <label class="check-row">
+            <input type="radio" name="move-price" value="keep" data-el="move-keep" checked>
+            <span data-el="move-keep-label"></span>
+          </label>
+          <label class="check-row">
+            <input type="radio" name="move-price" value="new" data-el="move-new">
+            <span data-el="move-new-label"></span>
+          </label>
+        </div>
+
+        <div class="error" data-el="move-error"></div>
+        <div class="modal-actions">
+          <button class="btn" data-close="move-modal">Cancel</button>
+          <button class="btn-primary" data-el="move-confirm">Move booking</button>
+        </div>
+      </div>
+    </div>
+
     </section>
 
     <!-- ---------- CUSTOMERS ---------- -->
@@ -470,16 +497,17 @@
               <label for="s-locations">Pick-up &amp; drop-off places</label>
               <textarea id="s-locations" data-el="s-locations" rows="6"
                 placeholder="One place per line…"></textarea>
-              <p class="settings-note">One per line. These are offered on the
-                booking form, and anything staff type there is remembered too —
-                so an unusual destination is never blocked.</p>
+              <p class="settings-note">One per line. These are the places offered
+                on the booking form. Staff can still type somewhere else for a
+                one-off, it just will not be added to this list.</p>
             </div>
             <div class="field">
               <label for="s-staff">Staff</label>
               <textarea id="s-staff" data-el="s-staff" rows="6"
                 placeholder="One name per line…"></textarea>
               <p class="settings-note">One per line. Offered for Managed by,
-                Delivered by and Recovered by, and on the Tasks list.</p>
+                Delivered by and Recovered by, and used for the columns on the
+                Tasks board — so add everyone, including anyone with nothing on.</p>
             </div>
           </div>
 
@@ -639,6 +667,7 @@
        behaves as the plain text box it was before. -->
   <datalist id="dl-locations"></datalist>
   <datalist id="dl-staff"></datalist>
+
 
   <div id="booking-form-root">
   <div class="overlay" data-el="booking-modal">
