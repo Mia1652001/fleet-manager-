@@ -335,17 +335,29 @@ function nodeAtPoint(x, y, selector) {
 
 const cellAtPoint = (x, y) => nodeAtPoint(x, y, "[data-add-car]");
 
-// ---------- Drag a booking onto another car ----------
-// Moving a rental to a different vehicle is a normal thing to need — a car comes
-// back damaged, or a better one frees up. Dragging the bar is the obvious
-// gesture, but it changes what the customer is charged, so it always stops for
-// confirmation rather than acting on the drop.
+// ---------- Drag a booking to another car, another date, or both ----------
+// Moving a rental is a normal thing to need — a car comes back damaged, a
+// better one frees up, or the customer simply postpones. Dragging the bar is
+// the obvious gesture: sideways shifts the whole rental to new dates (same
+// length, so the price never changes by itself), up or down moves it to a
+// different car (which can change the rate, so that opens the price dialog),
+// and a diagonal drag does both at once.
+//
+// Either way it always stops for confirmation rather than acting on the drop,
+// and the double-booking check runs against the new position first.
 //
 // Mouse and trackpad only, like the other planner drags: on a touchscreen this
 // gesture scrolls the planner.
 
 let barDrag = null;
 let pendingMove = null;
+
+// A date N days away, computed at midday so time zones can't slide it a day.
+function addDaysStr(ds, n) {
+  const d = new Date(ds + "T12:00");
+  d.setDate(d.getDate() + n);
+  return dstr(d);
+}
 
 function wireBookingMove() {
   const grid = el(root, "timeline");
@@ -356,11 +368,18 @@ function wireBookingMove() {
     const bar = e.target.closest("[data-booking]");
     if (!bar) return;
 
+    // The day cell under the pointer marks where the bar was picked up, so a
+    // sideways drag can be measured in whole days rather than pixels.
+    const grabCell = cellAtPoint(e.clientX, e.clientY);
+
     barDrag = {
       bookingId: bar.dataset.booking,
-      fromRow: bar.style.gridRow,
+      s0: Number(bar.dataset.s0),
+      e0: Number(bar.dataset.e0),
+      grabIdx: grabCell ? Number(grabCell.dataset.idx) : null,
       moved: false,
       pointerId: e.pointerId,
+      startX: e.clientX,
       startY: e.clientY
     };
     // Captured only once it is a real drag, or the click that follows would be
@@ -369,26 +388,41 @@ function wireBookingMove() {
 
   grid.addEventListener("pointermove", (e) => {
     if (!barDrag) return;
-    // A threshold, so a slightly unsteady click is still a click. Vertical
-    // movement only: dragging sideways is how you would adjust dates, which this
-    // does not do, and treating it as a move would be a nasty surprise.
-    if (!barDrag.moved && Math.abs(e.clientY - barDrag.startY) < 8) return;
+    // A threshold in either direction, so a slightly unsteady click stays a click.
+    if (!barDrag.moved &&
+        Math.abs(e.clientY - barDrag.startY) < 8 &&
+        Math.abs(e.clientX - barDrag.startX) < 8) return;
 
     const cell = cellAtPoint(e.clientX, e.clientY);
     grid.querySelectorAll(".tl-cell.move-target").forEach(c => c.classList.remove("move-target"));
-    if (!cell) return;
+    if (!cell) { barDrag.toCarId = null; return; }   // off the grid: no target
 
     const b = state.bookings.find(x => x.id === barDrag.bookingId);
-    if (!b || cell.dataset.addCar === b.carId) return;   // its own row does nothing
+    if (!b) return;
+
+    const idx = Number(cell.dataset.idx);
+    const delta = barDrag.grabIdx === null ? 0 : idx - barDrag.grabIdx;
+    const toCarId = cell.dataset.addCar;
+    // Same car, same days: not a move. Cleared, not merely skipped — otherwise
+    // dragging away and back would drop on whatever was hovered last.
+    if (delta === 0 && toCarId === b.carId) { barDrag.toCarId = null; return; }
 
     if (!barDrag.moved) {
       try { grid.setPointerCapture(e.pointerId); } catch {}
     }
     barDrag.moved = true;
-    barDrag.toCarId = cell.dataset.addCar;
+    barDrag.toCarId = toCarId;
+    barDrag.delta = delta;
     grid.classList.add("moving-bar");
-    grid.querySelectorAll(`[data-row="${cell.dataset.row}"]`)
-        .forEach(c => c.classList.add("move-target"));
+
+    // Paint the span the booking would occupy after the drop, clamped to the
+    // visible window, so the drag reads as "the rental will sit here".
+    const lo = Math.max(0, barDrag.s0 + delta);
+    const hi = Math.min(lastRenderedDays.length - 1, barDrag.e0 + delta);
+    grid.querySelectorAll(`[data-row="${cell.dataset.row}"]`).forEach(c => {
+      const i = Number(c.dataset.idx);
+      if (i >= lo && i <= hi) c.classList.add("move-target");
+    });
     e.preventDefault();
   });
 
@@ -406,7 +440,18 @@ function wireBookingMove() {
       ev.preventDefault(); ev.stopPropagation();
     }, { capture: true, once: true });
 
-    askToMove(drag.bookingId, drag.toCarId);
+    const b = state.bookings.find(x => x.id === drag.bookingId);
+    if (!b) return;
+
+    if (drag.toCarId === b.carId) {
+      // Same car, new dates: length and price unchanged, so a plain
+      // confirmation is enough.
+      askToShiftDates(b, drag.delta || 0);
+    } else {
+      // Another car, possibly new dates too: the rate can change, so this goes
+      // through the price dialog, carrying the date shift with it.
+      askToMove(drag.bookingId, drag.toCarId, drag.delta || 0);
+    }
   };
 
   grid.addEventListener("pointerup", finish);
@@ -433,17 +478,57 @@ function wireBookingMove() {
     b.addEventListener("click", () => { pendingMove = null; closeModal(root, "move-modal"); }));
 }
 
-function askToMove(bookingId, toCarId) {
+// Shift a rental sideways on the same car: both dates move together, so the
+// number of days — and with it the price — stays exactly as it was.
+async function askToShiftDates(b, delta) {
+  if (!delta) return;
+  const newStart = addDaysStr(b.startDate, delta);
+  const newEnd = addDaysStr(b.endDate, delta);
+
+  const clash = findClash({
+    carId: b.carId,
+    startAt: `${newStart}T${startTime(b)}`,
+    endAt: `${newEnd}T${endTime(b)}`,
+    ignoreId: b.id
+  });
+  if (clash) {
+    showToast(`That would clash with ${clash.renter} (${describeInterval(clash)})`, "warn");
+    return;
+  }
+
+  if (!confirm(
+    `Move ${b.renter || "this booking"} (${bookingRef(b)})\n` +
+    `from ${formatDate(b.startDate)} – ${formatDate(b.endDate)}\n` +
+    `to ${formatDate(newStart)} – ${formatDate(newEnd)}?\n\n` +
+    `Same number of days — the price does not change.`
+  )) return;
+
+  setSync("saving");
+  try {
+    await updateDoc(doc(db, "bookings", b.id), { startDate: newStart, endDate: newEnd });
+    showToast(`Moved to ${formatDate(newStart)} – ${formatDate(newEnd)}`);
+  } catch (e) {
+    alert("Couldn't move it (" + (e.code || e.message) + "). Try again.");
+    setSync("error");
+  }
+}
+
+function askToMove(bookingId, toCarId, dayDelta = 0) {
   const b = state.bookings.find(x => x.id === bookingId);
   const toCar = state.cars.find(c => c.id === toCarId);
   if (!b || !toCar) return;
+
+  // The dates the booking will have after the drop — shifted when the drag was
+  // diagonal, unchanged when it was straight up or down.
+  const newStart = dayDelta ? addDaysStr(b.startDate, dayDelta) : b.startDate;
+  const newEnd = dayDelta ? addDaysStr(b.endDate, dayDelta) : b.endDate;
 
   // Checked before anything is asked: there is no point offering a price choice
   // for a move that cannot happen.
   const clash = findClash({
     carId: toCarId,
-    startAt: `${b.startDate}T${startTime(b)}`,
-    endAt: `${b.endDate}T${endTime(b)}`,
+    startAt: `${newStart}T${startTime(b)}`,
+    endAt: `${newEnd}T${endTime(b)}`,
     ignoreId: bookingId
   });
   if (clash) {
@@ -455,11 +540,11 @@ function askToMove(bookingId, toCarId) {
   const newRate = toCar.dailyRate || 0;
   const days = rentalDays(b);
 
-  pendingMove = { bookingId, toCarId, toName, newRate };
+  pendingMove = { bookingId, toCarId, toName, newRate, dayDelta, newStart, newEnd };
 
   el(root, "move-summary").innerHTML = `
     <div class="jd-row"><span class="jd-k">Booking</span><span class="jd-v">${esc(bookingRef(b))} · ${esc(b.renter || "")}</span></div>
-    <div class="jd-row"><span class="jd-k">Dates</span><span class="jd-v">${formatDate(b.startDate)} – ${formatDate(b.endDate)} (${days} day${days === 1 ? "" : "s"})</span></div>
+    <div class="jd-row"><span class="jd-k">Dates</span><span class="jd-v">${formatDate(newStart)} – ${formatDate(newEnd)} (${days} day${days === 1 ? "" : "s"})${dayDelta ? " · moved from " + formatDate(b.startDate) : ""}</span></div>
     <div class="jd-row"><span class="jd-k">From</span><span class="jd-v">${esc(bookingCarLabel(b))}</span></div>
     <div class="jd-row"><span class="jd-k">To</span><span class="jd-v">${esc(toName)}</span></div>`;
 
@@ -486,7 +571,7 @@ function askToMove(bookingId, toCarId) {
 
 async function doMove() {
   if (!pendingMove) return;
-  const { bookingId, toCarId, toName, newRate } = pendingMove;
+  const { bookingId, toCarId, toName, newRate, dayDelta, newStart, newEnd } = pendingMove;
   const useNewRate = el(root, "move-new").checked;
   const useCustom = el(root, "move-custom").checked;
 
@@ -505,6 +590,8 @@ async function doMove() {
   setSync("saving");
   try {
     const update = { carId: toCarId, carName: toName };
+    // A diagonal drag shifted the dates as well as the car.
+    if (dayDelta) { update.startDate = newStart; update.endDate = newEnd; }
     if (useNewRate) {
       // Clearing any agreed total as well, or the new rate would be recorded but
       // the invoice would go on using the old fixed price and quietly disagree.
@@ -918,6 +1005,7 @@ function renderTimeline() {
         const colEnd = endOffset * 2 + 4 - (clipEnd ? 1 : 0);
 
         html += `<div class="tl-bar ${s} ${paidCls} ${customCls}" data-booking="${b.id}" title="${esc(title)}"
+          data-s0="${startOffset}" data-e0="${endOffset}"
           style="grid-row:${row};grid-column:${colStart} / ${colEnd};${customStyle}">
             ${startTxt ? `<span class="tl-bar-start">${esc(startTxt)}</span>` : ""}
             <span class="tl-bar-name">${b.paid ? "✓ " : ""}${nameTxt}</span>

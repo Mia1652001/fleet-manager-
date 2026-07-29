@@ -5,8 +5,10 @@ import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { openBookingModal } from "./booking-form.js";
 import {
-  state, onDataChange, esc, formatDate, todayStr, buildSchedule, staffNames,
+  state, onDataChange, esc, formatDate, formatAmount, todayStr, buildSchedule, staffNames,
   fillTimeOptions, getTime, setTime,
+  findClash, describeInterval, startTime, endTime,
+  rentalDays, rateFor, rentalTotal, hasManualTotal,
   initPanelToggle, loadPref, savePref,
   el, val, setVal, openModal, closeModal, showError,
   showToast
@@ -377,15 +379,18 @@ function boardChip(j) {
     </div>`;
 }
 
-// ---------- Drag a job to another person ----------
+// ---------- Drag a job to another person or another day ----------
 // Reassigning by dragging is the whole point of a board: you can see who is
 // overloaded and move something across without opening anything. Mouse and
 // trackpad only — on a touchscreen the same gesture scrolls the board sideways,
 // and taking that over would make the board unusable to gain a shortcut.
 //
-// Only the person changes. Dropping on a different day as well would quietly
-// move a delivery to another date, which is a far bigger thing to do by accident
-// than reassigning it, so a drop outside the row it started in is ignored.
+// Dropping on a different day moves the job's date as well. For a manual task
+// that is a plain postponement and happens straight away. For a delivery or a
+// collection the date IS the booking's pick-up or return date, which changes
+// what the customer is charged — so those always stop for confirmation and are
+// checked against the rest of the calendar first, exactly like editing the
+// booking would be.
 
 let chipDrag = null;
 
@@ -422,14 +427,19 @@ function wireBoardDrag() {
     const cell = under && under.closest && under.closest("[data-cell-day]");
 
     board.querySelectorAll(".board-cell.drop-target").forEach(c => c.classList.remove("drop-target"));
-    if (!cell || cell.dataset.cellDay !== chipDrag.day) return;
-    if ((cell.dataset.cellStaff || "") === chipDrag.fromStaff) return;
+    if (!cell) { chipDrag.toDay = undefined; return; }   // off the board: no target
+    // Any cell that differs in person or day is a target; the origin cell is
+    // not — and it clears the target, so dragging away and back drops nothing.
+    const sameSpot = cell.dataset.cellDay === chipDrag.day &&
+                     (cell.dataset.cellStaff || "") === chipDrag.fromStaff;
+    if (sameSpot) { chipDrag.toDay = undefined; return; }
 
     if (!chipDrag.moved) {
       try { board.setPointerCapture(e.pointerId); } catch {}
     }
     chipDrag.moved = true;
     chipDrag.toStaff = cell.dataset.cellStaff || "";
+    chipDrag.toDay = cell.dataset.cellDay;
     cell.classList.add("drop-target");
     board.classList.add("dragging-chip");
     e.preventDefault();
@@ -443,14 +453,14 @@ function wireBoardDrag() {
     board.classList.remove("dragging-chip");
     board.querySelectorAll(".board-cell.drop-target").forEach(c => c.classList.remove("drop-target"));
 
-    if (!drag.moved || drag.toStaff === undefined) return;
+    if (!drag.moved || drag.toDay === undefined) return;
 
     // The click that follows a drag would otherwise open the job detail panel.
     board.addEventListener("click", ev => {
       ev.preventDefault(); ev.stopPropagation();
     }, { capture: true, once: true });
 
-    await reassign(drag);
+    await applyBoardDrop(drag);
   };
 
   board.addEventListener("pointerup", finish);
@@ -472,23 +482,85 @@ function wireBoardDrag() {
   });
 }
 
-// Which field to write depends on what kind of job it is: a hand-over belongs to
-// whoever delivers, a collection to whoever recovers, and a manual task has a
-// staff field of its own. Dropping into Unassigned clears it.
-async function reassign({ kind, ref, toStaff }) {
+// A drop can change the person, the day, or both. Which field the person goes
+// into depends on the kind of job: a hand-over belongs to whoever delivers, a
+// collection to whoever recovers, and a manual task has a staff field of its
+// own. Dropping into Unassigned clears it.
+//
+// A day change on a manual task is a plain postponement and applies straight
+// away. On a delivery or collection it moves the booking's own pick-up or
+// return date, so it is validated, clash-checked, and confirmed first — and if
+// the confirmation is declined, nothing at all is changed.
+async function applyBoardDrop({ kind, ref, fromStaff, day, toStaff, toDay }) {
   const name = toStaff || "";
-  setSync("saving");
+  const staffChanged = name !== fromStaff;
+  const dayChanged = toDay !== day;
+
   try {
     if (kind === "task") {
-      await updateDoc(doc(db, "tasks", ref), { staff: name });
-    } else if (kind === "delivery") {
-      await updateDoc(doc(db, "bookings", ref), { deliveredBy: name });
-    } else if (kind === "recovery") {
-      await updateDoc(doc(db, "bookings", ref), { recoveredBy: name });
+      const update = {};
+      if (staffChanged) update.staff = name;
+      if (dayChanged) update.date = toDay;
+      if (!Object.keys(update).length) return;
+      setSync("saving");
+      await updateDoc(doc(db, "tasks", ref), update);
+      showToast(dayChanged
+        ? `Moved to ${formatDate(toDay)}${staffChanged ? (name ? `, ${name}` : ", Unassigned") : ""}`
+        : (name ? `Moved to ${name}` : "Moved to Unassigned"));
+      return;
     }
-    showToast(name ? `Moved to ${name}` : "Moved to Unassigned");
+
+    const b = state.bookings.find(x => x.id === ref);
+    if (!b) return;
+
+    const update = {};
+    if (staffChanged) update[kind === "delivery" ? "deliveredBy" : "recoveredBy"] = name;
+
+    if (dayChanged) {
+      // The new rental interval this drop implies, keeping the existing times.
+      const newStartAt = kind === "delivery" ? `${toDay}T${startTime(b)}` : `${b.startDate}T${startTime(b)}`;
+      const newEndAt = kind === "recovery" ? `${toDay}T${endTime(b)}` : `${b.endDate}T${endTime(b)}`;
+
+      if (newEndAt <= newStartAt) {
+        showToast(kind === "delivery"
+          ? "The pick-up can't be after the return. Edit the booking instead."
+          : "The return can't be before the pick-up. Edit the booking instead.", "warn");
+        return;
+      }
+
+      const clash = findClash({ carId: b.carId, startAt: newStartAt, endAt: newEndAt, ignoreId: b.id });
+      if (clash) {
+        showToast(`That car is already out ${describeInterval(clash)} (${clash.renter})`, "warn");
+        return;
+      }
+
+      // Say what this does to the bill before doing it. Shifting one end
+      // changes the number of days, and the total with it — unless the price
+      // was agreed as a fixed figure, which stays as agreed.
+      const newStart = kind === "delivery" ? toDay : b.startDate;
+      const newEnd = kind === "recovery" ? toDay : b.endDate;
+      const newDays = rentalDays({ startDate: newStart, endDate: newEnd });
+      const priceLine = hasManualTotal(b)
+        ? `The agreed price stays ${formatAmount(rentalTotal(b))}.`
+        : `The total becomes ${formatAmount(newDays * rateFor(b))} (${newDays} day${newDays === 1 ? "" : "s"}).`;
+      const what = kind === "delivery" ? "pick-up" : "return";
+      const from = kind === "delivery" ? b.startDate : b.endDate;
+      if (!confirm(
+        `Move the ${what} for ${b.renter || "this booking"} from ${formatDate(from)} to ${formatDate(toDay)}?\n\n${priceLine}`
+      )) return;
+
+      if (kind === "delivery") update.startDate = toDay;
+      else update.endDate = toDay;
+    }
+
+    if (!Object.keys(update).length) return;
+    setSync("saving");
+    await updateDoc(doc(db, "bookings", ref), update);
+    showToast(dayChanged
+      ? `${kind === "delivery" ? "Pick-up" : "Return"} moved to ${formatDate(toDay)}${staffChanged ? (name ? `, ${name}` : "") : ""}`
+      : (name ? `Moved to ${name}` : "Moved to Unassigned"));
   } catch (e) {
-    alert("Couldn't reassign (" + (e.code || e.message) + "). Try again.");
+    alert("Couldn't move it (" + (e.code || e.message) + "). Try again.");
     setSync("error");
   }
 }
