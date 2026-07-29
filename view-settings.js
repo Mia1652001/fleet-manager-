@@ -8,7 +8,7 @@
 
 import { db, setSync } from "./firebase-init.js";
 import { doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, onDataChange, esc, el, val, setVal, showError } from "./store.js";
+import { state, onDataChange, esc, el, val, setVal, showError, FX_CURRENCIES } from "./store.js";
 import {
   CATEGORIES, INTERVALS, backupPrefs, saveBackupPrefs, daysSinceBackup,
   runBackup, folderSupported, folderStatus, chooseFolder, forgetFolder
@@ -51,6 +51,15 @@ export function mount(container) {
     <label class="check-row">
       <input type="checkbox" data-cat="${c.key}"> <span>${esc(c.label)}</span>
     </label>`).join("");
+
+  // One row per foreign currency: "1 € = Rs ___". Built once; values are
+  // filled on render like every other settings field.
+  el(root, "s-fxrates").innerHTML = FX_CURRENCIES.map(c => `
+    <div class="field-row equal" data-fxrow="${esc(c.sym)}" style="margin-bottom:6px;">
+      <label style="align-self:center;white-space:nowrap;">1 ${esc(c.sym)} (${esc(c.label)}) =</label>
+      <input type="number" min="0" step="any" data-fxrate="${esc(c.sym)}"
+        placeholder="e.g. 48" style="max-width:140px;">
+    </div>`).join("");
 
   el(root, "save-settings").addEventListener("click", saveSettings);
   el(root, "s-logo-file").addEventListener("change", onLogoPicked);
@@ -111,6 +120,15 @@ export function render() {
   setVal(root, "s-locations", linesFrom(s.locations));
   setVal(root, "s-staff", linesFrom(s.staff));
   setVal(root, "s-brokers", linesFrom(s.brokers));
+  root.querySelectorAll("[data-fxrate]").forEach(inp => {
+    const r = s.fxRates?.[inp.dataset.fxrate];
+    inp.value = (typeof r === "number" && r > 0) ? r : "";
+  });
+  // No rate row for the company's own currency — "1 Rs in Rs" means nothing.
+  const home = (s.currency || "Rs").trim();
+  root.querySelectorAll("[data-fxrow]").forEach(row => {
+    row.style.display = row.dataset.fxrow === home ? "none" : "";
+  });
 
   if (!logoTouched) logoData = s.logo || null;
   paintLogo();
@@ -123,6 +141,17 @@ export function render() {
 
 function linesFrom(arr) {
   return Array.isArray(arr) ? arr.join("\n") : "";
+}
+
+// The house rates as an object keyed by symbol; only positive numbers are
+// kept, so a cleared field simply removes that currency's rate.
+function collectFxRates() {
+  const out = {};
+  root.querySelectorAll("[data-fxrate]").forEach(inp => {
+    const n = parseFloat(inp.value);
+    if (Number.isFinite(n) && n > 0) out[inp.dataset.fxrate] = n;
+  });
+  return out;
 }
 
 function linesTo(text) {
@@ -297,6 +326,7 @@ async function saveSettings() {
     locations: linesTo(val(root, "s-locations")),
     staff: linesTo(val(root, "s-staff")),
     brokers: linesTo(val(root, "s-brokers")),
+    fxRates: collectFxRates(),
     updatedAt: new Date().toISOString()
   };
   if (logoTouched) data.logo = logoData || null;

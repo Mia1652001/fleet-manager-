@@ -10,7 +10,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstat
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
   makeBookingRef, bookingRef, showToast,
-  staffNames, locationNames, brokerNames, FX_CURRENCIES,
+  staffNames, locationNames, brokerNames, FX_CURRENCIES, fxRate,
   startTime, endTime,
   fillTimeOptions, getTime, setTime, onTimeChange,
   getSwatch, setSwatch,
@@ -53,6 +53,18 @@ export function mountBookingForm() {
   });
   el(root, "b-customer").addEventListener("change", toggleNewCustomer);
   el(root, "b-currency").addEventListener("change", syncCurrencyFields);
+  // The foreign amount leads: typing it fills the Rs figure from the house
+  // rate set in Settings. The Rs field stays editable for a negotiated
+  // exception — but re-typing the foreign amount recalculates, since the
+  // foreign figure is the one driving.
+  el(root, "b-fxtotal").addEventListener("input", () => {
+    const sym = el(root, "b-currency").value;
+    const rate = sym ? fxRate(sym) : null;
+    const amount = parseFloat(val(root, "b-fxtotal"));
+    if (rate && Number.isFinite(amount) && amount >= 0) {
+      setVal(root, "b-total", Math.round(amount * rate));
+    }
+  });
 
   el(root, "b-contact-toggle").addEventListener("click", () => {
     const box = el(root, "b-contact-edit");
@@ -206,6 +218,13 @@ function syncCurrencyFields() {
   el(root, "b-total-label").textContent = sym
     ? `= Total in ${home} (the agreed conversion — this is what the books record)`
     : "Total price (leave blank to calculate from daily rate)";
+  const hint = el(root, "b-fx-hint");
+  if (hint) {
+    const rate = sym ? fxRate(sym) : null;
+    hint.textContent = !sym ? ""
+      : rate ? `House rate: 1 ${sym} = ${home} ${rate} (set in Settings) — the ${home} figure fills in as you type`
+      : `No house rate set for ${sym} in Settings — type the ${home} value yourself`;
+  }
 }
 
 export function openBookingModal(bookingId, preset) {

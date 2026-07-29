@@ -7,7 +7,7 @@ import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
   settledAmount, isBillable, hasStarted, inPeriod, settledOn, PERIOD_DAYS,
-  brokerNames, fxPair,
+  brokerNames, fxPair, fxRate,
   initPanelToggle,
   el, val, setVal, openModal, closeModal, showError,
   bookingRef,
@@ -57,6 +57,18 @@ export function mount(container) {
 
   el(root, "search").addEventListener("input", render);
   el(root, "save-deposit").addEventListener("click", saveDeposits);
+  // Foreign deposit amounts fill their Rs twins from the house rate, exactly
+  // like the booking total. The Rs fields stay editable afterwards.
+  [["dep-fxadvance", "dep-advance"], ["dep-fxsecurity", "dep-security"]].forEach(([fxName, homeName]) => {
+    el(root, fxName).addEventListener("input", () => {
+      const b = state.bookings.find(x => x.id === depositBookingId);
+      const rate = b?.fxCurrency ? fxRate(b.fxCurrency) : null;
+      const amount = parseFloat(val(root, fxName));
+      if (rate && Number.isFinite(amount) && amount >= 0) {
+        setVal(root, homeName, Math.round(amount * rate));
+      }
+    });
+  });
 
   el(root, "filters").addEventListener("click", (e) => {
     const t = e.target.closest(".tab");
@@ -374,8 +386,10 @@ function openDepositModal(id) {
   const home = state.settings?.currency || "Rs";
   el(root, "dep-fx-row").style.display = sym ? "flex" : "none";
   if (sym) {
-    el(root, "dep-fxadvance-label").textContent = `Advance in ${sym}`;
-    el(root, "dep-fxsecurity-label").textContent = `Security in ${sym}`;
+    const rate = fxRate(sym);
+    const rateNote = rate ? ` (house rate ${rate})` : "";
+    el(root, "dep-fxadvance-label").textContent = `Advance in ${sym}${rateNote}`;
+    el(root, "dep-fxsecurity-label").textContent = `Security in ${sym}${rateNote}`;
     el(root, "dep-advance-label").textContent = `= Advance in ${home} (reduces balance owed)`;
     el(root, "dep-security-label").textContent = `= Security in ${home} (refundable, held separately)`;
     setVal(root, "dep-fxadvance", b?.fxAdvance ?? "");

@@ -75,6 +75,15 @@ export function fxPair(b, homeAmount, fxAmount) {
   return formatAmount(homeAmount);
 }
 
+// The company's own exchange rate for a currency, set on the Settings page.
+// A house rate rather than a market feed: it carries the margin the company
+// actually gives at the desk, works offline, and converts the same booking the
+// same way every time. Null when no rate has been set.
+export function fxRate(sym) {
+  const r = Number(state.settings?.fxRates?.[sym]);
+  return Number.isFinite(r) && r > 0 ? r : null;
+}
+
 export function companyTerms() { return state.settings?.terms || ""; }
 
 
