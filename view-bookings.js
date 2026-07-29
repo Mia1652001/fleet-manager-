@@ -16,7 +16,8 @@ import {
   requestFocus,
   invoiceTotal,
   findClash, describeInterval, hasManualTotal, rateFor, rentalDays,
-  showToast, openModal, showError
+  showToast, openModal, showError,
+  setVal
 } from "./store.js";
 
 let root = null;
