@@ -386,7 +386,10 @@ export function render() {
       [...staffFilter].some(v =>
         v === "__none__"
           ? !j.staff && !j.managedBy && !j.deliveredBy && !j.recoveredBy
-          : [j.staff, j.managedBy, j.deliveredBy, j.recoveredBy].includes(v));
+          // Loose match: "popo" typed on a booking still counts for "Popo"
+          // in the filter, the way names are matched everywhere else.
+          : [j.staff, j.managedBy, j.deliveredBy, j.recoveredBy]
+              .some(x => (x || "").trim().toLowerCase() === v.trim().toLowerCase()));
     return matchesSearch && matchesKind && matchesStaff;
   });
 
@@ -808,8 +811,26 @@ function renderBoard(jobs, from, to) {
 
   const rowsSpec = dayRows(from, to, assignable, isPast() ? 0 : BOARD_MIN_DAYS);
   if (isPast()) rowsSpec.reverse();   // history reads newest-first
-  const people = boardColumns(assignable);
-  const columns = [...people, null];        // null is the Unassigned column
+  let people = boardColumns(assignable);
+  let showUnassigned = true;
+
+  // The columns follow the staff filter, not just the chips inside them:
+  // picking one person should leave one person's column, not a row of empty
+  // columns for everyone else. A chosen person with nothing on still gets a
+  // column — an empty column is the answer "they're free". The Unassigned
+  // column stays only when Unassigned itself is picked.
+  if (staffFilter.size) {
+    const chosenNames = [...staffFilter].filter(v => v !== "__none__");
+    const lower = new Set(chosenNames.map(v => v.toLowerCase()));
+    const kept = people.filter(p => lower.has(p.toLowerCase()));
+    chosenNames.forEach(n => {
+      if (!kept.some(p => p.toLowerCase() === n.toLowerCase())) kept.push(n);
+    });
+    people = kept.sort((a, b) => a.localeCompare(b));
+    showUnassigned = staffFilter.has("__none__");
+  }
+
+  const columns = showUnassigned ? [...people, null] : [...people];
 
   if (columns.length === 1 && assignable.length === 0 && !people.length && !state.settings?.staff?.length) {
     // No staff set up and nothing to show: the board would be a wall of empty
