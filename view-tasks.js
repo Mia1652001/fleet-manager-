@@ -64,6 +64,16 @@ export function mount(container) {
   wireBoardDrag();
   wireTaskMoveModal();
 
+  // The sticky staff-name strip mirrors the board's sideways scroll so its
+  // columns stay lined up while the strip stays pinned to the top of the page.
+  {
+    const boardEl = el(root, "board");
+    const headWrap = el(root, "board-head-wrap");
+    if (boardEl && headWrap) {
+      boardEl.addEventListener("scroll", () => { headWrap.scrollLeft = boardEl.scrollLeft; });
+    }
+  }
+
   el(root, "job-detail-open").addEventListener("click", (e) => {
     const id = e.currentTarget.dataset.booking;
     closeModal(root, "job-detail");
@@ -178,6 +188,7 @@ function applyMode() {
   el(root, "view-board").classList.toggle("active", mode === "board");
   el(root, "list").style.display = mode === "list" ? "" : "none";
   el(root, "board").style.display = mode === "board" ? "" : "none";
+  el(root, "board-head-wrap").style.display = mode === "board" ? "" : "none";
 }
 
 // ---------- Helpers ----------
@@ -836,6 +847,7 @@ function renderBoard(jobs, from, to) {
     // No staff set up and nothing to show: the board would be a wall of empty
     // Unassigned cells, so a pointer to Settings says more.
     box.innerHTML = `<div class="empty">Nothing to show here. Jobs appear from bookings — or add staff on the Settings page to plan by person.</div>`;
+    const hw = el(root, "board-head-wrap"); if (hw) hw.style.display = "none";
     return;
   }
 
@@ -865,9 +877,19 @@ function renderBoard(jobs, from, to) {
 
   // Narrower minimum than before so more people fit before it has to scroll.
   // A chip truncates rather than forcing its column open, so 120px still reads.
-  box.style.gridTemplateColumns =
-    `minmax(96px, 0.7fr) repeat(${columns.length}, minmax(120px, 1fr))`;
-  box.innerHTML = head + rows;
+  // The staff-name row is drawn into the sticky strip above the board, with
+  // the identical column spec, so it pins to the top of the page and always
+  // lines up with the columns beneath.
+  const columnsSpec = `minmax(96px, 0.7fr) repeat(${columns.length}, minmax(120px, 1fr))`;
+  const headGrid = el(root, "board-head");
+  const headWrap = el(root, "board-head-wrap");
+  if (headWrap && mode === "board") headWrap.style.display = "";
+  box.style.gridTemplateColumns = columnsSpec;
+  if (headGrid) {
+    headGrid.style.gridTemplateColumns = columnsSpec;
+    headGrid.innerHTML = head;
+  }
+  box.innerHTML = rows;
 }
 
 function jobRow(j) {
