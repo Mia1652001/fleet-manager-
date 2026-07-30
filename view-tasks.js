@@ -188,7 +188,8 @@ function applyMode() {
   el(root, "view-board").classList.toggle("active", mode === "board");
   el(root, "list").style.display = mode === "list" ? "" : "none";
   el(root, "board").style.display = mode === "board" ? "" : "none";
-  el(root, "board-head-wrap").style.display = mode === "board" ? "" : "none";
+  const bhw = el(root, "board-head-wrap");
+  if (bhw) bhw.style.display = mode === "board" ? "" : "none";
 }
 
 // ---------- Helpers ----------

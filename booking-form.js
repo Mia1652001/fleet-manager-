@@ -53,7 +53,11 @@ export function mountBookingForm() {
   });
   el(root, "b-customer").addEventListener("change", toggleNewCustomer);
   el(root, "b-currency").addEventListener("change", syncCurrencyFields);
-  el(root, "b-fx-recalc").addEventListener("click", () => {
+  // Guarded: if the page the browser cached is older than this script, the
+  // button is not there yet — the feature waits for the fresh page instead of
+  // crashing the whole app at startup.
+  const recalcBtn = el(root, "b-fx-recalc");
+  if (recalcBtn) recalcBtn.addEventListener("click", () => {
     const sym = el(root, "b-currency").value;
     if (!sym) return;
     recalcAtTodayRate(root, {

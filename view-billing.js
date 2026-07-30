@@ -74,7 +74,8 @@ export function mount(container) {
   // one booking. Marked-paid bookings ask for confirmation first, naming the
   // old and new figures, so a settled invoice never changes without someone
   // deliberately choosing to change it.
-  el(root, "dep-fx-recalc-advance").addEventListener("click", () => {
+  const recalcAdv = el(root, "dep-fx-recalc-advance");
+  if (recalcAdv) recalcAdv.addEventListener("click", () => {
     const b = state.bookings.find(x => x.id === depositBookingId);
     if (!b?.fxCurrency) return;
     recalcAtTodayRate(root, {
@@ -82,7 +83,8 @@ export function mount(container) {
       isPaid: !!b.paid, paidLabel: "advance"
     });
   });
-  el(root, "dep-fx-recalc-security").addEventListener("click", () => {
+  const recalcSec = el(root, "dep-fx-recalc-security");
+  if (recalcSec) recalcSec.addEventListener("click", () => {
     const b = state.bookings.find(x => x.id === depositBookingId);
     if (!b?.fxCurrency) return;
     recalcAtTodayRate(root, {
@@ -419,14 +421,19 @@ function openDepositModal(id) {
     // hidden entirely when Settings has no rate for this currency.
     const advBtn = el(root, "dep-fx-recalc-advance");
     const secBtn = el(root, "dep-fx-recalc-security");
-    advBtn.style.display = rate ? "inline-block" : "none";
-    secBtn.style.display = rate ? "inline-block" : "none";
-    if (rate) { advBtn.textContent = `Use today's rate (${rate})`; secBtn.textContent = advBtn.textContent; }
+    if (advBtn) {
+      advBtn.style.display = rate ? "inline-block" : "none";
+      if (rate) advBtn.textContent = `Use today's rate (${rate})`;
+    }
+    if (secBtn) {
+      secBtn.style.display = rate ? "inline-block" : "none";
+      if (rate) secBtn.textContent = advBtn ? advBtn.textContent : `Use today's rate (${rate})`;
+    }
   } else {
     el(root, "dep-advance-label").textContent = "Advance paid (reduces balance owed)";
     el(root, "dep-security-label").textContent = "Security deposit (refundable, held separately)";
-    el(root, "dep-fx-recalc-advance").style.display = "none";
-    el(root, "dep-fx-recalc-security").style.display = "none";
+    const ra = el(root, "dep-fx-recalc-advance"); if (ra) ra.style.display = "none";
+    const rs2 = el(root, "dep-fx-recalc-security"); if (rs2) rs2.style.display = "none";
   }
   showError(root, "deposit-error", null);
   openModal(root, "deposit-modal");
