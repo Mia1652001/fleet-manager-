@@ -233,9 +233,12 @@ function syncCurrencyFields() {
   const hint = el(root, "b-fx-hint");
   if (hint) {
     const rate = sym ? fxRate(sym) : null;
-    hint.textContent = !sym ? ""
-      : rate ? `House rate: 1 ${sym} = ${home} ${rate} (set in Settings) — the ${home} figure fills in as you type`
-      : `No house rate set for ${sym} in Settings — type the ${home} value yourself`;
+    // No hint when a rate exists — the "Use today's rate (55)" button already
+    // says everything the old sentence said. The warning stays for the one
+    // case that genuinely needs words: no rate set, nothing will auto-fill.
+    hint.textContent = sym && !rate
+      ? `No house rate set for ${sym} in Settings — type the ${home} value yourself`
+      : "";
   }
 
   // The button that recalculates just this one booking at today's rate — it
