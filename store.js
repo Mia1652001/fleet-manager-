@@ -199,9 +199,18 @@ export function rentalDays(b) {
   // then spread through the total, the balance and every figure built on them —
   // and "NaN" printed on screen and into the exports.
   if (!b || !b.startDate || !b.endDate) return 1;
-  const ms = new Date(b.endDate) - new Date(b.startDate);
-  if (!Number.isFinite(ms)) return 1;
-  return Math.max(1, Math.round(ms / 86400000) + 1);
+
+  // The real pick-up and return moments, not just the calendar dates: a
+  // 19:00-to-19:00 rental is exactly 10×24 hours, and counting it as 11 by
+  // ignoring the time and adding a flat "+1" overcharged every booking whose
+  // pick-up and return times matched. Each day the car is out for any part of
+  // counts as a full day — round up, never down, minimum one.
+  const startMs = new Date(bookingStartAt(b)).getTime();
+  const endMs = new Date(bookingEndAt(b)).getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return 1;
+
+  const diff = endMs - startMs;
+  return Math.max(1, Math.ceil(diff / 86400000));
 }
 
 export function rateFor(b) {
