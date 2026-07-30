@@ -1,7 +1,7 @@
 // Billing view — each started booking is an invoice, with advance and
 // security deposits tracked separately.
 import { db, setSync } from "./firebase-init.js";
-import { openBookingModal } from "./booking-form.js";
+import { openBookingModal, recalcAtTodayRate } from "./booking-form.js";
 import { updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName,
@@ -67,6 +67,27 @@ export function mount(container) {
       if (rate && Number.isFinite(amount) && amount >= 0) {
         setVal(root, homeName, Math.round(amount * rate));
       }
+    });
+  });
+
+  // The "Use today's rate" buttons: recalculate just this one field of this
+  // one booking. Marked-paid bookings ask for confirmation first, naming the
+  // old and new figures, so a settled invoice never changes without someone
+  // deliberately choosing to change it.
+  el(root, "dep-fx-recalc-advance").addEventListener("click", () => {
+    const b = state.bookings.find(x => x.id === depositBookingId);
+    if (!b?.fxCurrency) return;
+    recalcAtTodayRate(root, {
+      fxInputId: "dep-fxadvance", homeInputId: "dep-advance", sym: b.fxCurrency,
+      isPaid: !!b.paid, paidLabel: "advance"
+    });
+  });
+  el(root, "dep-fx-recalc-security").addEventListener("click", () => {
+    const b = state.bookings.find(x => x.id === depositBookingId);
+    if (!b?.fxCurrency) return;
+    recalcAtTodayRate(root, {
+      fxInputId: "dep-fxsecurity", homeInputId: "dep-security", sym: b.fxCurrency,
+      isPaid: !!b.paid, paidLabel: "security deposit"
     });
   });
 
@@ -394,9 +415,18 @@ function openDepositModal(id) {
     el(root, "dep-security-label").textContent = `= Security in ${home} (refundable, held separately)`;
     setVal(root, "dep-fxadvance", b?.fxAdvance ?? "");
     setVal(root, "dep-fxsecurity", b?.fxSecurity ?? "");
+    // Named with the actual rate, same as the booking form's button, and
+    // hidden entirely when Settings has no rate for this currency.
+    const advBtn = el(root, "dep-fx-recalc-advance");
+    const secBtn = el(root, "dep-fx-recalc-security");
+    advBtn.style.display = rate ? "inline-block" : "none";
+    secBtn.style.display = rate ? "inline-block" : "none";
+    if (rate) { advBtn.textContent = `Use today's rate (${rate})`; secBtn.textContent = advBtn.textContent; }
   } else {
     el(root, "dep-advance-label").textContent = "Advance paid (reduces balance owed)";
     el(root, "dep-security-label").textContent = "Security deposit (refundable, held separately)";
+    el(root, "dep-fx-recalc-advance").style.display = "none";
+    el(root, "dep-fx-recalc-security").style.display = "none";
   }
   showError(root, "deposit-error", null);
   openModal(root, "deposit-modal");

@@ -53,6 +53,14 @@ export function mountBookingForm() {
   });
   el(root, "b-customer").addEventListener("change", toggleNewCustomer);
   el(root, "b-currency").addEventListener("change", syncCurrencyFields);
+  el(root, "b-fx-recalc").addEventListener("click", () => {
+    const sym = el(root, "b-currency").value;
+    if (!sym) return;
+    recalcAtTodayRate(root, {
+      fxInputId: "b-fxtotal", homeInputId: "b-total", sym,
+      isPaid: !!editingBookingId && !!state.bookings.find(x => x.id === editingBookingId)?.paid
+    });
+  });
   // The foreign amount leads: typing it fills the Rs figure from the house
   // rate set in Settings. The Rs field stays editable for a negotiated
   // exception — but re-typing the foreign amount recalculates, since the
@@ -225,7 +233,38 @@ function syncCurrencyFields() {
       : rate ? `House rate: 1 ${sym} = ${home} ${rate} (set in Settings) — the ${home} figure fills in as you type`
       : `No house rate set for ${sym} in Settings — type the ${home} value yourself`;
   }
+
+  // The button that recalculates just this one booking at today's rate — it
+  // never touches Settings or any other booking. Named with the actual rate
+  // so pressing it is never a surprise; hidden entirely when there is no rate
+  // to use, since there is nothing for it to do.
+  const btn = el(root, "b-fx-recalc");
+  if (btn) {
+    const rate = sym ? fxRate(sym) : null;
+    btn.style.display = rate ? "inline-block" : "none";
+    if (rate) btn.textContent = `Use today's rate (${rate})`;
+  }
 }
+
+// Recalculates one field pair (foreign amount → home amount) at today's house
+// rate. Used by the booking total and, in view-billing.js, by both deposit
+// fields — same pattern, same guard for an already-paid booking.
+export function recalcAtTodayRate(fieldRoot, { fxInputId, homeInputId, sym, isPaid, paidLabel }) {
+  const rate = fxRate(sym);
+  if (!rate) return;
+  const amount = parseFloat(val(fieldRoot, fxInputId));
+  if (!Number.isFinite(amount) || amount < 0) return;
+  const newHome = Math.round(amount * rate);
+  const oldHome = parseFloat(val(fieldRoot, homeInputId)) || 0;
+  if (newHome === oldHome) return;   // nothing to confirm or change
+
+  if (isPaid && !confirm(
+    `This booking is marked paid at ${state.settings?.currency || "Rs"} ${oldHome.toLocaleString()}` +
+    (paidLabel ? ` (${paidLabel})` : "") +
+    `. Recalculating at today's rate changes it to ${state.settings?.currency || "Rs"} ${newHome.toLocaleString()}. Continue?`
+  )) return;
+
+  setVal(fieldRoot, homeInputId, newHome);
 
 export function openBookingModal(bookingId, preset) {
   if (state.cars.length === 0) { alert("Add at least one car in the Fleet view first."); return; }

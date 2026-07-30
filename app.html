@@ -423,8 +423,20 @@
             <div class="field"><label data-el="dep-fxsecurity-label">Security in €</label>
               <input data-el="dep-fxsecurity" type="number" min="0" step="any" placeholder="e.g. 300"></div>
           </div>
-          <div class="field"><label data-el="dep-advance-label">Advance paid (reduces balance owed)</label><input data-el="dep-advance" type="number" min="0" placeholder="e.g. 2000"></div>
-          <div class="field"><label data-el="dep-security-label">Security deposit (refundable, held separately)</label><input data-el="dep-security" type="number" min="0" placeholder="e.g. 5000"></div>
+          <div class="field"><label data-el="dep-advance-label">Advance paid (reduces balance owed)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input data-el="dep-advance" type="number" min="0" placeholder="e.g. 2000" style="flex:1;">
+              <button type="button" class="btn" data-el="dep-fx-recalc-advance" style="display:none;white-space:nowrap;"
+                title="Recalculate using today's house rate — only this booking changes">Use today's rate</button>
+            </div>
+          </div>
+          <div class="field"><label data-el="dep-security-label">Security deposit (refundable, held separately)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input data-el="dep-security" type="number" min="0" placeholder="e.g. 5000" style="flex:1;">
+              <button type="button" class="btn" data-el="dep-fx-recalc-security" style="display:none;white-space:nowrap;"
+                title="Recalculate using today's house rate — only this booking changes">Use today's rate</button>
+            </div>
+          </div>
           <div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;">Advance payment is deducted from the rental total. Security deposit is a refundable hold — mark it refunded or kept when the car comes back.</div>
           <div class="modal-actions">
             <button class="btn" data-close="deposit-modal">Cancel</button>
@@ -831,7 +843,11 @@
 
       <div class="field">
         <label data-el="b-total-label">Total price (leave blank to calculate from daily rate)</label>
-        <input data-el="b-total" type="number" min="0" placeholder="auto">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input data-el="b-total" type="number" min="0" placeholder="auto" style="flex:1;">
+          <button type="button" class="btn" data-el="b-fx-recalc" style="display:none;white-space:nowrap;"
+            title="Recalculate this booking's total using today's house rate — only this booking changes">Use today's rate</button>
+        </div>
       </div>
 
       <!-- Charged on top of the hire itself, and shown as their own lines on the
