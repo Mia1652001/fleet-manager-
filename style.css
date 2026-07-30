@@ -244,6 +244,13 @@ input:focus, select:focus { border-color: var(--text); }
 .overlay.open { display: flex; }
 
 .modal { background: var(--surface); border-radius: 6px; border: 1px solid var(--border); padding: 2rem; width: 400px; max-width: 100%; max-height: 90vh; overflow-y: auto; }
+/* The booking form carries far more fields than the other dialogs. On a
+   desktop screen it gets the width to lay them out in rows and the full
+   window height, so the whole form is visible without scrolling inside it.
+   Phones keep the narrow single-column layout. */
+@media (min-width: 900px) {
+  #booking-form-root .modal { width: 780px; max-height: 96vh; }
+}
 .modal h2 { font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 300; margin-bottom: 1.5rem; }
 /* Wraps, because the booking form now carries six buttons and a single row
    pushed the first of them off the left edge where they could not be reached. */
@@ -1677,7 +1684,10 @@ input:focus, select:focus { border-color: var(--text); }
 .board-chip.done { opacity: 0.45; text-decoration: line-through; }
 .board-chip-time { font-variant-numeric: tabular-nums; color: var(--muted); flex-shrink: 0; }
 .board-chip-kind { font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); flex-shrink: 0; }
-.board-chip-main { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The full job name shows — chips wrap instead of cutting off with "…".
+   The rows grow to fit; a truncated task name on a work board was a task
+   nobody could read. */
+.board-chip-main { min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
 .board-dim { color: var(--muted); }
 
 /* Same frozen-header pattern as the Bookings planner: the staff-name row

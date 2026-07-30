@@ -284,7 +284,18 @@ export function openBookingModal(bookingId, preset) {
     setVal(root, "b-deliveredby", editing.deliveredBy || "");
     setVal(root, "b-recoveredby", editing.recoveredBy || "");
     setVal(root, "b-broker", editing.broker || "");
-    el(root, "b-currency").value = editing.fxCurrency || "";
+    // A currency removed from the offered list after this booking was taken
+    // still has to load and save intact — the select gets a one-off option
+    // for it rather than silently clearing the booking's currency.
+    {
+      const curSel = el(root, "b-currency");
+      if (editing.fxCurrency &&
+          ![...curSel.options].some(o => o.value === editing.fxCurrency)) {
+        curSel.insertAdjacentHTML("beforeend",
+          `<option value="${esc(editing.fxCurrency)}">${esc(editing.fxCurrency)}</option>`);
+      }
+      curSel.value = editing.fxCurrency || "";
+    }
     setVal(root, "b-fxtotal", editing.fxTotal ?? "");
     syncCurrencyFields();
     setVal(root, "b-delivery", editing.deliveryCost ?? "");

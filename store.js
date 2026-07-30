@@ -60,8 +60,6 @@ export const FX_CURRENCIES = [
   { sym: "€", label: "Euro" },
   { sym: "$", label: "US dollar" },
   { sym: "£", label: "British pound" },
-  { sym: "₹", label: "Indian rupee" },
-  { sym: "R", label: "South African rand" },
   { sym: "Rs", label: "Mauritian rupee" }
 ];
 
