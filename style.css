@@ -1056,6 +1056,7 @@ input:focus, select:focus { border-color: var(--text); }
    block alone steps outside the page column, up to 1700px, and never wider
    than the window. min() makes it self-limiting, so phones are unaffected. */
 #view-bookings .cal-header,
+#view-bookings .tl-head-wrap,
 #view-bookings .timeline-wrap,
 #view-bookings .tl-legend {
   --planner-w: min(100vw - 3rem, 1700px);
@@ -1068,6 +1069,27 @@ input:focus, select:focus { border-color: var(--text); }
    box and the planner had no height of its own, so scrolling down scrolled the
    whole page and carried the date row with it. Giving the planner its own
    height makes it the thing that scrolls. */
+/* The date row lives in its own thin strip that sticks to the top of the
+   page while the planner body scrolls beneath it. It cannot live inside the
+   planner box: a horizontally-scrolling container captures position:sticky,
+   which is exactly why the dates vanished. The strip never scrolls on its
+   own — JS mirrors the body's sideways position into it, so the columns
+   always line up. */
+#view-bookings .tl-head-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  overflow-x: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+}
+#view-bookings .timeline-wrap {
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+}
+
 #view-bookings .timeline-wrap {
   /* The page owns vertical scrolling (option A): the planner grows to fit
      every car and the wheel always moves the page, wherever the cursor is.
@@ -1166,6 +1188,7 @@ input:focus, select:focus { border-color: var(--text); }
      narrower than every other block on the page. On a phone it simply fills the
      column like everything else. */
   #view-bookings .cal-header,
+  #view-bookings .tl-head-wrap,
   #view-bookings .timeline-wrap,
   #view-bookings .tl-legend {
     width: 100%;

@@ -200,6 +200,17 @@ export function mount(container) {
   wireDragToBook();
   wireBookingMove();
 
+  // The sticky date strip never scrolls on its own — it mirrors the planner
+  // body's sideways position, so the day columns stay lined up while the strip
+  // itself stays pinned to the top of the page.
+  {
+    const bodyWrap = el(root, "timeline-wrap");
+    const headWrap = el(root, "timeline-head-wrap");
+    if (bodyWrap && headWrap) {
+      bodyWrap.addEventListener("scroll", () => { headWrap.scrollLeft = bodyWrap.scrollLeft; });
+    }
+  }
+
   el(root, "cal-prev").addEventListener("click", () => {
     timelineAnchor.setDate(timelineAnchor.getDate() - 7);
     reanchored = true;
@@ -863,6 +874,7 @@ function renderTimeline() {
   if (state.cars.length === 0) {
     grid.innerHTML = '<div class="tl-empty">No cars yet. Add cars on the Fleet view and they will appear here.</div>';
     grid.style.gridTemplateColumns = "1fr";
+    const hw = el(root, "timeline-head-wrap"); if (hw) hw.style.display = "none";
     return;
   }
 
@@ -888,17 +900,24 @@ function renderTimeline() {
   if (cars.length === 0) {
     grid.innerHTML = '<div class="tl-empty">No cars match that search.</div>';
     grid.style.gridTemplateColumns = "1fr";
+    const hw = el(root, "timeline-head-wrap"); if (hw) hw.style.display = "none";
     return;
   }
 
   const cfg = zoomCfg();
-  grid.style.gridTemplateColumns = `${cfg.label}px repeat(${DAYS * 2}, minmax(${cfg.half}px, 1fr))`;
+  const headWrap = el(root, "timeline-head-wrap");
+  const headGrid = el(root, "timeline-head");
+  if (headWrap) headWrap.style.display = "";
+  const columnsSpec = `${cfg.label}px repeat(${DAYS * 2}, minmax(${cfg.half}px, 1fr))`;
+  grid.style.gridTemplateColumns = columnsSpec;
+  if (headGrid) headGrid.style.gridTemplateColumns = columnsSpec;
 
   // Width comes from the zoom level, never from the content. Stating it outright
   // means a day column is the same width whatever bookings happen to be on
   // screen, and it makes the planner wider than its frame so it scrolls.
   const gridWidth = cfg.label + DAYS * 2 * cfg.half;
   grid.style.minWidth = gridWidth + "px";
+  if (headGrid) headGrid.style.minWidth = gridWidth + "px";
 
   // How wide a day column really is. Tracks stretch to fill the planner when the
   // frame is wider than the grid needs, so take whichever is larger — but never
@@ -909,10 +928,15 @@ function renderTimeline() {
 
   // The sticky renter name pins just past this column, so it needs the width
   grid.style.setProperty("--tl-label-w", cfg.label + "px");
+  if (headGrid) headGrid.style.setProperty("--tl-label-w", cfg.label + "px");
 
   const dowShort = ["Su","Mo","Tu","We","Th","Fr","Sa"];
-  let html = `<div class="tl-corner" style="grid-row:1;grid-column:1;">Vehicle</div>`;
 
+  // The date row is drawn into the sticky strip above the planner, not into
+  // the planner grid itself — that is what keeps it on screen while the page
+  // scrolls down a long fleet. Same columns, same widths, so it always lines
+  // up with the body beneath it.
+  let headHtml = `<div class="tl-corner" style="grid-row:1;grid-column:1;">Vehicle</div>`;
   days.forEach((d, i) => {
     const ds = dstr(d);
     const dow = d.getDay();
@@ -921,12 +945,14 @@ function renderTimeline() {
     // the column carries a marker line — so 31 sitting next to 1 can never be
     // read as the same month again.
     const monthStart = d.getDate() === 1;
-    html += `<div class="tl-daynum ${cls}${monthStart ? " month-start" : ""}" style="grid-row:1;grid-column:${i * 2 + 2} / span 2;">
+    headHtml += `<div class="tl-daynum ${cls}${monthStart ? " month-start" : ""}" style="grid-row:1;grid-column:${i * 2 + 2} / span 2;">
       <span class="dow">${monthStart ? MONTH_NAMES[d.getMonth()] : dowShort[dow]}</span>${d.getDate()}</div>`;
   });
+  if (headGrid) headGrid.innerHTML = headHtml;
 
+  let html = "";
   cars.forEach((car, i) => {
-    const row = i + 2;
+    const row = i + 1;
     const oos = !!car.outOfService;
 
     const due = serviceDue(car);
