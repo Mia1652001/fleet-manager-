@@ -269,6 +269,7 @@ export function recalcAtTodayRate(fieldRoot, { fxInputId, homeInputId, sym, isPa
   )) return;
 
   setVal(fieldRoot, homeInputId, newHome);
+}
 
 export function openBookingModal(bookingId, preset) {
   if (state.cars.length === 0) { alert("Add at least one car in the Fleet view first."); return; }
