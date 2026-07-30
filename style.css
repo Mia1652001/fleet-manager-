@@ -1993,3 +1993,60 @@ input:focus, select:focus { border-color: var(--text); }
   color: var(--bg);
   border-color: var(--text);
 }
+
+/* ---------- Tasks toolbar: one size for every control ----------
+   Five control styles (search, buttons, selects, tabs, toggles) each brought
+   their own height, type size and padding, which read as clutter — worst on a
+   phone, where a clipped "All j…" select sat beside taller neighbours. Every
+   control in this bar now shares one height, one type size and one padding.
+   The search field grows; everything else sizes itself identically. */
+#view-tasks .planner-bar input[type="text"],
+#view-tasks .planner-bar select,
+#view-tasks .planner-bar .btn,
+#view-tasks .planner-bar .btn-primary,
+#view-tasks .planner-bar .panel-toggle,
+#view-tasks .planner-bar .tab {
+  height: 40px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  margin: 0;
+}
+#view-tasks .planner-bar input[type="text"] {
+  justify-content: flex-start;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+}
+#view-tasks .planner-bar select { min-width: 0; }
+#view-tasks .planner-bar .tab-select { max-width: none; }
+#view-tasks .planner-bar .toolbar,
+#view-tasks .planner-bar .filter-row { gap: 8px; margin-bottom: 0; }
+#view-tasks .planner-bar .cal-nav { gap: 8px; }
+
+/* On a phone: search takes its own full line, the four filter/action controls
+   sit two per row, and each three-button row (Past/Today/Ahead, then
+   Show completed/List/Board) fills its line evenly. */
+@media (max-width: 640px) {
+  #view-tasks .planner-bar input[type="text"] { flex: 1 1 100%; }
+  #view-tasks .planner-bar .toolbar > *:not(input) {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+  }
+  #view-tasks .planner-bar .filter-row > * {
+    flex: 1 1 calc(33% - 8px);
+    min-width: 0;
+    padding: 0 8px;
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  #view-tasks .planner-bar .multi-pick { display: flex; }
+  #view-tasks .planner-bar .multi-pick .btn { flex: 1; width: 100%; }
+}
