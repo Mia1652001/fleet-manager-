@@ -786,11 +786,14 @@ function paintDragPreview() {
 const PLANNER_VIEWPORT_AIR = 24;  // a little air so it does not touch the edges
 const PLANNER_MIN_HEIGHT = 320;   // a short window still gets a usable planner
 
+// The planner used to size itself to the window and scroll inside its own box.
+// That created two nested vertical scrollbars — the wheel moved either the
+// planner or the page depending on where the cursor hovered. The page owns all
+// vertical scrolling now; nothing to fit. Clearing the inline style also
+// removes any cap a previous version of this code left on the element.
 function fitPlannerHeight() {
   const wrap = el(root, "timeline-wrap");
-  if (!wrap) return;
-  const available = window.innerHeight - PLANNER_VIEWPORT_AIR;
-  wrap.style.maxHeight = Math.max(PLANNER_MIN_HEIGHT, Math.round(available)) + "px";
+  if (wrap) wrap.style.maxHeight = "";
 }
 
 // ---------- Collapsible panels ----------

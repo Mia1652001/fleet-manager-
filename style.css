@@ -1069,16 +1069,15 @@ input:focus, select:focus { border-color: var(--text); }
    whole page and carried the date row with it. Giving the planner its own
    height makes it the thing that scrolls. */
 #view-bookings .timeline-wrap {
-  /* A window's worth of height. The exact value is set from view-bookings.js so
-     it follows a resize; these are the values used before the first draw.
-     Deliberately not sticky — a pinned sticky frame is drawn lower than the space
-     it reserves and slid down over the buttons beneath it. */
-  max-height: max(320px, calc(100vh - 24px));
-  /* vh counts the area behind a phone browser's toolbars, so it overshoots on
-     iOS; dvh measures what is actually visible. Browsers that do not know dvh
-     ignore this line and keep the one above. */
-  max-height: max(320px, calc(100dvh - 24px));
-  overflow-y: auto;
+  /* The page owns vertical scrolling (option A): the planner grows to fit
+     every car and the wheel always moves the page, wherever the cursor is.
+     Two nested vertical scrollbars made the wheel do different things
+     depending on what it happened to hover — the "double scrolling" the
+     pilot reported. The wrap keeps only sideways scrolling for the day
+     columns, which never conflicts with the wheel. The known trade-off:
+     scrolled deep into a long fleet, the day-number header is off-screen. */
+  max-height: none;
+  overflow-y: visible;
 }
 
 /* ---------- Collapsible panels on the Bookings view ----------
@@ -1591,10 +1590,11 @@ input:focus, select:focus { border-color: var(--text); }
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--surface);
-  overflow: auto;
-  /* Taller: the range controls collapsed to one line, so the board
-     takes the space back — most of the window is board now. */
-  max-height: calc(100vh - 150px);
+  /* Sideways only. The board grows to fit its rows and the page owns vertical
+     scrolling — same fix as the bookings planner, same reason: two nested
+     vertical scrollbars made the wheel unpredictable. */
+  overflow-x: auto;
+  overflow-y: visible;
   margin-bottom: 2rem;
   -webkit-overflow-scrolling: touch;
 }
