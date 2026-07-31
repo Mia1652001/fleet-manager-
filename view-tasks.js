@@ -64,6 +64,15 @@ export function mount(container) {
   wireBoardDrag();
   wireTaskMoveModal();
 
+  // Rotating a phone changes which column widths apply, so redraw.
+  let boardResizeTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(boardResizeTimer);
+    boardResizeTimer = setTimeout(() => {
+      if (root.classList.contains("active") && mode === "board") render();
+    }, 150);
+  });
+
   // The sticky staff-name strip mirrors the board's sideways scroll so its
   // columns stay lined up while the strip stays pinned to the top of the page.
   {
@@ -899,7 +908,13 @@ function renderBoard(jobs, from, to) {
   // The staff-name row is drawn into the sticky strip above the board, with
   // the identical column spec, so it pins to the top of the page and always
   // lines up with the columns beneath.
-  const columnsSpec = `minmax(96px, 0.7fr) repeat(${columns.length}, minmax(120px, 1fr))`;
+  // A phone gets fewer, wider columns and scrolls sideways — that is the
+  // board's design. 120px columns on a 380px screen shredded every wrapped
+  // name into a vertical strip of syllables.
+  const phone = window.matchMedia("(max-width: 640px)").matches;
+  const columnsSpec = phone
+    ? `minmax(84px, 0.6fr) repeat(${columns.length}, minmax(180px, 1fr))`
+    : `minmax(96px, 0.7fr) repeat(${columns.length}, minmax(120px, 1fr))`;
   const headGrid = el(root, "board-head");
   const headWrap = el(root, "board-head-wrap");
   if (headWrap && mode === "board") headWrap.style.display = "";

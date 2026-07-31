@@ -1687,7 +1687,7 @@ input:focus, select:focus { border-color: var(--text); }
 /* The full job name shows — chips wrap instead of cutting off with "…".
    The rows grow to fit; a truncated task name on a work board was a task
    nobody could read. */
-.board-chip-main { min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+.board-chip-main { min-width: 0; white-space: normal; overflow-wrap: break-word; line-height: 1.35; }
 .board-dim { color: var(--muted); }
 
 /* Same frozen-header pattern as the Bookings planner: the staff-name row
@@ -1722,7 +1722,8 @@ input:focus, select:focus { border-color: var(--text); }
    too; a leftover cap was quietly reintroducing the nested scrollbar.) */
 @media (max-width: 640px) {
   .board-cell { padding: 4px; min-height: 38px; }
-  .board-chip { font-size: 9px; padding: 3px 5px; }
+  /* Wider columns carry the text now, so it can be big enough to read. */
+  .board-chip { font-size: 11px; padding: 4px 6px; }
 }
 
 /* ---------- Board width ----------
