@@ -874,6 +874,11 @@ function renderTimeline() {
   if (state.cars.length === 0) {
     grid.innerHTML = '<div class="tl-empty">No cars yet. Add cars on the Fleet view and they will appear here.</div>';
     grid.style.gridTemplateColumns = "1fr";
+    // A previous render (another company on this device, or before a search)
+    // left a pixel min-width on the grid; without clearing it the message sits
+    // centred in a 2,800px box — pushed off-screen and clipped. First thing a
+    // brand-new company would see.
+    grid.style.minWidth = "";
     const hw = el(root, "timeline-head-wrap"); if (hw) hw.style.display = "none";
     return;
   }
@@ -900,6 +905,7 @@ function renderTimeline() {
   if (cars.length === 0) {
     grid.innerHTML = '<div class="tl-empty">No cars match that search.</div>';
     grid.style.gridTemplateColumns = "1fr";
+    grid.style.minWidth = "";
     const hw = el(root, "timeline-head-wrap"); if (hw) hw.style.display = "none";
     return;
   }

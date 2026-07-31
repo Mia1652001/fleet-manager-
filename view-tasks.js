@@ -847,6 +847,10 @@ function renderBoard(jobs, from, to) {
   if (columns.length === 1 && assignable.length === 0 && !people.length && !state.settings?.staff?.length) {
     // No staff set up and nothing to show: the board would be a wall of empty
     // Unassigned cells, so a pointer to Settings says more.
+    // One full-width column for the message — the grid otherwise keeps the
+    // narrow first-column template from a previous render and squeezes the
+    // sentence into a sliver, one word per line.
+    box.style.gridTemplateColumns = "1fr";
     box.innerHTML = `<div class="empty">Nothing to show here. Jobs appear from bookings — or add staff on the Settings page to plan by person.</div>`;
     const hw = el(root, "board-head-wrap"); if (hw) hw.style.display = "none";
     return;
