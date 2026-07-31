@@ -2047,6 +2047,12 @@ input:focus, select:focus { border-color: var(--text); }
     font-size: 10px;
     letter-spacing: 0.04em;
   }
+  /* Air between the rows — the compact controls read as cramped when the
+     lines sit tight on each other. Horizontal gaps stay small; it is the
+     vertical rhythm that was missing. */
+  #view-tasks .planner-bar { row-gap: 14px; }
+  #view-tasks .planner-bar .toolbar { row-gap: 14px; }
+  #view-tasks .planner-bar .cal-nav { row-gap: 14px; }
   #view-tasks .planner-bar .filter-row { flex-wrap: nowrap; }
   #view-tasks .planner-bar .tab-select {
     flex: 1 1 0;
