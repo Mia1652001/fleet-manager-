@@ -7,17 +7,15 @@ testing period. New features wait; fixes to existing behaviour go out as found.
 - [ ] **Bank charges / commission %** on a booking, shown on the agreement.
       Decide: percentage of what (rental total? invoice total?), who pays it,
       and whether it changes the balance owed.
-- [ ] **Extras in the booking currency** — delivery, insurance and other costs
-      entered in € when the booking is in €, with Rs twins like the total and
-      deposits. Same lead/follow pattern as the existing fx fields.
+- [x] **Extras in the booking currency** — typed in the booking currency when
+      one is set; converted at the booking's own agreed rate (house rate as
+      fallback) and recorded in Rs, both figures kept and shown paired.
 - [ ] **Booking confirmation document** — a printable confirmation when the
       client confirms, built like the rental agreement (same company header,
       simpler content: dates, car, price, deposits).
-- [ ] **Exchange-rate refresh decision** — changing the house rate in Settings
-      deliberately does NOT rewrite existing bookings (the Rs figure is the
-      agreed conversion, a money record). If the pilot wants old bookings
-      updatable, add an explicit "recalculate at today's rate" button on the
-      booking rather than any silent change.
+- [x] **Exchange-rate refresh** — done: "Use today's rate" buttons on the
+      total and both deposits, per-booking, with a confirmation on paid
+      bookings.
 
 ## Planner & bookings
 - [ ] **Dates shown while dragging** a booking bar — a small floating label

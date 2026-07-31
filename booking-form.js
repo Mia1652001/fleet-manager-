@@ -53,6 +53,8 @@ export function mountBookingForm() {
   });
   el(root, "b-customer").addEventListener("change", toggleNewCustomer);
   el(root, "b-currency").addEventListener("change", syncCurrencyFields);
+  ["b-delivery", "b-insurance", "b-other", "b-total"].forEach(name =>
+    el(root, name).addEventListener("input", syncExtrasHint));
   // Guarded: if the page the browser cached is older than this script, the
   // button is not there yet — the feature waits for the fresh page instead of
   // crashing the whole app at startup.
@@ -210,6 +212,14 @@ function fillSuggestions() {
   put("dl-brokers", brokerNames());
 }
 
+// The rate this booking actually lives on: the ratio its agreed total pair
+// implies, falling back to the house rate. One booking, one rate — a later
+// Settings change can never silently move this booking's extras.
+function bookingRate(sym, fxTotal, homeTotal) {
+  if (fxTotal > 0 && homeTotal > 0) return homeTotal / fxTotal;
+  return sym ? fxRate(sym) : null;
+}
+
 // ---------- Booking currency ----------
 // The foreign amount leads and the Rs figure follows: the desk types both,
 // which records the exchange the two sides actually agreed. The Rs figure is
@@ -251,6 +261,47 @@ function syncCurrencyFields() {
     btn.style.display = rate ? "inline-block" : "none";
     if (rate) btn.textContent = `Use today's rate (${rate})`;
   }
+
+  // With a currency and a usable rate, the extras are typed in that currency
+  // too; the hint under the row shows the Rs figures the books will record.
+  syncExtrasHint();
+}
+
+function extrasInFx() {
+  const sym = el(root, "b-currency").value;
+  if (!sym) return null;
+  const rate = bookingRate(sym,
+    parseFloat(val(root, "b-fxtotal")) || 0,
+    parseFloat(val(root, "b-total")) || 0);
+  return rate ? { sym, rate } : null;
+}
+
+function syncExtrasHint() {
+  const home = state.settings?.currency || "Rs";
+  const fx = extrasInFx();
+  const sym = el(root, "b-currency").value;
+  ["delivery", "insurance", "other"].forEach(name => {
+    const label = el(root, `b-${name}-label`);
+    if (label) {
+      const base = name === "other" ? "Other costs" : `${name[0].toUpperCase()}${name.slice(1)} cost`;
+      label.textContent = fx ? `${base} in ${fx.sym}` : base;
+    }
+  });
+  const hint = el(root, "b-extras-hint");
+  if (!hint) return;
+  if (!fx) {
+    hint.textContent = sym
+      ? `No rate available for ${sym} yet — enter the extras in ${home}.`
+      : "";
+    return;
+  }
+  const parts = ["delivery", "insurance", "other"].map(name => {
+    const amount = parseFloat(val(root, `b-${name}`)) || 0;
+    return amount > 0 ? `${home} ${Math.round(amount * fx.rate).toLocaleString("en-US")}` : null;
+  }).filter(Boolean);
+  hint.textContent = parts.length
+    ? `Recorded in the books as: ${parts.join(" · ")} (at ${Math.round(fx.rate * 100) / 100}/${fx.sym})`
+    : `Typed in ${fx.sym}; the ${home} equivalent records automatically.`;
 }
 
 // Recalculates one field pair (foreign amount → home amount) at today's house
@@ -345,9 +396,9 @@ export function openBookingModal(bookingId, preset) {
     }
     setVal(root, "b-fxtotal", editing.fxTotal ?? "");
     syncCurrencyFields();
-    setVal(root, "b-delivery", editing.deliveryCost ?? "");
-    setVal(root, "b-insurance", editing.insuranceCost ?? "");
-    setVal(root, "b-other", editing.otherCost ?? "");
+    setVal(root, "b-delivery", editing.fxDelivery ?? editing.deliveryCost ?? "");
+    setVal(root, "b-insurance", editing.fxInsurance ?? editing.insuranceCost ?? "");
+    setVal(root, "b-other", editing.fxOther ?? editing.otherCost ?? "");
     setVal(root, "b-notes", editing.notes || "");
     setChecked(root, "b-paid", editing.paid === true);
     setSwatch(root, "b-colour", editing.barColour || "");
@@ -509,9 +560,26 @@ async function saveBooking() {
       broker: val(root, "b-broker"),
       // Blank stays blank rather than becoming a zero, so an invoice only shows
       // the extras that were actually charged.
-      deliveryCost: money(val(root, "b-delivery")),
-      insuranceCost: money(val(root, "b-insurance")),
-      otherCost: money(val(root, "b-other")),
+      // Extras typed in the booking currency are converted at the booking's
+      // own rate and recorded in the home currency — the books never hold
+      // mixed-currency arithmetic. Both figures are kept.
+      ...(function () {
+        const fx = extrasInFx();
+        const raw = {
+          delivery: money(val(root, "b-delivery")),
+          insurance: money(val(root, "b-insurance")),
+          other: money(val(root, "b-other"))
+        };
+        if (!fx) return {
+          deliveryCost: raw.delivery, insuranceCost: raw.insurance, otherCost: raw.other,
+          fxDelivery: null, fxInsurance: null, fxOther: null
+        };
+        const conv = v => (typeof v === "number" ? Math.round(v * fx.rate) : v);
+        return {
+          deliveryCost: conv(raw.delivery), insuranceCost: conv(raw.insurance), otherCost: conv(raw.other),
+          fxDelivery: raw.delivery, fxInsurance: raw.insurance, fxOther: raw.other
+        };
+      })(),
       notes: val(root, "b-notes"),
       ...settlement(),
       barColour: getSwatch(root, "b-colour")

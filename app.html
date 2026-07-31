@@ -844,13 +844,14 @@
       <!-- Charged on top of the hire itself, and shown as their own lines on the
            invoice and the rental agreement. -->
       <div class="field-row equal">
-        <div class="field"><label>Delivery cost</label>
+        <div class="field"><label data-el="b-delivery-label">Delivery cost</label>
           <input type="number" min="0" step="any" data-el="b-delivery" placeholder="0"></div>
-        <div class="field"><label>Insurance cost</label>
+        <div class="field"><label data-el="b-insurance-label">Insurance cost</label>
           <input type="number" min="0" step="any" data-el="b-insurance" placeholder="0"></div>
-        <div class="field"><label>Other costs</label>
+        <div class="field"><label data-el="b-other-label">Other costs</label>
           <input type="number" min="0" step="any" data-el="b-other" placeholder="0"></div>
       </div>
+      <div style="font-size:11px;color:var(--muted);margin:-6px 0 10px;" data-el="b-extras-hint"></div>
 
       <div class="field-row equal">
         <div class="field"><label>Managed by</label><input data-el="b-managedby" list="dl-staff" placeholder="Choose or type"></div>

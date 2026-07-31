@@ -418,7 +418,7 @@ function toCsv(headers, rows) {
 }
 
 function exportBookingsCsv() {
-  const headers = ["Reference","Customer","Phone","Car","Pick-up","Return","Days","Daily rate","Rental total","Advance paid","Balance","Security deposit","Deposit status","Paid","Paid on","Status","Broker","Currency","Total (foreign)","Advance (foreign)","Security (foreign)"];
+  const headers = ["Reference","Customer","Phone","Car","Pick-up","Return","Days","Daily rate","Rental total","Advance paid","Balance","Security deposit","Deposit status","Paid","Paid on","Status","Broker","Currency","Total (foreign)","Advance (foreign)","Security (foreign)","Delivery (foreign)","Insurance (foreign)","Other (foreign)"];
   const rows = state.bookings
     .slice()
     .sort((a,b) => b.startDate.localeCompare(a.startDate))
@@ -431,7 +431,8 @@ function exportBookingsCsv() {
       b.paid ? "Yes" : "No", b.paidAt ? b.paidAt.slice(0,10) : "",
       b.status === "completed" ? "Completed" : "Open",
       b.broker || "",
-      b.fxCurrency || "", b.fxTotal || "", b.fxAdvance || "", b.fxSecurity || ""
+      b.fxCurrency || "", b.fxTotal || "", b.fxAdvance || "", b.fxSecurity || "",
+      b.fxDelivery || "", b.fxInsurance || "", b.fxOther || ""
     ]);
   download(`bookings-${safeName()}-${stamp()}.csv`, toCsv(headers, rows), "text/csv");
 }

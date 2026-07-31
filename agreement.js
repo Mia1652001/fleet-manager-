@@ -53,16 +53,16 @@ function moneyBlock(b) {
     : `${days} day${days === 1 ? "" : "s"} × ${formatAmount(rate)} per day`;
 
   const extras = [
-    ["Delivery", deliveryCost(b)],
-    ["Insurance", insuranceCost(b)],
-    ["Other charges", otherCost(b)]
+    ["Delivery", deliveryCost(b), b.fxDelivery],
+    ["Insurance", insuranceCost(b), b.fxInsurance],
+    ["Other charges", otherCost(b), b.fxOther]
   ].filter(([, v]) => v > 0);
 
   return `
     <table class="ag-table">
       <tr><th>${esc(basis)}</th><td class="ag-num">${esc(fxPair(b, total, b.fxTotal))}</td></tr>
-      ${extras.map(([k, v]) =>
-        `<tr><th>${esc(k)}</th><td class="ag-num">${esc(formatAmount(v))}</td></tr>`).join("")}
+      ${extras.map(([k, v, fxv]) =>
+        `<tr><th>${esc(k)}</th><td class="ag-num">${esc(fxPair(b, v, fxv))}</td></tr>`).join("")}
       ${extras.length
         ? `<tr><th>Total charges</th><td class="ag-num">${esc(formatAmount(invoiceTotal(b)))}</td></tr>`
         : ""}
@@ -307,9 +307,9 @@ function confirmationText(b) {
   }
   // Itemised, or the balance will not add up from the customer's side and the
   // first thing they do is ring up to ask why.
-  if (deliveryCost(b) > 0) lines.push(`Delivery: ${formatAmount(deliveryCost(b))}`);
-  if (insuranceCost(b) > 0) lines.push(`Insurance: ${formatAmount(insuranceCost(b))}`);
-  if (otherCost(b) > 0) lines.push(`Other charges: ${formatAmount(otherCost(b))}`);
+  if (deliveryCost(b) > 0) lines.push(`Delivery: ${fxPair(b, deliveryCost(b), b.fxDelivery)}`);
+  if (insuranceCost(b) > 0) lines.push(`Insurance: ${fxPair(b, insuranceCost(b), b.fxInsurance)}`);
+  if (otherCost(b) > 0) lines.push(`Other charges: ${fxPair(b, otherCost(b), b.fxOther)}`);
   if (extrasTotal(b) > 0) lines.push(`Total: ${formatAmount(invoiceTotal(b))}`);
 
   if (advance > 0) lines.push(`Advance already paid: ${fxPair(b, advance, b.fxAdvance)}`);
