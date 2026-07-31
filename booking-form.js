@@ -10,7 +10,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstat
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
   makeBookingRef, bookingRef, showToast,
-  staffNames, locationNames, brokerNames, FX_CURRENCIES, fxRate,
+  staffNames, locationNames, brokerNames, FX_CURRENCIES, fxRate, deleteBookingWarning,
   startTime, endTime,
   fillTimeOptions, getTime, setTime, onTimeChange,
   getSwatch, setSwatch,
@@ -559,8 +559,7 @@ async function saveBooking() {
 async function deleteEditingBooking() {
   if (!editingBookingId) return;
   const b = state.bookings.find(x => x.id === editingBookingId);
-  const who = b ? ` for ${b.renter}` : "";
-  if (!confirm(`Delete this booking${who}?\n\nThis also removes its jobs from the Tasks list and its invoice from Billing.`)) return;
+  if (!confirm(deleteBookingWarning(b))) return;
 
   const btn = el(root, "delete-booking");
   btn.disabled = true; btn.textContent = "Deleting...";

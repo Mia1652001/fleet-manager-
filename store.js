@@ -82,6 +82,27 @@ export function fxRate(sym) {
   return Number.isFinite(r) && r > 0 ? r : null;
 }
 
+// The warning shown before a booking is deleted — shared by every delete
+// button, so none of them can quietly understate what deletion means. An
+// invoice IS its booking: deleting one erases billing history, and the bare
+// "Delete this booking?" taught people to clean up finished rentals by
+// deleting them, silently destroying their income records as they went.
+export function deleteBookingWarning(b) {
+  if (!b) return "Delete this booking?";
+  const lines = [
+    `Delete booking ${bookingRef(b)}${b.renter ? ` for ${b.renter}` : ""}?`,
+    "",
+    `This erases it everywhere: its invoice (${formatAmount(invoiceTotal(b))}) leaves Billing, its jobs leave Tasks, and every total changes with it. This cannot be undone.`
+  ];
+  if (b.paid) {
+    lines.push("",
+      `This invoice is marked PAID — deleting it removes ${formatAmount(settledAmount(b))} from your received-income records.`);
+  }
+  lines.push("",
+    `A finished rental should be marked as returned instead — that keeps its invoice.`);
+  return lines.join("\n");
+}
+
 export function companyTerms() { return state.settings?.terms || ""; }
 
 

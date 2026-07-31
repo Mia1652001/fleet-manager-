@@ -15,7 +15,7 @@ import {
   bookingRef,
   requestFocus,
   invoiceTotal,
-  findClash, describeInterval, hasManualTotal, rateFor, rentalDays, fxPair, extrasTotal,
+  findClash, describeInterval, hasManualTotal, rateFor, rentalDays, fxPair, extrasTotal, deleteBookingWarning,
   showToast, openModal, showError,
   setVal
 } from "./store.js";
@@ -1172,7 +1172,8 @@ async function completeBooking(id) {
 }
 
 async function deleteBooking(id) {
-  if (!confirm("Delete this booking?")) return;
+  const b = state.bookings.find(x => x.id === id);
+  if (!confirm(deleteBookingWarning(b))) return;
   setSync("saving");
   try { await deleteDoc(doc(db, "bookings", id)); }
   catch (e) { alert("Couldn't delete (" + (e.code || e.message) + ")."); setSync("error"); }
