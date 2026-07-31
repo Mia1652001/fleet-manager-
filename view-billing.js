@@ -35,6 +35,11 @@ let periodMonth = "";
 // same Settings list the booking form offers, so the filter can only ever
 // select a broker that actually exists.
 let periodBroker = "";
+// Set by render() when a jump from a booking form arrives; consumed by the
+// list draw. Module-level on purpose: the two ends of the hand-off live in
+// different functions, and a local variable here is exactly the scope bug
+// that broke sign-in.
+let revealInvoiceId = null;
 let depositBookingId = null;
 
 export function mount(container) {
@@ -154,6 +159,7 @@ export function render() {
   // away, then scroll to the card. Consumed once, so ordinary redraws never
   // repeat the jump.
   const focusId = takeFocus("billing");
+  revealInvoiceId = focusId || null;
   if (focusId) {
     const fb = state.bookings.find(x => x.id === focusId);
     if (fb) {
@@ -413,9 +419,11 @@ function renderListTotals(list) {
   const scope = bits.length ? ` · ${bits.join(" · ")}` : "";
   el(root, "list-total").textContent = `${count}${scope} · ${money}`;
 
-  if (focusId) {
+  if (revealInvoiceId) {
+    const id = revealInvoiceId;
+    revealInvoiceId = null;
     setTimeout(() => {
-      const card = el(root, "list").querySelector(`[data-invoice="${focusId}"]`);
+      const card = el(root, "list").querySelector(`[data-invoice="${id}"]`);
       if (!card) return;
       card.scrollIntoView({ block: "center", behavior: "smooth" });
       card.classList.add("card-flash");
