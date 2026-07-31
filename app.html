@@ -862,8 +862,10 @@
       <div class="field"><label>Broker <span class="field-hint">optional — who brought this booking</span></label>
         <input data-el="b-broker" list="dl-brokers" placeholder="Choose or type"></div>
 
-      <div class="field checkbox-field">
+      <div class="field checkbox-field" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
         <label><input type="checkbox" data-el="b-paid"> Marked as paid</label>
+        <button type="button" class="btn" data-el="b-view-invoice" style="display:none;"
+          title="Open this booking's invoice on the Billing page">View invoice</button>
       </div>
 
       <div class="field">

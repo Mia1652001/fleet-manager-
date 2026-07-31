@@ -53,6 +53,15 @@ export function mountBookingForm() {
   });
   el(root, "b-customer").addEventListener("change", toggleNewCustomer);
   el(root, "b-currency").addEventListener("change", syncCurrencyFields);
+  // The reverse of Billing's "View booking": from the booking straight to its
+  // invoice. Only for saved bookings — a form not yet saved has no invoice.
+  const viewInvoice = el(root, "b-view-invoice");
+  if (viewInvoice) viewInvoice.addEventListener("click", () => {
+    if (!editingBookingId) return;
+    requestFocus("billing", editingBookingId);
+    closeModal(root, "booking-modal");
+    location.hash = "#billing";
+  });
   ["b-delivery", "b-insurance", "b-other", "b-total"].forEach(name =>
     el(root, name).addEventListener("input", syncExtrasHint));
   // Guarded: if the page the browser cached is older than this script, the
@@ -332,6 +341,10 @@ export function openBookingModal(bookingId, preset) {
   const editing = editingBookingId ? state.bookings.find(b => b.id === editingBookingId) : null;
   // Shown in the title when editing, which is where someone looks when a
   // customer rings up quoting a number.
+  {
+    const vi = el(root, "b-view-invoice");
+    if (vi) vi.style.display = editing ? "inline-flex" : "none";
+  }
   el(root, "booking-modal-title").textContent = editing
     ? `Edit booking ${bookingRef(editing)}`
     : "New booking";

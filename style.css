@@ -2062,3 +2062,7 @@ input:focus, select:focus { border-color: var(--text); }
   }
   #view-tasks .planner-bar .filter-row .tab:not(.tab-select) { flex: 0 0 auto; }
 }
+
+/* Brief outline on an invoice jumped to from its booking, so the eye lands on
+   the right card among many. */
+.item-card.card-flash { outline: 2px solid var(--text); outline-offset: 2px; }

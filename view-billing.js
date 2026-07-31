@@ -4,7 +4,7 @@ import { db, setSync } from "./firebase-init.js";
 import { openBookingModal, recalcAtTodayRate } from "./booking-form.js";
 import { updateDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
-  state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName,
+  state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName, takeFocus,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
   settledAmount, isBillable, hasStarted, inPeriod, settledOn, PERIOD_DAYS,
   brokerNames, fxPair, fxRate,
@@ -150,6 +150,23 @@ export function mount(container) {
 }
 
 export function render() {
+  // A jump from a booking's form: land on the right tab with nothing filtered
+  // away, then scroll to the card. Consumed once, so ordinary redraws never
+  // repeat the jump.
+  const focusId = takeFocus("billing");
+  if (focusId) {
+    const fb = state.bookings.find(x => x.id === focusId);
+    if (fb) {
+      filter = categoryOf(fb);
+      setVal(root, "search", "");
+      periodYear = ""; periodMonth = ""; periodBroker = "";
+      const ys = el(root, "period-year"); if (ys) ys.value = "";
+      const ms = el(root, "period-month"); if (ms) ms.value = "";
+      const bs = el(root, "period-broker"); if (bs) bs.value = "";
+      el(root, "filters").querySelectorAll(".tab").forEach(x =>
+        x.classList.toggle("active", x.dataset.f === filter));
+    }
+  }
   if (!root) return;
   const search = el(root, "search").value.toLowerCase();
   const billable = state.bookings.filter(isBillable);
@@ -210,7 +227,7 @@ export function render() {
     const hasEmail = !!(b.email || cust?.email);
     const hasPhone = !!(b.phone || cust?.phone);
     return `
-    <div class="item-card ${b.paid ? "completed" : "upcoming"}">
+    <div class="item-card ${b.paid ? "completed" : "upcoming"}" data-invoice="${b.id}">
       <div class="card-top">
         <div>
           <div class="card-title">${esc(b.renter)} — ${formatAmount(b.paid ? total : balance)}${b.paid ? "" : " owed"}</div>
@@ -395,6 +412,16 @@ function renderListTotals(list) {
   if (periodBroker) bits.push(`broker: ${periodBroker}`);
   const scope = bits.length ? ` · ${bits.join(" · ")}` : "";
   el(root, "list-total").textContent = `${count}${scope} · ${money}`;
+
+  if (focusId) {
+    setTimeout(() => {
+      const card = el(root, "list").querySelector(`[data-invoice="${focusId}"]`);
+      if (!card) return;
+      card.scrollIntoView({ block: "center", behavior: "smooth" });
+      card.classList.add("card-flash");
+      setTimeout(() => card.classList.remove("card-flash"), 1600);
+    }, 0);
+  }
 }
 
 // The count on each tab is what clicking it will show, search included.
