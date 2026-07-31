@@ -262,6 +262,7 @@
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search booking by car or renter...">
         <button class="btn-primary" data-el="new-booking">+ New booking</button>
+        <button class="btn" data-el="check-avail" title="Enter dates and see every free car">Check availability</button>
         <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       </div>
       <div class="cal-header">
@@ -302,6 +303,30 @@
         <button class="tab" data-f="completed">Completed</button>
       </div>
       <div class="card-list" data-el="list"><div class="loading-screen">Loading bookings...</div></div>
+
+    <!-- Which cars are free between two dates. The desk's question "have we
+         got anything from the 5th to the 9th?" answered as a list, with a
+         Book button that opens the form already filled in. -->
+    <div class="overlay" data-el="avail-modal">
+      <div class="modal">
+        <h2>Check availability</h2>
+        <div class="form-error" data-el="avail-error"></div>
+        <div class="field-row equal">
+          <div class="field"><label>From</label>
+            <input type="date" data-el="av-start">
+            <div class="time-pair"><select data-el="av-start-time-h"></select><span class="time-sep">:</span><select data-el="av-start-time-m"></select></div>
+          </div>
+          <div class="field"><label>To</label>
+            <input type="date" data-el="av-end">
+            <div class="time-pair"><select data-el="av-end-time-h"></select><span class="time-sep">:</span><select data-el="av-end-time-m"></select></div>
+          </div>
+        </div>
+        <div data-el="avail-results" style="max-height:52vh;overflow:auto;margin-top:10px;"></div>
+        <div class="modal-actions">
+          <button class="btn" data-close="avail-modal">Close</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Shown when a booking is dragged onto a different vehicle. A move like this
          changes what the customer is charged, so it is never done silently. -->

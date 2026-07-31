@@ -21,9 +21,10 @@ testing period. New features wait; fixes to existing behaviour go out as found.
 - [x] **Dates shown while dragging** — a floating tag follows the cursor:
       moving a bar shows the projected dates (and target car on a diagonal
       drag); dragging out a new range shows the range and its day count.
-- [ ] **Availability check** — either vertical multi-day selection on the
-      planner, or a "Check availability" control: enter start + end date, see
-      every free car for that range.
+- [x] **Availability check** — "Check availability" beside New booking: dates
+      and times in, every car judged by the same clash check bookings use;
+      free cars listed in planner order with a Book button that opens the
+      form pre-filled (times included), busy cars shown with why.
 
 ## Tasks & staff
 - [ ] **Staff expenses tab** — like Tasks, but entries carry amounts and an

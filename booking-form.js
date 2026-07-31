@@ -440,6 +440,10 @@ export function openBookingModal(bookingId, preset) {
       setVal(root, "b-start", preset.date);
       setVal(root, "b-end", preset.endDate || preset.date);
     }
+    // The availability check lets the desk pick times; a preset that carries
+    // them lands in the form intact rather than snapping back to noon.
+    if (preset.startTime) setTime(root, "b-start-time", preset.startTime);
+    if (preset.endTime) setTime(root, "b-end-time", preset.endTime);
   }
 
   el(root, "delete-booking").style.display = editing ? "inline-block" : "none";

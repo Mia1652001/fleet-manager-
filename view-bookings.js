@@ -16,6 +16,7 @@ import {
   requestFocus,
   invoiceTotal,
   findClash, describeInterval, hasManualTotal, rateFor, rentalDays, fxPair, extrasTotal, deleteBookingWarning,
+  carStatus, fillTimeOptions, getTime, setTime,
   showToast, openModal, showError,
   setVal
 } from "./store.js";
@@ -199,6 +200,7 @@ export function mount(container) {
 
   wireDragToBook();
   wireBookingMove();
+  wireAvailability();
 
   // The sticky date strip never scrolls on its own — it mirrors the planner
   // body's sideways position, so the day columns stay lined up while the strip
@@ -375,6 +377,102 @@ function addDaysStr(ds, n) {
   const d = new Date(ds + "T12:00");
   d.setDate(d.getDate() + n);
   return dstr(d);
+}
+
+// ---------- Check availability ----------
+// The desk's question — "have we got anything free from the 5th to the 9th?" —
+// answered as a list instead of squinting along the planner for blank
+// stretches. Every car is judged with the same clash check bookings use, so
+// this can never disagree with what saving a booking would say. Free cars get
+// a Book button that opens the form already filled in.
+
+function wireAvailability() {
+  const btn = el(root, "check-avail");
+  if (!btn) return;
+
+  fillTimeOptions(root, "av-start-time");
+  fillTimeOptions(root, "av-end-time");
+
+  btn.addEventListener("click", () => {
+    const today = todayStr();
+    setVal(root, "av-start", today);
+    setVal(root, "av-end", addDaysStr(today, 1));
+    setTime(root, "av-start-time", "12:00");
+    setTime(root, "av-end-time", "12:00");
+    showError(root, "avail-error", null);
+    renderAvailability();
+    openModal(root, "avail-modal");
+  });
+
+  ["av-start", "av-end"].forEach(name =>
+    el(root, name).addEventListener("change", renderAvailability));
+  ["av-start-time-h", "av-start-time-m", "av-end-time-h", "av-end-time-m"].forEach(name =>
+    el(root, name).addEventListener("change", renderAvailability));
+
+  root.querySelectorAll('[data-close="avail-modal"]').forEach(b =>
+    b.addEventListener("click", () => closeModal(root, "avail-modal")));
+
+  el(root, "avail-results").addEventListener("click", (e) => {
+    const book = e.target.closest("[data-book]");
+    if (!book) return;
+    const preset = {
+      carId: book.dataset.book,
+      date: val(root, "av-start"),
+      endDate: val(root, "av-end"),
+      startTime: getTime(root, "av-start-time"),
+      endTime: getTime(root, "av-end-time")
+    };
+    closeModal(root, "avail-modal");
+    openBookingModal(null, preset);
+  });
+}
+
+function renderAvailability() {
+  const box = el(root, "avail-results");
+  if (!box) return;
+  const start = val(root, "av-start");
+  const end = val(root, "av-end");
+  if (!start || !end) { box.innerHTML = ""; return; }
+
+  const startAt = `${start}T${getTime(root, "av-start-time")}`;
+  const endAt = `${end}T${getTime(root, "av-end-time")}`;
+  if (endAt <= startAt) {
+    showError(root, "avail-error", "The end has to come after the start.");
+    box.innerHTML = "";
+    return;
+  }
+  showError(root, "avail-error", null);
+
+  const free = [];
+  const busy = [];
+  orderedCars().forEach(c => {
+    if (carStatus(c) === "service") {
+      busy.push({ car: c, why: "out of service" });
+      return;
+    }
+    const clash = findClash({ carId: c.id, startAt, endAt });
+    if (clash) busy.push({ car: c, why: `${describeInterval(clash)} (${clash.renter || ""})` });
+    else free.push(c);
+  });
+
+  const carLine = c =>
+    `${c.year || ""} ${c.make} ${c.model}`.trim() + ` (${c.plate || "no plate"})` +
+    (c.category ? ` · ${c.category}` : "");
+
+  box.innerHTML = `
+    <p style="margin:0 0 8px;"><strong>${free.length}</strong> of ${free.length + busy.length} cars available</p>
+    ${free.map(c => `
+      <div class="jd-row" style="align-items:center;">
+        <span class="jd-v">${esc(carLine(c))}${c.dailyRate ? ` — ${esc(formatAmount(c.dailyRate))}/day` : ""}</span>
+        <button class="btn" data-book="${c.id}">Book</button>
+      </div>`).join("")}
+    ${free.length === 0 ? `<p style="color:var(--muted);">Nothing free for these dates.</p>` : ""}
+    ${busy.length ? `
+      <p style="margin:14px 0 6px;color:var(--muted);">Not available</p>
+      ${busy.map(x => `
+        <div class="jd-row">
+          <span class="jd-v" style="color:var(--muted);">${esc(carLine(x.car))} — ${esc(x.why)}</span>
+        </div>`).join("")}` : ""}`;
 }
 
 // The little date tag that follows the cursor during planner drags, so a
