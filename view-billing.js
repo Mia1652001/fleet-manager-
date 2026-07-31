@@ -2,7 +2,7 @@
 // security deposits tracked separately.
 import { db, setSync } from "./firebase-init.js";
 import { openBookingModal, recalcAtTodayRate } from "./booking-form.js";
-import { updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { updateDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
@@ -122,12 +122,18 @@ export function mount(container) {
     btn.disabled = true;
     setSync("saving");
     try {
+      // Payment-status changes leave a trace: when, which way, and which
+      // login did it. When money history looks different from what someone
+      // remembers, this is the difference between an answer and a mystery.
       if (btn.dataset.act === "markpaid") {
         await updateDoc(doc(db, "bookings", id), {
-          paid: true, paidAmount: settledAmount(b), paidAt: new Date().toISOString()
+          paid: true, paidAmount: settledAmount(b), paidAt: new Date().toISOString(),
+          paidLog: arrayUnion({ at: new Date().toISOString(), action: "marked paid", by: state.ctx?.user?.email || "" })
         });
       } else if (btn.dataset.act === "markunpaid") {
-        await updateDoc(doc(db, "bookings", id), { paid: false, paidAmount: null, paidAt: null });
+        await updateDoc(doc(db, "bookings", id), { paid: false, paidAmount: null, paidAt: null,
+          paidLog: arrayUnion({ at: new Date().toISOString(), action: "marked unpaid", by: state.ctx?.user?.email || "" })
+        });
       } else if (btn.dataset.act === "refund") {
         await updateDoc(doc(db, "bookings", id), { securityStatus: "refunded" });
       } else if (btn.dataset.act === "keep") {
@@ -225,6 +231,10 @@ export function render() {
         ${adv > 0 ? `<span>Advance paid: <strong>-${fxPair(b, adv, b.fxAdvance)}</strong></span>` : ""}
         ${adv > 0 && !b.paid ? `<span>Balance: <strong>${formatAmount(balance)}</strong></span>` : ""}
         ${b.paid && b.paidAt ? `<span>Paid on: <strong>${formatDate(b.paidAt.slice(0, 10))}</strong></span>` : ""}
+        ${(() => {
+          const log = Array.isArray(b.paidLog) && b.paidLog.length ? b.paidLog[b.paidLog.length - 1] : null;
+          return log ? `<span style="color:var(--muted);">Last change: ${esc(log.action)} ${formatDate(String(log.at).slice(0, 10))}${log.by ? ` by ${esc(log.by)}` : ""}</span>` : "";
+        })()}
         ${b.paid && settledAmount(b) !== total ? `<span>Counted as received: <strong>${formatAmount(settledAmount(b))}</strong> <span style="opacity:0.7;">(the advance came in earlier)</span></span>` : ""}
         ${(rate === 0 && !hasManualTotal(b)) ? `<span style="color:var(--red-text);">No daily rate set on this car — edit the car in Fleet, or enter a total on the booking</span>` : ""}
       </div>

@@ -6,7 +6,7 @@
 
 import { db, setSync } from "./firebase-init.js";
 import { openAgreement, emailBooking, whatsappBooking } from "./agreement.js";
-import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, updateDoc, deleteDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
   makeBookingRef, bookingRef, showToast,
@@ -525,6 +525,15 @@ async function saveBooking() {
       const clearOverrides = {};
       if (prev?.deliveryDate && prev.startDate !== startDate) clearOverrides.deliveryDate = null;
       if (prev?.recoveryDate && prev.endDate !== endDate) clearOverrides.recoveryDate = null;
+      // Ticking or unticking Paid here is a money-status change like the
+      // Billing buttons, and is logged the same way.
+      if (prev && !!prev.paid !== !!details.paid) {
+        clearOverrides.paidLog = arrayUnion({
+          at: new Date().toISOString(),
+          action: details.paid ? "marked paid" : "marked unpaid",
+          by: state.ctx?.user?.email || ""
+        });
+      }
       await updateDoc(doc(db, "bookings", editingBookingId),
         { carId, customerId: customerId ?? null, renter, phone, email: email || "",
           startDate, endDate, dailyRate, carName, ...details, ...clearOverrides });
