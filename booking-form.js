@@ -5,7 +5,7 @@
 // element (#booking-form-root) so the shared el()/val() helpers keep working.
 
 import { db, setSync } from "./firebase-init.js";
-import { openAgreement, emailBooking, whatsappBooking } from "./agreement.js";
+import { openAgreement, openConfirmation, emailBooking, whatsappBooking } from "./agreement.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
@@ -39,6 +39,12 @@ export function mountBookingForm() {
   el(root, "print-agreement").addEventListener("click", () => {
     if (!editingBookingId) return;
     const r = openAgreement(editingBookingId);
+    if (!r.ok) showError(root, "booking-error", r.reason);
+  });
+  const confBtn = el(root, "print-confirmation");
+  if (confBtn) confBtn.addEventListener("click", () => {
+    if (!editingBookingId) return;
+    const r = openConfirmation(editingBookingId);
     if (!r.ok) showError(root, "booking-error", r.reason);
   });
   el(root, "email-booking").addEventListener("click", () => {
@@ -438,6 +444,10 @@ export function openBookingModal(bookingId, preset) {
 
   el(root, "delete-booking").style.display = editing ? "inline-block" : "none";
   el(root, "print-agreement").style.display = editing ? "inline-block" : "none";
+  {
+    const cb = el(root, "print-confirmation");
+    if (cb) cb.style.display = editing ? "inline-block" : "none";
+  }
   el(root, "email-booking").style.display = editing ? "inline-block" : "none";
   el(root, "whatsapp-booking").style.display = editing ? "inline-block" : "none";
 

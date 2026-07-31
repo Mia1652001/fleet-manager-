@@ -73,16 +73,10 @@ function moneyBlock(b) {
     </table>`;
 }
 
-function documentHtml(b) {
-  const ref = bookingRef(b);
-  const customer = customerForBooking(b);
-  const car = state.cars.find(c => c.id === b.carId);
-  const terms = companyTerms();
-
-  return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8">
-<title>Rental agreement ${esc(ref)}</title>
-<style>
+// The stylesheet and the self-print behaviour are shared by every printed
+// document — the agreement and the booking confirmation must look like
+// siblings, and extracting these is what guarantees they never drift apart.
+const DOC_STYLES = `<style>
   @page { size: A4; margin: 16mm 14mm; }
   * { box-sizing: border-box; }
   body {
@@ -139,7 +133,35 @@ function documentHtml(b) {
   }
   .ag-bar .ag-secondary { background: #fff; color: #111; }
   .ag-bar span { margin-right: auto; font-size: 9pt; color: #555; }
-</style></head>
+</style>`;
+
+const SELF_PRINT = `<script>
+  // Prints itself once, from inside its own window, after the logo has had a
+  // chance to load — an image still loading prints as a blank gap. Guarded so a
+  // late load event cannot open a second dialog on top of the first.
+  (function () {
+    var done = false;
+    function once() {
+      if (done) return;
+      done = true;
+      setTimeout(function () { window.print(); }, 300);
+    }
+    if (document.readyState === "complete") once();
+    else window.addEventListener("load", once);
+    setTimeout(once, 2000);   // backstop if an image never arrives
+  })();
+<\/script>`;
+
+function documentHtml(b) {
+  const ref = bookingRef(b);
+  const customer = customerForBooking(b);
+  const car = state.cars.find(c => c.id === b.carId);
+  const terms = companyTerms();
+
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>Rental agreement ${esc(ref)}</title>
+${DOC_STYLES}</head>
 <body>
 
   <div class="ag-bar">
@@ -242,22 +264,7 @@ function documentHtml(b) {
     ${b.broker ? ` · Broker ${esc(b.broker)}` : ""}${b.managedBy ? ` · Managed by ${esc(b.managedBy)}` : ""}
   </div>
 
-<script>
-  // Prints itself once, from inside its own window, after the logo has had a
-  // chance to load — an image still loading prints as a blank gap. Guarded so a
-  // late load event cannot open a second dialog on top of the first.
-  (function () {
-    var done = false;
-    function once() {
-      if (done) return;
-      done = true;
-      setTimeout(function () { window.print(); }, 300);
-    }
-    if (document.readyState === "complete") once();
-    else window.addEventListener("load", once);
-    setTimeout(once, 2000);   // backstop if an image never arrives
-  })();
-<\/script>
+${SELF_PRINT}
 
 </body></html>`;
 }
@@ -413,10 +420,7 @@ export function whatsappBooking(bookingId) {
  * A separate window rather than printing the app itself: the app's own styles
  * would fight the document's, and the person keeps their place in the planner.
  */
-export function openAgreement(bookingId) {
-  const b = state.bookings.find(x => x.id === bookingId);
-  if (!b) return { ok: false, reason: "That booking could not be found." };
-
+function openPrintable(html) {
   const win = window.open("", "_blank");
   if (!win) {
     // Pop-up blockers are common and silent, so say what happened rather than
@@ -428,7 +432,7 @@ export function openAgreement(bookingId) {
   }
 
   win.document.open();
-  win.document.write(documentHtml(b));
+  win.document.write(html);
   win.document.close();
 
   // The parent deliberately does nothing further. Driving the print dialog from
@@ -440,4 +444,88 @@ export function openAgreement(bookingId) {
   try { win.focus(); } catch {}
 
   return { ok: true };
+}
+
+export function openAgreement(bookingId) {
+  const b = state.bookings.find(x => x.id === bookingId);
+  if (!b) return { ok: false, reason: "That booking could not be found." };
+  return openPrintable(documentHtml(b));
+}
+
+// The confirmation is the agreement's lighter sibling: same header, same
+// styles, the booking's facts and money — no terms, no damage diagram, no
+// signature lines. Sent or handed over when the client says yes, printed the
+// same way the agreement is.
+export function openConfirmation(bookingId) {
+  const b = state.bookings.find(x => x.id === bookingId);
+  if (!b) return { ok: false, reason: "That booking could not be found." };
+  return openPrintable(confirmationHtml(b));
+}
+
+function confirmationHtml(b) {
+  const ref = bookingRef(b);
+  const customer = customerForBooking(b);
+
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>Booking confirmation ${esc(ref)}</title>
+${DOC_STYLES}
+</head><body>
+
+  <div class="ag-head">
+    ${companyBlock()}
+    <div class="ag-title">
+      <h1>Booking confirmation</h1>
+      <div class="ag-ref">${esc(ref)}</div>
+      <div class="ag-issued">Issued ${esc(formatDate(todayStr()))}</div>
+    </div>
+  </div>
+
+  <p>We are pleased to confirm your booking. Please check the details below and
+  let us know if anything needs changing.</p>
+
+  <div class="ag-cols">
+    <div>
+      <h2>Booked for</h2>
+      <table class="ag-table">
+        ${line("Name", b.renter)}
+        ${line("Phone", b.phone || customer?.phone)}
+        ${line("Email", b.email || customer?.email)}
+      </table>
+    </div>
+    <div>
+      <h2>Vehicle</h2>
+      <table class="ag-table">
+        ${line("Vehicle", bookingCarLabel(b))}
+      </table>
+    </div>
+  </div>
+
+  <h2>Rental period</h2>
+  <div class="ag-cols">
+    <div>
+      <table class="ag-table">
+        ${line("Pick-up date", formatDate(b.startDate))}
+        ${line("Pick-up time", startTime(b))}
+        ${line("Pick-up place", b.pickupLocation)}
+      </table>
+    </div>
+    <div>
+      <table class="ag-table">
+        ${line("Return date", formatDate(b.endDate))}
+        ${line("Return time", endTime(b))}
+        ${line("Return place", b.dropoffLocation)}
+      </table>
+    </div>
+  </div>
+
+  <h2>Price</h2>
+  ${moneyBlock(b)}
+
+  <p>${esc(DEFAULT_MESSAGE_NOTE.split("\n").join(" "))}</p>
+  <p>We look forward to welcoming you.</p>
+
+  ${SELF_PRINT}
+
+</body></html>`;
 }

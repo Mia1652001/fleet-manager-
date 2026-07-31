@@ -10,9 +10,9 @@ testing period. New features wait; fixes to existing behaviour go out as found.
 - [x] **Extras in the booking currency** — typed in the booking currency when
       one is set; converted at the booking's own agreed rate (house rate as
       fallback) and recorded in Rs, both figures kept and shown paired.
-- [ ] **Booking confirmation document** — a printable confirmation when the
-      client confirms, built like the rental agreement (same company header,
-      simpler content: dates, car, price, deposits).
+- [x] **Booking confirmation document** — printable sibling of the agreement:
+      same header and styles (shared, so they cannot drift), booking facts and
+      the full money table, no terms or signature lines.
 - [x] **Exchange-rate refresh** — done: "Use today's rate" buttons on the
       total and both deposits, per-booking, with a confirmation on paid
       bookings.
@@ -36,6 +36,23 @@ testing period. New features wait; fixes to existing behaviour go out as found.
 - [ ] **Car document dates** — registration date, licence expiry, road tax
       expiry, insurance expiry, fitness expiry, lease expiry. Plus a view or
       report of upcoming expiries (dashboard alert like service-due).
+
+## Security — before the first paying customer
+Do-now items (console work, no code): two-factor authentication on the Google
+account and on GitHub; get every pilot company to run its first backup.
+- [ ] **Password self-service** — "forgot password" reset link on the sign-in
+      page, and let users change their own password (Firebase Auth supports
+      both; small code change). Stops passwords living in WhatsApp threads.
+- [ ] **Schema validation in Firestore rules** — verify *what* is written, not
+      just who writes: amounts are numbers, dates are dates, required fields
+      present. Protects a company from its own buggy or tampered client.
+- [ ] **Backup discipline** — every active company set up with the automatic
+      weekly backup to a folder; check the Firebase usage dashboard monthly
+      (reads/day vs the free-plan ceiling) once 3+ companies are active.
+- [ ] **Onboarding checklist** — written steps for account creation (auth user
+      → users doc with exact companyId → incognito sign-in test) so no company
+      is ever set up from memory.
+- [ ] Onboard the 3-car company (~1 week after Mauritius Tour Operator starts).
 
 ## Bigger items (likely need Blaze / Firebase Storage — stage 7 territory)
 - [ ] **Damage annotation on a car picture** — draw on a photo (WhatsApp-style)
