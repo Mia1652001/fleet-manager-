@@ -377,6 +377,36 @@ function addDaysStr(ds, n) {
   return dstr(d);
 }
 
+// The little date tag that follows the cursor during planner drags, so a
+// drop is never a guess: moving a bar shows the dates it would land on (and
+// the car, when that changes); dragging out a new range shows the range.
+// One element for the whole page, module-level, created on first use.
+let dragTip = null;
+
+function ensureDragTip() {
+  if (dragTip) return dragTip;
+  dragTip = document.createElement("div");
+  dragTip.className = "drag-tip";
+  document.body.appendChild(dragTip);
+  return dragTip;
+}
+
+function showDragTip(x, y, text) {
+  const t = ensureDragTip();
+  t.textContent = text;
+  t.classList.add("on");
+  const pad = 14;
+  let left = x + pad, top = y + pad;
+  if (left + t.offsetWidth > window.innerWidth - 8) left = x - t.offsetWidth - pad;
+  if (top + t.offsetHeight > window.innerHeight - 8) top = y - t.offsetHeight - pad;
+  t.style.left = left + "px";
+  t.style.top = top + "px";
+}
+
+function hideDragTip() {
+  if (dragTip) dragTip.classList.remove("on");
+}
+
 function wireBookingMove() {
   const grid = el(root, "timeline");
   if (!grid) return;
@@ -413,7 +443,7 @@ function wireBookingMove() {
 
     const cell = cellAtPoint(e.clientX, e.clientY);
     grid.querySelectorAll(".tl-cell.move-target").forEach(c => c.classList.remove("move-target"));
-    if (!cell) { barDrag.toCarId = null; return; }   // off the grid: no target
+    if (!cell) { barDrag.toCarId = null; hideDragTip(); return; }   // off the grid: no target
 
     const b = state.bookings.find(x => x.id === barDrag.bookingId);
     if (!b) return;
@@ -423,7 +453,7 @@ function wireBookingMove() {
     const toCarId = cell.dataset.addCar;
     // Same car, same days: not a move. Cleared, not merely skipped — otherwise
     // dragging away and back would drop on whatever was hovered last.
-    if (delta === 0 && toCarId === b.carId) { barDrag.toCarId = null; return; }
+    if (delta === 0 && toCarId === b.carId) { barDrag.toCarId = null; hideDragTip(); return; }
 
     if (!barDrag.moved) {
       try { grid.setPointerCapture(e.pointerId); } catch {}
@@ -441,6 +471,12 @@ function wireBookingMove() {
       const i = Number(c.dataset.idx);
       if (i >= lo && i <= hi) c.classList.add("move-target");
     });
+
+    const newStart = addDaysStr(b.startDate, delta);
+    const newEnd = addDaysStr(b.endDate, delta);
+    const toCar = toCarId !== b.carId ? state.cars.find(c => c.id === toCarId) : null;
+    showDragTip(e.clientX, e.clientY,
+      `${formatDate(newStart)} – ${formatDate(newEnd)}${toCar ? ` → ${toCar.make} ${toCar.model}` : ""}`);
     e.preventDefault();
   });
 
@@ -451,6 +487,7 @@ function wireBookingMove() {
     if (drag.moved) { try { grid.releasePointerCapture(drag.pointerId); } catch {} }
     grid.classList.remove("moving-bar");
     grid.querySelectorAll(".tl-cell.move-target").forEach(c => c.classList.remove("move-target"));
+    hideDragTip();
     if (!drag.moved || !drag.toCarId) return;
 
     // Otherwise the click that follows opens the booking form on top of this.
@@ -482,6 +519,7 @@ function wireBookingMove() {
     barDrag = null;
     grid.classList.remove("moving-bar");
     grid.querySelectorAll(".tl-cell.move-target").forEach(c => c.classList.remove("move-target"));
+    hideDragTip();
   });
 
   ["move-keep", "move-new", "move-custom"].forEach(name =>
@@ -698,6 +736,15 @@ function wireDragToBook() {
     cellDrag.moved = true;
     e.preventDefault();
     paintDragPreview();
+
+    const lo = Math.min(cellDrag.from, cellDrag.to);
+    const hi = Math.max(cellDrag.from, cellDrag.to);
+    const s0 = lastRenderedDays[lo], e0 = lastRenderedDays[hi];
+    if (s0 && e0) {
+      const n = hi - lo + 1;
+      showDragTip(e.clientX, e.clientY,
+        `${formatDate(s0)} – ${formatDate(e0)} · ${n} day${n === 1 ? "" : "s"}`);
+    }
   });
 
   const finish = (e) => {
@@ -706,6 +753,7 @@ function wireDragToBook() {
     cellDrag = null;
     if (drag.moved) { try { grid.releasePointerCapture(drag.pointerId); } catch {} }
     clearDragPreview();
+    hideDragTip();
 
     if (!drag.moved) return;                          // a plain click; leave it be
 

@@ -2066,3 +2066,22 @@ input:focus, select:focus { border-color: var(--text); }
 /* Brief outline on an invoice jumped to from its booking, so the eye lands on
    the right card among many. */
 .item-card.card-flash { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/* The floating date tag that follows the cursor during planner drags. Dark on
+   light so it reads over any bar colour; never catches the pointer itself. */
+.drag-tip {
+  position: fixed;
+  z-index: 999;
+  display: none;
+  pointer-events: none;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  background: var(--text);
+  color: var(--bg);
+  padding: 4px 9px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+.drag-tip.on { display: block; }
