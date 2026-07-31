@@ -483,7 +483,21 @@ function boardColumns(jobs) {
     const k = n.toLowerCase();
     if (k && !seen.has(k)) seen.set(k, n);
   });
-  return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
+  const ordered = Array.from(seen.values());
+
+  // Columns follow the order the staff were entered in Settings — that list
+  // is where the company already says who comes first. Names that only
+  // appear on jobs (typed on a booking, not in Settings) follow after,
+  // alphabetically. Without a Settings list at all, alphabetical is the only
+  // order there is.
+  if (fromSettings.length) {
+    const inSettings = new Set(fromSettings.map(n => n.toLowerCase()));
+    const settingsPart = ordered.filter(n => inSettings.has(n.toLowerCase()));
+    const extras = ordered.filter(n => !inSettings.has(n.toLowerCase()))
+      .sort((a, b) => a.localeCompare(b));
+    return [...settingsPart, ...extras];
+  }
+  return ordered.sort((a, b) => a.localeCompare(b));
 }
 
 function boardChip(j) {
@@ -838,7 +852,7 @@ function renderBoard(jobs, from, to) {
     chosenNames.forEach(n => {
       if (!kept.some(p => p.toLowerCase() === n.toLowerCase())) kept.push(n);
     });
-    people = kept.sort((a, b) => a.localeCompare(b));
+    people = kept;   // already in Settings order from boardColumns
     showUnassigned = staffFilter.has("__none__");
   }
 

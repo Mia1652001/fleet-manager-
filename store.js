@@ -597,9 +597,24 @@ function mergeNames(...groups) {
 // Before the list is filled in there is nothing to offer, so it still falls back
 // to what the data contains. That keeps the app useful from the first day, and
 // means filling in Settings tidies the lists rather than being a precondition.
+// Same case-insensitive de-duplication as mergeNames, but keeping the order
+// the names were written in — used where the Settings order is the point.
+function dedupeKeepOrder(list) {
+  const seen = new Map();
+  list.forEach(v => {
+    const name = String(v || "").trim();
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (!seen.has(key)) seen.set(key, name);
+  });
+  return Array.from(seen.values());
+}
+
 export function staffNames() {
+  // Settings order preserved, so the staff filter, the suggestion lists and
+  // the board columns all present people in the same order the company wrote.
   const own = settingsList("staff");
-  if (own.length) return mergeNames(own);
+  if (own.length) return dedupeKeepOrder(own);
   return mergeNames(
     state.bookings.flatMap(b => [b.deliveredBy, b.managedBy, b.recoveredBy]),
     (state.tasks || []).map(t => t.staff)
