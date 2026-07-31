@@ -2031,8 +2031,28 @@ input:focus, select:focus { border-color: var(--text); }
 #view-tasks .planner-bar .filter-row { gap: 6px; margin-bottom: 0; }
 #view-tasks .planner-bar .cal-nav { gap: 6px; }
 
-/* On a phone the search gets its own full line; everything else keeps its
-   natural width and wraps into compact rows. */
+/* On a phone: the search gets its own full line, every control drops to a
+   smaller size, and the range row — Past · Today · Ahead — is locked to one
+   line: the two dropdowns share the space Today leaves, instead of the third
+   control falling onto a lonely line of its own. Desktop is untouched. */
 @media (max-width: 640px) {
-  #view-tasks .planner-bar input[type="text"] { flex: 1 1 100%; }
+  #view-tasks .planner-bar input[type="text"] { flex: 1 1 100%; height: 32px; font-size: 12px; }
+  #view-tasks .planner-bar select,
+  #view-tasks .planner-bar .btn,
+  #view-tasks .planner-bar .btn-primary,
+  #view-tasks .planner-bar .panel-toggle,
+  #view-tasks .planner-bar .tab {
+    height: 26px;
+    padding: 0 8px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+  #view-tasks .planner-bar .filter-row { flex-wrap: nowrap; }
+  #view-tasks .planner-bar .tab-select {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+    width: auto;
+  }
+  #view-tasks .planner-bar .filter-row .tab:not(.tab-select) { flex: 0 0 auto; }
 }
