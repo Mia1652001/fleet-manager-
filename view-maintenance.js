@@ -1,8 +1,8 @@
 // Maintenance view — service schedules, due warnings, out-of-service toggle.
 import { db, setSync } from "./firebase-init.js";
-import { updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { updateDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
-  state, onDataChange, esc, formatDate, serviceDue,
+  state, onDataChange, esc, formatDate, serviceDue, todayStr,
   initPanelToggle,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
@@ -21,6 +21,7 @@ export function mount(container) {
 
   el(root, "search").addEventListener("input", render);
   el(root, "save-maint").addEventListener("click", saveMaintenance);
+  el(root, "save-service").addEventListener("click", saveService);
 
   el(root, "filters").addEventListener("click", (e) => {
     const t = e.target.closest(".tab");
@@ -42,6 +43,8 @@ export function mount(container) {
     const id = btn.dataset.id;
 
     if (btn.dataset.act === "edit") { openMaintModal(id); return; }
+    if (btn.dataset.act === "logservice") { openServiceModal(id); return; }
+    if (btn.dataset.act === "history") { openHistoryModal(id); return; }
 
     btn.disabled = true;
     setSync("saving");
@@ -50,10 +53,6 @@ export function mount(container) {
         await updateDoc(doc(db, "cars", id), { outOfService: true });
       } else if (btn.dataset.act === "backinservice") {
         await updateDoc(doc(db, "cars", id), { outOfService: false });
-      } else if (btn.dataset.act === "serviced") {
-        await updateDoc(doc(db, "cars", id), {
-          lastServicedAt: new Date().toISOString(), nextServiceDate: ""
-        });
       }
     } catch (err) {
       alert("Couldn't update (" + (err.code || err.message) + ").");
@@ -111,16 +110,96 @@ export function render() {
         <span>Mileage: <strong>${c.mileage ? esc(c.mileage) + " km" : "—"}</strong></span>
         ${c.serviceMileage ? `<span>Service at: <strong>${esc(c.serviceMileage)} km</strong></span>` : ""}
         ${c.notes_maint ? `<span>Notes: <strong>${esc(c.notes_maint)}</strong></span>` : ""}
+        ${(() => {
+          const hist = Array.isArray(c.serviceHistory) ? c.serviceHistory : [];
+          if (!hist.length) return "";
+          const last = hist.slice().sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
+          return `<span>Last serviced: <strong>${formatDate(last.at)}</strong>${last.mileage ? ` at ${esc(last.mileage)} km` : ""}</span>`;
+        })()}
       </div>
       <div class="card-actions">
         <button class="btn" data-act="edit" data-id="${c.id}">Edit schedule</button>
-        ${due ? `<button class="btn" data-act="serviced" data-id="${c.id}">Mark serviced</button>` : ""}
+        <button class="btn" data-act="logservice" data-id="${c.id}">Log service</button>
+        ${Array.isArray(c.serviceHistory) && c.serviceHistory.length
+          ? `<button class="btn" data-act="history" data-id="${c.id}">History (${c.serviceHistory.length})</button>` : ""}
         ${oos
           ? `<button class="btn" data-act="backinservice" data-id="${c.id}">Back in service</button>`
           : `<button class="btn danger" data-act="outofservice" data-id="${c.id}">Take out of service</button>`}
       </div>
     </div>`;
   }).join("");
+}
+
+// Logging a service is one motion: what was done, and when the next one is
+// due. The entry goes into the car's permanent history — nothing is
+// overwritten, which is what "Mark serviced" used to do wrong: it stamped a
+// date and wiped the schedule, keeping no record at all.
+function openServiceModal(id) {
+  editingCarId = id;
+  const c = state.cars.find(x => x.id === id);
+  el(root, "service-title").textContent = `${c.make} ${c.model} — log a service`;
+  setVal(root, "sv-date", todayStr());
+  setVal(root, "sv-mileage", c.mileage ?? "");
+  setVal(root, "sv-notes", "");
+  setVal(root, "sv-next-date", "");
+  setVal(root, "sv-next-mileage", "");
+  showError(root, "service-error", null);
+  openModal(root, "service-modal");
+}
+
+async function saveService() {
+  if (!editingCarId) return;
+  const c = state.cars.find(x => x.id === editingCarId);
+  const at = val(root, "sv-date");
+  if (!at) { showError(root, "service-error", "Enter the date the service was done."); return; }
+
+  const mileage = parseFloat(val(root, "sv-mileage"));
+  const entry = {
+    at,
+    mileage: Number.isFinite(mileage) ? mileage : null,
+    notes: val(root, "sv-notes"),
+    nextDate: val(root, "sv-next-date") || "",
+    nextMileage: parseFloat(val(root, "sv-next-mileage")) || null,
+    by: state.ctx?.user?.email || ""
+  };
+
+  const btn = el(root, "save-service");
+  btn.disabled = true; btn.textContent = "Saving...";
+  setSync("saving");
+  try {
+    await updateDoc(doc(db, "cars", editingCarId), {
+      serviceHistory: arrayUnion(entry),
+      lastServicedAt: at,
+      // The schedule moves on to the next service; the completed one lives in
+      // the history now. An empty next date simply means none is planned yet.
+      nextServiceDate: entry.nextDate,
+      serviceMileage: entry.nextMileage || 0,
+      mileage: Number.isFinite(mileage) ? mileage : (c?.mileage ?? 0)
+    });
+    closeModal(root, "service-modal");
+    editingCarId = null;
+  } catch (e) {
+    showError(root, "service-error", "Couldn't save (" + (e.code || e.message) + "). Try again.");
+    setSync("error");
+  }
+  btn.disabled = false; btn.textContent = "Log service";
+}
+
+function openHistoryModal(id) {
+  const c = state.cars.find(x => x.id === id);
+  const hist = (Array.isArray(c?.serviceHistory) ? c.serviceHistory : [])
+    .slice().sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  el(root, "history-title").textContent = `${c.make} ${c.model} — service history`;
+  el(root, "history-list").innerHTML = hist.length
+    ? hist.map(hh => `
+      <div class="jd-row">
+        <span class="jd-l">${formatDate(hh.at)}</span>
+        <span class="jd-v">${hh.mileage ? `${esc(hh.mileage)} km · ` : ""}${esc(hh.notes || "—")}
+          ${hh.nextDate ? `<span style="color:var(--muted);"> · next set to ${formatDate(hh.nextDate)}</span>` : ""}
+          ${hh.by ? `<span style="color:var(--muted);"> · ${esc(hh.by)}</span>` : ""}</span>
+      </div>`).join("")
+    : `<div class="empty">No services logged yet.</div>`;
+  openModal(root, "history-modal");
 }
 
 function openMaintModal(id) {

@@ -32,8 +32,10 @@ testing period. New features wait; fixes to existing behaviour go out as found.
       collection → remember the matching rules block.
 
 ## Fleet & maintenance
-- [ ] **Service history per car** — keep each completed servicing (date,
-      mileage, notes) instead of overwriting; show as a history list.
+- [x] **Service history per car** — "Log service" records date, mileage, work
+      done and the next due date/mileage in one motion, appended permanently;
+      "History (N)" viewer per car, last-serviced line on the card, and a
+      Service history sheet in the Excel backup.
 - [x] **Car document dates** — the six dates on the car form (all optional);
       expired/expiring warnings on each Fleet card (red/amber per document),
       Dashboard alerts 30 days ahead, and all six columns in the Excel backup.

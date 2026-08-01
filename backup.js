@@ -21,7 +21,8 @@ export const CATEGORIES = [
   { key: "bookings",  label: "Bookings & invoices" },
   { key: "customers", label: "Customers" },
   { key: "cars",      label: "Cars & rates" },
-  { key: "tasks",     label: "Tasks" }
+  { key: "tasks",     label: "Tasks" },
+  { key: "service",   label: "Service history" }
 ];
 
 export const INTERVALS = [
@@ -156,8 +157,24 @@ const BUILDERS = {
   bookings: { sheet: "Bookings", rows: bookingRows },
   customers:{ sheet: "Customers", rows: customerRows },
   cars:     { sheet: "Cars", rows: carRows },
-  tasks:    { sheet: "Tasks", rows: taskRows }
+  tasks:    { sheet: "Tasks", rows: taskRows },
+  service:  { sheet: "Service history", rows: serviceRows }
 };
+
+function serviceRows() {
+  const rows = [["Car", "Plate", "Service date", "Mileage (km)", "Work done", "Next service set to", "Logged by"]];
+  state.cars.slice()
+    .sort((a, b) => (a.make + a.model).localeCompare(b.make + b.model))
+    .forEach(c => {
+      (Array.isArray(c.serviceHistory) ? c.serviceHistory : [])
+        .slice().sort((a, b) => String(a.at).localeCompare(String(b.at)))
+        .forEach(hh => rows.push([
+          `${c.year || ""} ${c.make || ""} ${c.model || ""}`.trim(), c.plate || "",
+          hh.at || "", hh.mileage || "", hh.notes || "", hh.nextDate || "", hh.by || ""
+        ]));
+    });
+  return rows;
+}
 
 // ---------- File formats ----------
 

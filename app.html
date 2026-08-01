@@ -500,6 +500,40 @@
       </div>
       <div class="card-list" data-el="list"><div class="loading-screen">Loading...</div></div>
 
+      <!-- Logging a completed service: what was done, and when the next one is
+           due — one motion, appended to the car's permanent history. -->
+      <div class="overlay" data-el="service-modal">
+        <div class="modal">
+          <h2 data-el="service-title">Log a service</h2>
+          <div class="form-error" data-el="service-error"></div>
+          <div class="field-row equal">
+            <div class="field"><label>Service date</label><input data-el="sv-date" type="date"></div>
+            <div class="field"><label>Mileage at service (km)</label><input data-el="sv-mileage" type="number" min="0" placeholder="e.g. 45000"></div>
+          </div>
+          <div class="field"><label>Work done</label><input data-el="sv-notes" placeholder="e.g. oil change, brake pads"></div>
+          <div class="field-row equal">
+            <div class="field"><label>Next service date</label><input data-el="sv-next-date" type="date"></div>
+            <div class="field"><label>Next service at (km)</label><input data-el="sv-next-mileage" type="number" min="0" placeholder="e.g. 50000"></div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn" data-close="service-modal">Cancel</button>
+            <button class="btn-primary" data-el="save-service">Log service</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- A car's full service record, newest first. Read-only: history is
+           what happened, not something to edit. -->
+      <div class="overlay" data-el="history-modal">
+        <div class="modal">
+          <h2 data-el="history-title">Service history</h2>
+          <div class="jd-list" data-el="history-list" style="max-height:60vh;overflow:auto;"></div>
+          <div class="modal-actions">
+            <button class="btn" data-close="history-modal">Close</button>
+          </div>
+        </div>
+      </div>
+
       <div class="overlay" data-el="maint-modal">
         <div class="modal">
           <h2 data-el="maint-title">Maintenance</h2>
