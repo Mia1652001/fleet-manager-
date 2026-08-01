@@ -8,7 +8,8 @@ export const state = {
   cars: [],
   bookings: [],
   customers: [],
-  tasks: []     // manually added jobs, e.g. "follow up agency"
+  tasks: [],    // manually added jobs, e.g. "follow up agency"
+  expenses: []  // staff spends: car washes, repairs, fuel — see view-expenses.js
 };
 
 // Views register a render function; app.js calls this whenever data changes.
@@ -685,6 +686,12 @@ export function locationNames() {
   const own = settingsList("locations");
   if (own.length) return mergeNames(own);
   return mergeNames(state.bookings.flatMap(b => [b.pickupLocation, b.dropoffLocation]));
+}
+
+export function expenseCategoryNames() {
+  const own = settingsList("expenseCategories");
+  if (own.length) return dedupeKeepOrder(own);
+  return mergeNames(state.expenses.map(x => x.category));
 }
 
 export function brokerNames() {

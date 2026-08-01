@@ -55,6 +55,7 @@
       <a href="#dashboard" data-view="dashboard" class="active">Dashboard</a>
       <a href="#bookings" data-view="bookings">Bookings</a>
       <a href="#tasks" data-view="tasks">Tasks</a>
+      <a href="#expenses" data-view="expenses">Expenses</a>
       <a href="#fleet" data-view="fleet">Fleet</a>
       <a href="#customers" data-view="customers">Customers</a>
       <a href="#billing" data-view="billing">Billing</a>
@@ -551,6 +552,44 @@
     </section>
 
     <!-- ---------- TASKS ---------- -->
+    <section class="view" id="view-expenses">
+      <div class="stats" data-el="stats"></div>
+      <div class="toolbar">
+        <input type="text" data-el="search" placeholder="Search staff, category, car or note...">
+        <button class="btn-primary" data-el="add-expense">+ Add expense</button>
+      </div>
+      <div class="filter-row">
+        <label style="align-self:center;">Period</label>
+        <select data-el="period-year"></select>
+        <select data-el="period-month"></select>
+        <label style="align-self:center;margin-left:10px;">Category</label>
+        <select data-el="period-category"></select>
+      </div>
+      <div class="list-total" data-el="list-total"></div>
+      <div class="card-list" data-el="list"><div class="loading-screen">Loading expenses...</div></div>
+
+      <div class="overlay" data-el="expense-modal">
+        <div class="modal">
+          <h2 data-el="expense-title">Add expense</h2>
+          <div class="form-error" data-el="expense-error"></div>
+          <div class="field-row equal">
+            <div class="field"><label>Date</label><input type="date" data-el="x-date"></div>
+            <div class="field"><label>Amount</label><input type="number" min="0" step="any" data-el="x-amount" placeholder="e.g. 500"></div>
+          </div>
+          <div class="field-row equal">
+            <div class="field"><label>Spent by</label><input data-el="x-staff" list="dl-staff" placeholder="Choose or type"></div>
+            <div class="field"><label>Category</label><input data-el="x-category" list="dl-expense-categories" placeholder="e.g. car wash"></div>
+          </div>
+          <div class="field"><label>Car (optional)</label><select data-el="x-car"></select></div>
+          <div class="field"><label>Note</label><input data-el="x-note" placeholder="optional"></div>
+          <div class="modal-actions">
+            <button class="btn" data-close="expense-modal">Cancel</button>
+            <button class="btn-primary" data-el="save-expense">Save</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="view" id="view-settings">
       <div class="settings-grid">
 
@@ -624,6 +663,13 @@
                 placeholder="One name per line…"></textarea>
               <p class="settings-note">One per line — used for the staff fields and the Tasks board columns.</p>
             </div>
+          </div>
+
+          <div class="field">
+            <label for="s-expense-categories">Expense categories</label>
+            <textarea id="s-expense-categories" data-el="s-expense-categories" rows="4"
+              placeholder="car wash&#10;repairs&#10;fuel&#10;parking"></textarea>
+            <p class="settings-note">One per line — offered on the Expenses page.</p>
           </div>
 
           <div class="field">
@@ -830,6 +876,7 @@
   <datalist id="dl-locations"></datalist>
   <datalist id="dl-staff"></datalist>
   <datalist id="dl-brokers"></datalist>
+  <datalist id="dl-expense-categories"></datalist>
 
 
   <div id="booking-form-root">

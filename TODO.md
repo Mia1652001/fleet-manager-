@@ -27,9 +27,10 @@ testing period. New features wait; fixes to existing behaviour go out as found.
       form pre-filled (times included), busy cars shown with why.
 
 ## Tasks & staff
-- [ ] **Staff expenses tab** — like Tasks, but entries carry amounts and an
-      expense category (car wash, repairs, fuel, …). Needs a new Firestore
-      collection → remember the matching rules block.
+- [x] **Staff expenses tab** — new Expenses view: entries with date, amount,
+      category (company-defined in Settings), who spent it, optional car and
+      note; month/year/category filters with honest totals; Excel backup
+      sheet. NOTE: needs the /expenses rules block published before use.
 
 ## Fleet & maintenance
 - [x] **Service history per car** — "Log service" records date, mileage, work

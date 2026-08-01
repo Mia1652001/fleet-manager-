@@ -14,6 +14,7 @@ import * as maintenance from "./view-maintenance.js";
 import * as tasks from "./view-tasks.js";
 import * as dashboard from "./view-dashboard.js";
 import * as settings from "./view-settings.js";
+import * as expenses from "./view-expenses.js";
 import { backupDue, backupPrefs, daysSinceBackup, runBackup } from "./backup.js";
 import { mountBookingForm, onBookingChange } from "./booking-form.js";
 
@@ -25,6 +26,7 @@ const VIEWS = {
   billing: { mod: billing, root: null },
   maintenance: { mod: maintenance, root: null },
   tasks: { mod: tasks, root: null },
+  expenses: { mod: expenses, root: null },
   settings: { mod: settings, root: null }
 };
 
@@ -40,7 +42,7 @@ let unsubs = [];
 // backup built from that would be an empty file that silently replaces the
 // reminder to take a real one.
 let loadedCollections = new Set();
-const ALL_COLLECTIONS = 5; // cars, bookings, customers, tasks, settings
+const ALL_COLLECTIONS = 6; // cars, bookings, customers, tasks, expenses, settings
 function allDataLoaded() { return loadedCollections.size >= ALL_COLLECTIONS; }
 
 // ---------- Boot ----------
@@ -124,7 +126,7 @@ function startApp() {
       // Everything, settings included: leaving the settings behind meant the
       // next person to sign in on this device briefly saw the previous
       // company's currency, logo and name until their own snapshot arrived.
-      state.ctx = null; state.cars = []; state.bookings = []; state.customers = []; state.tasks = [];
+      state.ctx = null; state.cars = []; state.bookings = []; state.customers = []; state.tasks = []; state.expenses = [];
       state.settings = {};
       loadedCollections = new Set();
       document.title = "Fleet Manager";
@@ -202,6 +204,13 @@ function startListeners() {
   unsubs.push(onSnapshot(query(collection(db, "tasks"), where("companyId", "==", cid)), snap => {
     state.tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     loadedCollections.add("tasks");
+    setSync("live");
+    notifyDataChange();
+  }, () => setSync("error")));
+
+  unsubs.push(onSnapshot(query(collection(db, "expenses"), where("companyId", "==", cid)), snap => {
+    state.expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loadedCollections.add("expenses");
     setSync("live");
     notifyDataChange();
   }, () => setSync("error")));

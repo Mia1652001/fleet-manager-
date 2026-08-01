@@ -122,6 +122,7 @@ export function render() {
   setVal(root, "s-locations", linesFrom(s.locations));
   setVal(root, "s-staff", linesFrom(s.staff));
   setVal(root, "s-brokers", linesFrom(s.brokers));
+  setVal(root, "s-expense-categories", linesFrom(s.expenseCategories));
   root.querySelectorAll("[data-fxrate]").forEach(inp => {
     const r = s.fxRates?.[inp.dataset.fxrate];
     inp.value = (typeof r === "number" && r > 0) ? r : "";
@@ -328,6 +329,7 @@ async function saveSettings() {
     locations: linesTo(val(root, "s-locations")),
     staff: linesTo(val(root, "s-staff")),
     brokers: linesTo(val(root, "s-brokers")),
+    expenseCategories: linesTo(val(root, "s-expense-categories")),
     fxRates: collectFxRates(),
     updatedAt: new Date().toISOString()
   };

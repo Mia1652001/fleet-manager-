@@ -22,7 +22,8 @@ export const CATEGORIES = [
   { key: "customers", label: "Customers" },
   { key: "cars",      label: "Cars & rates" },
   { key: "tasks",     label: "Tasks" },
-  { key: "service",   label: "Service history" }
+  { key: "service",   label: "Service history" },
+  { key: "expenses",  label: "Staff expenses" }
 ];
 
 export const INTERVALS = [
@@ -158,8 +159,23 @@ const BUILDERS = {
   customers:{ sheet: "Customers", rows: customerRows },
   cars:     { sheet: "Cars", rows: carRows },
   tasks:    { sheet: "Tasks", rows: taskRows },
-  service:  { sheet: "Service history", rows: serviceRows }
+  service:  { sheet: "Service history", rows: serviceRows },
+  expenses: { sheet: "Staff expenses", rows: expenseRows }
 };
+
+function expenseRows() {
+  const carName = id => {
+    const c = state.cars.find(v => v.id === id);
+    return c ? `${c.make} ${c.model} (${c.plate || ""})` : "";
+  };
+  return [
+    ["Date", "Amount", "Category", "Spent by", "Car", "Note", "Recorded by"],
+    ...state.expenses.slice()
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+      .map(x => [x.date || "", x.amount || 0, x.category || "", x.staff || "",
+        carName(x.carId), x.note || "", x.by || ""])
+  ];
+}
 
 function serviceRows() {
   const rows = [["Car", "Plate", "Service date", "Mileage (km)", "Work done", "Next service set to", "Logged by"]];
