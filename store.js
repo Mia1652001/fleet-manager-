@@ -73,6 +73,15 @@ export function fxPair(b, homeAmount, fxAmount) {
   return formatAmount(homeAmount);
 }
 
+// The company's plan limit on cars, set only from the Firebase console (the
+// security rules forbid any client changing it). Null means unlimited — which
+// is what every company is until a plan says otherwise, so free pilots need
+// nothing set at all.
+export function carLimit() {
+  const n = Number(state.settings?.carLimit);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 // The company's own exchange rate for a currency, set on the Settings page.
 // A house rate rather than a market feed: it carries the margin the company
 // actually gives at the desk, works offline, and converts the same booking the

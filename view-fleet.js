@@ -8,7 +8,7 @@ import {
   orderedCars, getSwatch, setSwatch,
   initPanelToggle,
   el, val, setVal, checked, setChecked, openModal, closeModal, showError,
-  takeFocus
+  takeFocus, carLimit
 } from "./store.js";
 
 let root = null;
@@ -26,7 +26,19 @@ export function mount(container) {
 
   el(root, "search").addEventListener("input", render);
   el(root, "sort").addEventListener("change", render);
-  el(root, "add-car").addEventListener("click", () => openCarModal(null));
+  el(root, "add-car").addEventListener("click", () => {
+    // The plan's car limit is checked where a car would be added, in words a
+    // desk can act on — not a silent failure, not a technical error.
+    const limit = carLimit();
+    if (limit && state.cars.length >= limit) {
+      alert(
+        `Your plan includes ${limit} car${limit === 1 ? "" : "s"}, and all ` +
+        `${limit === 1 ? "of it is" : "of them are"} in use.\n\n` +
+        `To add more cars, ask about upgrading your plan.`);
+      return;
+    }
+    openCarModal(null);
+  });
   el(root, "save-car").addEventListener("click", saveCar);
 
   el(root, "c-rowcolour").addEventListener("click", (e) => {
@@ -111,7 +123,7 @@ export function render() {
   const rented = withStatus.filter(c => c._status === "rented" || c._status === "overdue").length;
 
   if (summaryOpen()) el(root, "stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Total cars</div><div class="stat-val">${state.cars.length}</div></div>
+    <div class="stat"><div class="stat-label">Total cars</div><div class="stat-val">${state.cars.length}${carLimit() ? `<span style="font-size:0.45em;color:${state.cars.length >= carLimit() ? "var(--red-text)" : "var(--muted)"};"> of ${carLimit()} on plan</span>` : ""}</div></div>
     <div class="stat"><div class="stat-label">Available</div><div class="stat-val green">${available}</div></div>
     <div class="stat"><div class="stat-label">Rented out</div><div class="stat-val amber">${rented}</div></div>
     <div class="stat"><div class="stat-label">Out of service</div><div class="stat-val red">${service}</div></div>
@@ -222,6 +234,15 @@ function openCarModal(id) {
 }
 
 async function saveCar() {
+  // Checked again at save, not only at the button: another device may have
+  // added a car while this form was open, and the limit may have changed.
+  {
+    const limit = carLimit();
+    if (!editingCarId && limit && state.cars.length >= limit) {
+      alert(`Your plan includes ${limit} cars and they are all in use. To add more, ask about upgrading your plan.`);
+      return;
+    }
+  }
   const make = val(root, "c-make");
   const model = val(root, "c-model");
   if (!make || !model) { alert("Please enter at least a make and model."); return; }

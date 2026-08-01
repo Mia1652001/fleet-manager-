@@ -38,6 +38,15 @@ testing period. New features wait; fixes to existing behaviour go out as found.
       expiry, insurance expiry, fitness expiry, lease expiry. Plus a view or
       report of upcoming expiries (dashboard alert like service-due).
 
+## Pricing enforcement
+- [x] **Per-company car limit** — `carLimit` on the settings document, set only
+      from the Firebase console; the app blocks adding cars past it with an
+      upgrade message and shows "N of L on plan" in the Fleet summary. Rules
+      make the field immutable to clients. No limit set = unlimited (pilots).
+- [ ] **Hard server-side enforcement** (Blaze/Cloud Functions) — a modified
+      client can currently still write past the limit; the usage line makes
+      that visible, and the contract handles it until Functions exist.
+
 ## Security — before the first paying customer
 Do-now items (console work, no code): two-factor authentication on the Google
 account and on GitHub; get every pilot company to run its first backup.
