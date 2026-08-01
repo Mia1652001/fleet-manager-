@@ -126,14 +126,17 @@ function customerRows() {
 function carRows() {
   return [
     ["Year","Make","Model","Plate","Category","Daily rate","Weekly rate","Monthly rate",
-     "Mileage","Next service","Service at (km)","Out of service","Maintenance notes"],
+     "Mileage","Next service","Service at (km)","Out of service","Maintenance notes",
+     "Registration date","Licence expiry","Road tax expiry","Insurance expiry","Fitness expiry","Lease expiry"],
     ...state.cars.slice()
       .sort((a, b) => (a.make + a.model).localeCompare(b.make + b.model))
       .map(c => [
         c.year || "", c.make || "", c.model || "", c.plate || "", c.category || "",
         c.dailyRate || 0, c.weeklyRate || 0, c.monthlyRate || 0,
         c.mileage || "", c.nextServiceDate || "", c.serviceMileage || "",
-        c.outOfService ? "Yes" : "No", c.notes_maint || ""
+        c.outOfService ? "Yes" : "No", c.notes_maint || "",
+        c.regDate || "", c.licenceExpiry || "", c.roadTaxExpiry || "",
+        c.insuranceExpiry || "", c.fitnessExpiry || "", c.leaseExpiry || ""
       ])
   ];
 }

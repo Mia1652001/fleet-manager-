@@ -34,9 +34,9 @@ testing period. New features wait; fixes to existing behaviour go out as found.
 ## Fleet & maintenance
 - [ ] **Service history per car** — keep each completed servicing (date,
       mileage, notes) instead of overwriting; show as a history list.
-- [ ] **Car document dates** — registration date, licence expiry, road tax
-      expiry, insurance expiry, fitness expiry, lease expiry. Plus a view or
-      report of upcoming expiries (dashboard alert like service-due).
+- [x] **Car document dates** — the six dates on the car form (all optional);
+      expired/expiring warnings on each Fleet card (red/amber per document),
+      Dashboard alerts 30 days ahead, and all six columns in the Excel backup.
 
 ## Pricing enforcement
 - [x] **Per-company car limit** — `carLimit` on the settings document, set only

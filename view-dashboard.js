@@ -11,7 +11,7 @@ import {
   sharesStartHandover, sharesEndHandover,
   el,
   requestFocus,
-  invoiceTotal
+  invoiceTotal, carDocsDue
 } from "./store.js";
 
 let root = null;
@@ -101,6 +101,11 @@ function renderAlerts(t) {
   const overdue = state.bookings.filter(b => bookingState(b) === "overdue");
   const lateJobs = buildSchedule({ from: null, to: null, includeDone: false }).filter(j => j.overdue);
   const dueService = state.cars.filter(serviceDue);
+  const docsExpired = state.cars.filter(c => carDocsDue(c).some(x => x.expired));
+  const docsSoon = state.cars.filter(c => {
+    const due = carDocsDue(c);
+    return due.length && !due.some(x => x.expired);
+  });
   const noRate = state.cars.filter(c => !c.dailyRate);
 
   const alerts = [];
@@ -111,6 +116,14 @@ function renderAlerts(t) {
   if (lateJobs.length) alerts.push({
     tone: "red", goto: "tasks",
     text: `${lateJobs.length} job${lateJobs.length === 1 ? "" : "s"} running late`
+  });
+  if (docsExpired.length) alerts.push({
+    tone: "red", goto: "fleet",
+    text: `${docsExpired.length} car${docsExpired.length === 1 ? "" : "s"} with expired documents (licence, insurance, road tax…)`
+  });
+  if (docsSoon.length) alerts.push({
+    tone: "amber", goto: "fleet",
+    text: `${docsSoon.length} car${docsSoon.length === 1 ? "" : "s"} with documents expiring within 30 days`
   });
   if (dueService.length) alerts.push({
     tone: "amber", goto: "maintenance",

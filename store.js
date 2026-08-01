@@ -73,6 +73,36 @@ export function fxPair(b, homeAmount, fxAmount) {
   return formatAmount(homeAmount);
 }
 
+// ---------- Car documents ----------
+// The five dated documents every Mauritian operator tracks on paper: each is
+// optional, and each warns ahead of its expiry. The registration date is a
+// fact about the car, not an expiry — stored and shown, never warned about.
+export const CAR_DOC_FIELDS = [
+  { key: "licenceExpiry", label: "Licence" },
+  { key: "roadTaxExpiry", label: "Road tax" },
+  { key: "insuranceExpiry", label: "Insurance" },
+  { key: "fitnessExpiry", label: "Fitness" },
+  { key: "leaseExpiry", label: "Lease" }
+];
+
+// The car's documents that are expired or expiring within the horizon —
+// 30 days by default, because renewals in Mauritius need queueing time, not
+// same-day heroics. Returns [{ key, label, date, expired }], soonest first.
+export function carDocsDue(c, withinDays = 30) {
+  const t = todayStr();
+  const h = new Date(t + "T12:00");
+  h.setDate(h.getDate() + withinDays);
+  const horizon = `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, "0")}-${String(h.getDate()).padStart(2, "0")}`;
+  const out = [];
+  CAR_DOC_FIELDS.forEach(f => {
+    const d = c?.[f.key];
+    if (!d) return;
+    if (d < t) out.push({ ...f, date: d, expired: true });
+    else if (d <= horizon) out.push({ ...f, date: d, expired: false });
+  });
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 // The company's plan limit on cars, set only from the Firebase console (the
 // security rules forbid any client changing it). Null means unlimited — which
 // is what every company is until a plan says otherwise, so free pilots need

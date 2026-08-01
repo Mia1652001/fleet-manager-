@@ -8,7 +8,7 @@ import {
   orderedCars, getSwatch, setSwatch,
   initPanelToggle,
   el, val, setVal, checked, setChecked, openModal, closeModal, showError,
-  takeFocus, carLimit
+  takeFocus, carLimit, carDocsDue
 } from "./store.js";
 
 let root = null;
@@ -162,6 +162,13 @@ export function render() {
         <span class="badge ${cls}">${s === "available" ? "Available" : s === "overdue" ? "Overdue" : s === "service" ? "Out of service" : "Rented"}</span>
       </div>
       ${serviceDue(c) && s !== "service" ? `<div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;"><span style="color:var(--amber-text);">⚠ Service due ${formatDate(c.nextServiceDate)}</span></div>` : ""}
+      ${(() => {
+        const due = carDocsDue(c);
+        if (!due.length) return "";
+        return `<div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;">` +
+          due.map(d => `<span style="color:${d.expired ? "var(--red-text)" : "var(--amber-text)"};">⚠ ${esc(d.label)} ${d.expired ? "expired" : "expires"} ${formatDate(d.date)}</span>`).join(" ") +
+          `</div>`;
+      })()}
       ${(c.weeklyRate || c.monthlyRate) ? `
       <div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;">
         <span>Rates: <strong>${esc(c.dailyRate || 0)}</strong>/day · <strong>${esc(c.weeklyRate || 0)}</strong>/week · <strong>${esc(c.monthlyRate || 0)}</strong>/month</span>
@@ -223,6 +230,12 @@ function openCarModal(id) {
   setVal(root, "c-rate-month", c?.monthlyRate);
   setVal(root, "c-category", c?.category || "");
   setVal(root, "c-colour", c?.colour || "");
+  setVal(root, "c-regdate", c?.regDate || "");
+  setVal(root, "c-licence-exp", c?.licenceExpiry || "");
+  setVal(root, "c-roadtax-exp", c?.roadTaxExpiry || "");
+  setVal(root, "c-insurance-exp", c?.insuranceExpiry || "");
+  setVal(root, "c-fitness-exp", c?.fitnessExpiry || "");
+  setVal(root, "c-lease-exp", c?.leaseExpiry || "");
   setChecked(root, "c-automatic", c?.automatic === true);
   setSwatch(root, "c-rowcolour", c?.rowColour || "");
 
@@ -258,6 +271,14 @@ async function saveCar() {
   const monthlyRate = monthlyIn || Math.round(dailyRate * 30 * 100) / 100;
   const category = val(root, "c-category");
   const colour = val(root, "c-colour");
+  const docDates = {
+    regDate: val(root, "c-regdate") || "",
+    licenceExpiry: val(root, "c-licence-exp") || "",
+    roadTaxExpiry: val(root, "c-roadtax-exp") || "",
+    insuranceExpiry: val(root, "c-insurance-exp") || "",
+    fitnessExpiry: val(root, "c-fitness-exp") || "",
+    leaseExpiry: val(root, "c-lease-exp") || ""
+  };
   const automatic = checked(root, "c-automatic");
   const rowColour = getSwatch(root, "c-rowcolour");
 
@@ -266,11 +287,11 @@ async function saveCar() {
   setSync("saving");
   try {
     if (editingCarId) {
-      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate, weeklyRate, monthlyRate, category, colour, automatic, rowColour });
+      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate, weeklyRate, monthlyRate, category, colour, automatic, rowColour, ...docDates });
     } else {
       await addDoc(collection(db, "cars"), {
         companyId: state.ctx.companyId, make, model, year, plate,
-        dailyRate, weeklyRate, monthlyRate, category, colour, automatic, rowColour
+        dailyRate, weeklyRate, monthlyRate, category, colour, automatic, rowColour, ...docDates
       });
     }
     closeModal(root, "car-modal");
