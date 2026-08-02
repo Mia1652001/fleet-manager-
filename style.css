@@ -2085,3 +2085,8 @@ input:focus, select:focus { border-color: var(--text); }
   white-space: nowrap;
 }
 .drag-tip.on { display: block; }
+
+/* Expenses board: the cell a dragged chip would land in, and settled entries. */
+.board-cell.drop-target { outline: 2px dashed var(--muted); outline-offset: -2px; }
+.item-card.expense-done { opacity: 0.55; }
+.item-card.expense-done .card-title { text-decoration: line-through; }

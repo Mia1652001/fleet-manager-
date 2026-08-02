@@ -553,20 +553,28 @@
 
     <!-- ---------- TASKS ---------- -->
     <section class="view" id="view-expenses">
+      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search staff, category, car or note...">
+        <span class="multi-pick">
+          <button type="button" class="btn" data-el="staff-filter-btn">All staff</button>
+          <div class="multi-panel" data-el="staff-filter-panel" style="display:none;"></div>
+        </span>
         <button class="btn-primary" data-el="add-expense">+ Add expense</button>
       </div>
       <div class="filter-row">
-        <label style="align-self:center;">Period</label>
+        <button class="tab" data-mode="list">List</button>
+        <button class="tab active" data-mode="board">Board</button>
+        <label style="align-self:center;margin-left:10px;">Period</label>
         <select data-el="period-year"></select>
         <select data-el="period-month"></select>
         <label style="align-self:center;margin-left:10px;">Category</label>
         <select data-el="period-category"></select>
       </div>
       <div class="list-total" data-el="list-total"></div>
-      <div class="card-list" data-el="list"><div class="loading-screen">Loading expenses...</div></div>
+      <div class="card-list" data-el="list" style="display:none;"><div class="loading-screen">Loading expenses...</div></div>
+      <div class="staff-board" data-el="xboard"></div>
 
       <div class="overlay" data-el="expense-modal">
         <div class="modal">
