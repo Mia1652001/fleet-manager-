@@ -135,6 +135,16 @@ const DOC_STYLES = `<style>
   .ag-bar span { margin-right: auto; font-size: 9pt; color: #555; }
 </style>`;
 
+// The action bar every printed document opens with. Inside the installed app
+// there is no browser chrome — without this Close button the only way out of
+// a document is killing the whole app, which is exactly what the pilot had
+// to do when the confirmation shipped without it.
+const DOC_ACTIONS = `  <div class="ag-bar">
+    <span>Choose <strong>Save as PDF</strong> in the print dialog to send this as a file.</span>
+    <button class="ag-secondary" onclick="window.close()">Close</button>
+    <button onclick="window.print()">Print / Save as PDF</button>
+  </div>`;
+
 const SELF_PRINT = `<script>
   // Prints itself once, from inside its own window, after the logo has had a
   // chance to load — an image still loading prints as a blank gap. Guarded so a
@@ -164,11 +174,7 @@ function documentHtml(b) {
 ${DOC_STYLES}</head>
 <body>
 
-  <div class="ag-bar">
-    <span>Choose <strong>Save as PDF</strong> in the print dialog to send this as a file.</span>
-    <button class="ag-secondary" onclick="window.close()">Close</button>
-    <button onclick="window.print()">Print / Save as PDF</button>
-  </div>
+${DOC_ACTIONS}
 
   <div class="ag-head">
     ${companyBlock()}
@@ -471,6 +477,8 @@ function confirmationHtml(b) {
 <title>Booking confirmation ${esc(ref)}</title>
 ${DOC_STYLES}
 </head><body>
+
+${DOC_ACTIONS}
 
   <div class="ag-head">
     ${companyBlock()}
