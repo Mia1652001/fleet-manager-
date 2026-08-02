@@ -2086,6 +2086,18 @@ input:focus, select:focus { border-color: var(--text); }
 }
 .drag-tip.on { display: block; }
 
+/* The Dashboard is an overview, and an overview earns the window: the whole
+   view section steps out of the reading column, and the alert bars, the
+   Today/Money cards and the mini planner all fill it naturally. Same
+   self-limiting formula as the planner and the boards; phones unaffected. */
+@media (min-width: 641px) {
+  #view-dashboard.view {
+    --dash-w: min(100vw - 2rem, 2600px);
+    width: var(--dash-w);
+    margin-left: calc(-1 * max(0px, (var(--dash-w) - 100%) / 2));
+  }
+}
+
 /* The Expenses board gets the same breakout as the Tasks board — a column per
    category needs the window, not the reading column. Lists and filters stay
    centred; only the board steps out. Self-limiting, phones unaffected. */
