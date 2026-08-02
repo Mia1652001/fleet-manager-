@@ -69,6 +69,10 @@ onAuthStateChanged(auth, async (user) => {
     };
     startApp();
   } catch (e) {
+    // The full error goes to the console too: the on-screen message names the
+    // code, but diagnosing a denial needs the whole object — and a swallowed
+    // error left the console empty at exactly the moment it was needed.
+    console.error("Profile load failed:", e);
     showLogin("Signed in, but couldn't load your profile (" + (e.code || e.message) + ").");
   }
 });
