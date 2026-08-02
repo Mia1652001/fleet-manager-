@@ -1066,7 +1066,7 @@ input:focus, select:focus { border-color: var(--text); }
 #view-bookings .tl-head-wrap,
 #view-bookings .timeline-wrap,
 #view-bookings .tl-legend {
-  --planner-w: min(100vw - 3rem, 1700px);
+  --planner-w: min(100vw - 2rem, 2600px);
   width: var(--planner-w);
   margin-left: calc(-1 * max(0px, (var(--planner-w) - 100%) / 2));
 }
@@ -1735,7 +1735,7 @@ input:focus, select:focus { border-color: var(--text); }
 @media (min-width: 641px) {
   #view-tasks .staff-board,
   #view-tasks .board-head-wrap {
-    --board-w: min(100vw - 3rem, 1700px);
+    --board-w: min(100vw - 2rem, 2600px);
     width: var(--board-w);
     margin-left: calc(-1 * max(0px, (var(--board-w) - 100%) / 2));
   }
@@ -2085,6 +2085,17 @@ input:focus, select:focus { border-color: var(--text); }
   white-space: nowrap;
 }
 .drag-tip.on { display: block; }
+
+/* The Expenses board gets the same breakout as the Tasks board — a column per
+   category needs the window, not the reading column. Lists and filters stay
+   centred; only the board steps out. Self-limiting, phones unaffected. */
+@media (min-width: 641px) {
+  #view-expenses .staff-board {
+    --board-w: min(100vw - 2rem, 2600px);
+    width: var(--board-w);
+    margin-left: calc(-1 * max(0px, (var(--board-w) - 100%) / 2));
+  }
+}
 
 /* Expenses board: the cell a dragged chip would land in, and settled entries. */
 .board-cell.drop-target { outline: 2px dashed var(--muted); outline-offset: -2px; }
