@@ -56,7 +56,20 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   try {
-    const snap = await getDoc(doc(db, "users", user.uid));
+    // A known Safari + long-polling quirk can fire the first read before the
+    // sign-in token is attached; the server then correctly denies what looks
+    // like an anonymous request. One retry with a forcibly refreshed token
+    // separates that race from a real denial — and fixes it when it is one.
+    let snap;
+    try {
+      snap = await getDoc(doc(db, "users", user.uid));
+    } catch (e1) {
+      if ((e1.code || "") !== "permission-denied") throw e1;
+      console.warn("First profile read denied — refreshing the sign-in token and retrying once.", e1);
+      try { await user.getIdToken(true); } catch {}
+      await new Promise(r => setTimeout(r, 900));
+      snap = await getDoc(doc(db, "users", user.uid));
+    }
     if (!snap.exists() || !snap.data().companyId) {
       await signOut(auth);
       showLogin("This account isn't linked to a company yet. Contact your administrator.");
@@ -72,7 +85,7 @@ onAuthStateChanged(auth, async (user) => {
     // The full error goes to the console too: the on-screen message names the
     // code, but diagnosing a denial needs the whole object — and a swallowed
     // error left the console empty at exactly the moment it was needed.
-    console.error("Profile load failed:", e);
+    console.error("Profile load failed for uid " + (user?.uid || "?") + ":", e);
     showLogin("Signed in, but couldn't load your profile (" + (e.code || e.message) + ").");
   }
 });
