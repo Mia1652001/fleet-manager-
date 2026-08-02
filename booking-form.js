@@ -5,7 +5,7 @@
 // element (#booking-form-root) so the shared el()/val() helpers keep working.
 
 import { db, setSync } from "./firebase-init.js";
-import { openAgreement, openConfirmation, emailBooking, whatsappBooking } from "./agreement.js";
+import { openAgreement, openConfirmation, emailBooking, whatsappBooking, CAR_OUTLINE } from "./agreement.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
@@ -41,6 +41,7 @@ export function mountBookingForm() {
     const r = openAgreement(editingBookingId);
     if (!r.ok) showError(root, "booking-error", r.reason);
   });
+  wireDamageAndSignature();
   const confBtn = el(root, "print-confirmation");
   if (confBtn) confBtn.addEventListener("click", () => {
     if (!editingBookingId) return;
@@ -340,6 +341,155 @@ export function recalcAtTodayRate(fieldRoot, { fxInputId, homeInputId, sym, isPa
   setVal(fieldRoot, homeInputId, newHome);
 }
 
+// ---------- Damage diagram & signature ----------
+// The same car drawing the agreement prints, made tappable: each tap adds a
+// numbered mark with a note; saving writes them to the booking. The signature
+// pad saves a small image that lands on the agreement's signature line.
+let damageDraft = [];
+let signDrawing = null;
+let signHasInk = false;
+
+function wireDamageAndSignature() {
+  const dmgBtn = el(root, "damage-btn");
+  if (dmgBtn) dmgBtn.addEventListener("click", () => {
+    if (!editingBookingId) return;
+    const b = state.bookings.find(x => x.id === editingBookingId);
+    damageDraft = Array.isArray(b?.damageMarks) ? b.damageMarks.map(m => ({ ...m })) : [];
+    el(root, "damage-svg").innerHTML = CAR_OUTLINE;
+    paintDamage();
+    openModal(root, "damage-modal");
+  });
+
+  const svgBox = el(root, "damage-svg");
+  if (svgBox) svgBox.addEventListener("click", (e) => {
+    const svg = svgBox.querySelector("svg");
+    if (!svg) return;
+    const r = svg.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width;
+    const y = (e.clientY - r.top) / r.height;
+    if (x < 0 || x > 1 || y < 0 || y > 1) return;
+    damageDraft.push({ x, y, note: "" });
+    paintDamage();
+    const inputs = el(root, "damage-list").querySelectorAll("input");
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  });
+
+  const list = el(root, "damage-list");
+  if (list) {
+    list.addEventListener("input", (e) => {
+      const row = e.target.closest("[data-mark]");
+      if (row) damageDraft[Number(row.dataset.mark)].note = e.target.value;
+    });
+    list.addEventListener("click", (e) => {
+      const rm = e.target.closest("[data-remove-mark]");
+      if (!rm) return;
+      damageDraft.splice(Number(rm.dataset.removeMark), 1);
+      paintDamage();
+    });
+  }
+
+  const saveDmg = el(root, "save-damage");
+  if (saveDmg) saveDmg.addEventListener("click", async () => {
+    if (!editingBookingId) return;
+    saveDmg.disabled = true; saveDmg.textContent = "Saving...";
+    try {
+      await updateDoc(doc(db, "bookings", editingBookingId), {
+        damageMarks: damageDraft.map(m => ({ x: m.x, y: m.y, note: m.note || "" }))
+      });
+      closeModal(root, "damage-modal");
+    } catch (err) { alert("Couldn't save (" + (err.code || err.message) + ")."); }
+    saveDmg.disabled = false; saveDmg.textContent = "Save marks";
+  });
+
+  // ---- signature pad ----
+  const signBtn = el(root, "sign-btn");
+  const pad = el(root, "sign-pad");
+  if (signBtn && pad) {
+    const ctx = pad.getContext("2d");
+    const clearPad = () => {
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, pad.width, pad.height);
+      ctx.strokeStyle = "#14213d"; ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
+      signHasInk = false;
+    };
+    const pos = (e) => {
+      const r = pad.getBoundingClientRect();
+      return { x: (e.clientX - r.left) * (pad.width / r.width), y: (e.clientY - r.top) * (pad.height / r.height) };
+    };
+    signBtn.addEventListener("click", () => {
+      if (!editingBookingId) return;
+      const b = state.bookings.find(x => x.id === editingBookingId);
+      clearPad();
+      el(root, "sign-remove").style.display = b?.signature ? "inline-block" : "none";
+      openModal(root, "sign-modal");
+    });
+    pad.addEventListener("pointerdown", (e) => {
+      signDrawing = pos(e);
+      try { pad.setPointerCapture(e.pointerId); } catch {}
+      e.preventDefault();
+    });
+    pad.addEventListener("pointermove", (e) => {
+      if (!signDrawing) return;
+      const p = pos(e);
+      ctx.beginPath(); ctx.moveTo(signDrawing.x, signDrawing.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      signDrawing = p; signHasInk = true;
+      e.preventDefault();
+    });
+    const stop = () => { signDrawing = null; };
+    pad.addEventListener("pointerup", stop);
+    pad.addEventListener("pointercancel", stop);
+
+    el(root, "sign-clear").addEventListener("click", clearPad);
+    el(root, "sign-remove").addEventListener("click", async () => {
+      if (!editingBookingId) return;
+      try {
+        await updateDoc(doc(db, "bookings", editingBookingId), { signature: null, signedAt: null });
+        closeModal(root, "sign-modal");
+      } catch (err) { alert("Couldn't remove (" + (err.code || err.message) + ")."); }
+    });
+    el(root, "save-sign").addEventListener("click", async () => {
+      if (!editingBookingId) return;
+      if (!signHasInk) { alert("Sign first, or Cancel."); return; }
+      // Downscaled before storing: the booking document carries it, so it is
+      // kept about the size of the company logo, not a photograph.
+      const small = document.createElement("canvas");
+      small.width = 400; small.height = Math.round(400 * pad.height / pad.width);
+      small.getContext("2d").drawImage(pad, 0, 0, small.width, small.height);
+      const btn = el(root, "save-sign");
+      btn.disabled = true; btn.textContent = "Saving...";
+      try {
+        await updateDoc(doc(db, "bookings", editingBookingId), {
+          signature: small.toDataURL("image/png"),
+          signedAt: new Date().toISOString()
+        });
+        closeModal(root, "sign-modal");
+      } catch (err) { alert("Couldn't save (" + (err.code || err.message) + ")."); }
+      btn.disabled = false; btn.textContent = "Save signature";
+    });
+  }
+}
+
+function paintDamage() {
+  const svg = el(root, "damage-svg").querySelector("svg");
+  if (!svg) return;
+  svg.querySelectorAll("[data-mark-dot]").forEach(n => n.remove());
+  damageDraft.forEach((m, i) => {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("data-mark-dot", i);
+    g.innerHTML =
+      `<circle cx="${m.x * 700}" cy="${m.y * 338}" r="13" fill="rgba(176,0,32,0.12)" stroke="#b00020" stroke-width="2.5"></circle>` +
+      `<text x="${m.x * 700}" y="${m.y * 338 + 4}" text-anchor="middle" font-size="13" font-weight="bold" fill="#b00020">${i + 1}</text>`;
+    svg.appendChild(g);
+  });
+  el(root, "damage-list").innerHTML = damageDraft.length
+    ? damageDraft.map((m, i) => `
+      <div class="damage-row" data-mark="${i}">
+        <strong>${i + 1}.</strong>
+        <input placeholder="e.g. scratch, rear left door" value="${esc(m.note || "")}">
+        <button type="button" class="btn danger" data-remove-mark="${i}">×</button>
+      </div>`).join("")
+    : `<div style="color:var(--muted);font-size:12px;">No marks yet — tap the drawing.</div>`;
+}
+
 export function openBookingModal(bookingId, preset) {
   if (state.cars.length === 0) { alert("Add at least one car in the Fleet view first."); return; }
 
@@ -451,6 +601,10 @@ export function openBookingModal(bookingId, preset) {
   {
     const cb = el(root, "print-confirmation");
     if (cb) cb.style.display = editing ? "inline-block" : "none";
+    const db2 = el(root, "damage-btn");
+    if (db2) db2.style.display = editing ? "inline-block" : "none";
+    const sb = el(root, "sign-btn");
+    if (sb) sb.style.display = editing ? "inline-block" : "none";
   }
   el(root, "email-booking").style.display = editing ? "inline-block" : "none";
   el(root, "whatsapp-booking").style.display = editing ? "inline-block" : "none";

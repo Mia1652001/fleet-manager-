@@ -68,9 +68,13 @@ account and on GitHub; get every pilot company to run its first backup.
 - [ ] Onboard the 3-car company (~1 week after Mauritius Tour Operator starts).
 
 ## Bigger items (likely need Blaze / Firebase Storage — stage 7 territory)
-- [ ] **Damage annotation on a car picture** — draw on a photo (WhatsApp-style)
-      before generating the agreement.
-- [ ] **Signature capture** on the agreement.
+- [x] **Damage diagram** — tap-to-mark on the company's own car drawing, with
+      numbered notes, printed on the agreement (photo annotation on real
+      pictures remains the Blaze-tier upgrade).
+- [x] **Signature capture** — finger/stylus pad on the booking; the signature
+      prints on the renter's line with the signed date.
+- [ ] **Photo damage annotation** (Blaze) — draw on real photos of the car;
+      joins check-out photos and the damage log in stage 7.
 
 ## Done since this list was made
 - [x] Task filter by person hides the columns, not just the chips (v21)

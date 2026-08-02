@@ -886,6 +886,36 @@
   <datalist id="dl-brokers"></datalist>
   <datalist id="dl-expense-categories"></datalist>
 
+  <!-- Damage marks: tap the company's own car drawing where the damage is;
+       each mark gets a number and a note, and prints on the agreement. -->
+  <div class="overlay" data-el="damage-modal" id="damage-modal-root">
+    <div class="modal" style="width:640px;">
+      <h2>Damage diagram</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Tap the drawing where the damage is. Number the notes below; everything prints on the agreement.</p>
+      <div class="damage-wrap" data-el="damage-svg"></div>
+      <div data-el="damage-list" style="margin-top:10px;"></div>
+      <div class="modal-actions">
+        <button class="btn" data-close="damage-modal">Cancel</button>
+        <button class="btn-primary" data-el="save-damage">Save marks</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Signature pad: drawn with a finger or stylus, saved small, printed on
+       the renter's signature line. -->
+  <div class="overlay" data-el="sign-modal" id="sign-modal-root">
+    <div class="modal" style="width:560px;">
+      <h2>Renter's signature</h2>
+      <canvas class="sign-pad" data-el="sign-pad" width="600" height="220"></canvas>
+      <div class="modal-actions">
+        <button class="btn" data-close="sign-modal">Cancel</button>
+        <button class="btn" data-el="sign-clear">Clear</button>
+        <button class="btn danger" data-el="sign-remove" style="display:none;">Remove saved</button>
+        <button class="btn-primary" data-el="save-sign">Save signature</button>
+      </div>
+    </div>
+  </div>
+
 
   <div id="booking-form-root">
   <div class="overlay" data-el="booking-modal">
@@ -1016,6 +1046,8 @@
              about a form that has not been saved. -->
         <div class="modal-actions-side">
           <button class="btn danger" data-el="delete-booking" style="display:none;">Delete booking</button>
+          <button class="btn" data-el="damage-btn" style="display:none;">Damage diagram</button>
+          <button class="btn" data-el="sign-btn" style="display:none;">Signature</button>
           <button class="btn" data-el="print-confirmation" style="display:none;">Booking confirmation</button>
           <button class="btn" data-el="print-agreement" style="display:none;">Rental agreement</button>
           <button class="btn" data-el="email-booking" style="display:none;">Email customer</button>

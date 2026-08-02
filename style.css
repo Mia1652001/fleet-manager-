@@ -2090,3 +2090,9 @@ input:focus, select:focus { border-color: var(--text); }
 .board-cell.drop-target { outline: 2px dashed var(--muted); outline-offset: -2px; }
 .item-card.expense-done { opacity: 0.55; }
 .item-card.expense-done .card-title { text-decoration: line-through; }
+
+/* The damage diagram and signature pad in the booking form. */
+.damage-wrap svg { width: 100%; height: auto; display: block; touch-action: none; cursor: crosshair; }
+.damage-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.damage-row input { flex: 1; }
+.sign-pad { width: 100%; height: auto; border: 1px solid var(--border); border-radius: 4px; background: #fff; touch-action: none; display: block; }
