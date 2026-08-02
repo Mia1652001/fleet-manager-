@@ -170,6 +170,8 @@
           <option value="status">Sort: Status</option>
         </select>
         <button class="btn-primary" data-el="add-car">+ Add car</button>
+        <button class="btn" data-el="import-cars" title="Add many cars at once from a spreadsheet">Import from Excel</button>
+        <input type="file" data-el="import-file" accept=".xlsx,.xls,.csv" style="display:none;">
       </div>
       <div class="filter-row" data-el="filters">
         <button class="tab active" data-f="all">All</button>
@@ -180,6 +182,22 @@
       <div class="card-list" data-el="list"><div class="loading-screen">Loading fleet...</div></div>
 
       <!-- Add / edit car -->
+      <!-- Importing a fleet from a spreadsheet: read in the browser, shown as a
+           preview, written only when Import is pressed. Nothing leaves the
+           company's own browser except into their own fleet. -->
+      <div class="overlay" data-el="import-modal">
+        <div class="modal" style="width:640px;">
+          <h2>Import cars from a spreadsheet</h2>
+          <div class="form-error" data-el="import-error"></div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px;" data-el="import-summary"></p>
+          <div data-el="import-list" style="max-height:46vh;overflow:auto;"></div>
+          <div class="modal-actions">
+            <button class="btn" data-close="import-modal">Cancel</button>
+            <button class="btn-primary" data-el="import-go" disabled>Import</button>
+          </div>
+        </div>
+      </div>
+
       <div class="overlay" data-el="car-modal">
         <div class="modal">
           <h2 data-el="car-modal-title">Add new car</h2>

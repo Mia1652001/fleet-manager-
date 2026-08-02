@@ -206,7 +206,7 @@ function toCsv(rows) {
 // normal visit. If it cannot be reached — offline, or a blocked CDN — the caller
 // falls back to CSV rather than failing.
 let xlsxLib = null;
-async function loadXlsx() {
+export async function loadXlsx() {
   if (xlsxLib) return xlsxLib;
   xlsxLib = await import("https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs");
   return xlsxLib;

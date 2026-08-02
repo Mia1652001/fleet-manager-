@@ -1,6 +1,7 @@
 // Fleet view — inventory with status derived from bookings.
 import { db, setSync } from "./firebase-init.js";
-import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { loadXlsx } from "./backup.js";
 import {
   state, onDataChange, esc, formatDate, todayStr, findClash, describeInterval,
   fillTimeOptions, getTime, setTime, onTimeChange,
@@ -26,6 +27,7 @@ export function mount(container) {
 
   el(root, "search").addEventListener("input", render);
   el(root, "sort").addEventListener("change", render);
+  wireImport();
   el(root, "add-car").addEventListener("click", () => {
     // The plan's car limit is checked where a car would be added, in words a
     // desk can act on — not a silent failure, not a technical error.
@@ -214,6 +216,194 @@ function revealCar(id) {
     const still = el(root, "list").querySelector(`[data-car-id="${id}"]`);
     if (still) still.scrollIntoView({ block: "center", behavior: "smooth" });
   }, 0);
+}
+
+// ---------- Import from a spreadsheet ----------
+// A fleet arrives as the company already keeps it: an Excel or CSV list. The
+// file is read in the browser, matched by forgiving header names, previewed
+// with every problem named, and written only when Import is pressed. Same
+// library the backup uses, so backup files import cleanly — which is also a
+// fleet restore.
+const IMPORT_FIELDS = [
+  { key: "make", heads: ["make", "brand", "marque"] },
+  { key: "model", heads: ["model", "modele"] },
+  { key: "year", heads: ["year", "annee", "yr"] },
+  { key: "plate", heads: ["plate", "registration", "regno", "reg", "plateno", "numberplate", "immatriculation"] },
+  { key: "dailyRate", heads: ["dailyrate", "daily", "rateday", "priceday", "dayrate", "rate"] },
+  { key: "weeklyRate", heads: ["weeklyrate", "weekly", "weekrate"] },
+  { key: "monthlyRate", heads: ["monthlyrate", "monthly", "monthrate"] },
+  { key: "category", heads: ["category", "class", "type", "categorie"] },
+  { key: "colour", heads: ["colour", "color"] },
+  { key: "mileage", heads: ["mileage", "km", "odometer", "kilometrage"] },
+  { key: "regDate", heads: ["registrationdate", "regdate", "firstregistration"] },
+  { key: "licenceExpiry", heads: ["licenceexpiry", "licenseexpiry", "licence", "license"] },
+  { key: "roadTaxExpiry", heads: ["roadtaxexpiry", "roadtax", "tax"] },
+  { key: "insuranceExpiry", heads: ["insuranceexpiry", "insurance"] },
+  { key: "fitnessExpiry", heads: ["fitnessexpiry", "fitness"] },
+  { key: "leaseExpiry", heads: ["leaseexpiry", "lease"] }
+];
+const NUM_FIELDS = new Set(["dailyRate", "weeklyRate", "monthlyRate", "mileage"]);
+const DATE_FIELDS = new Set(["regDate", "licenceExpiry", "roadTaxExpiry", "insuranceExpiry", "fitnessExpiry", "leaseExpiry"]);
+
+let importReady = [];
+
+function normHead(v) {
+  return String(v || "").toLowerCase().replace(/[^a-z]/g, "");
+}
+
+function normPlate(v) {
+  return String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+// Excel keeps dates as serial numbers as often as text; both become
+// YYYY-MM-DD, and anything unreadable is simply left blank.
+function toDateStr(v) {
+  if (v == null || v === "") return "";
+  if (typeof v === "number" && v > 20000 && v < 80000) {
+    const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+    return d.toISOString().slice(0, 10);
+  }
+  const t = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
+  const m = t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
+  if (m) {
+    const yy = m[3].length === 2 ? "20" + m[3] : m[3];
+    return `${yy}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  }
+  return "";
+}
+
+function wireImport() {
+  const btn = el(root, "import-cars");
+  const file = el(root, "import-file");
+  if (!btn || !file) return;
+
+  btn.addEventListener("click", () => { file.value = ""; file.click(); });
+  file.addEventListener("change", async () => {
+    const f = file.files && file.files[0];
+    if (!f) return;
+    try {
+      const XLSX = await loadXlsx();
+      const wb = XLSX.read(await f.arrayBuffer());
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+      buildImportPreview(rows);
+    } catch (e) {
+      importReady = [];
+      el(root, "import-summary").textContent = "";
+      el(root, "import-list").innerHTML = "";
+      el(root, "import-go").disabled = true;
+      showError(root, "import-error", "Couldn't read that file (" + (e.message || e) + "). Save it as .xlsx or .csv and try again.");
+      openModal(root, "import-modal");
+    }
+  });
+
+  el(root, "import-go").addEventListener("click", doImport);
+}
+
+function buildImportPreview(rows) {
+  showError(root, "import-error", null);
+
+  // The header row is the first row that matches at least make or model.
+  let headRow = -1, colMap = {};
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const map = {};
+    rows[i].forEach((cell, c) => {
+      const n = normHead(cell);
+      if (!n) return;
+      IMPORT_FIELDS.forEach(f => { if (f.heads.includes(n) && !(f.key in map)) map[f.key] = c; });
+    });
+    if ("make" in map && "model" in map) { headRow = i; colMap = map; break; }
+  }
+
+  if (headRow === -1) {
+    importReady = [];
+    el(root, "import-summary").textContent = "";
+    el(root, "import-list").innerHTML = "";
+    el(root, "import-go").disabled = true;
+    showError(root, "import-error",
+      'No header row found. The sheet needs column titles — at least "Make" and "Model".');
+    openModal(root, "import-modal");
+    return;
+  }
+
+  const existingPlates = new Set(state.cars.map(c => normPlate(c.plate)).filter(Boolean));
+  const seenPlates = new Set();
+  const ok = [];
+  const skipped = [];
+
+  rows.slice(headRow + 1).forEach((r, idx) => {
+    if (r.every(c => String(c).trim() === "")) return;
+    const rowNo = headRow + idx + 2;
+    const car = {};
+    Object.entries(colMap).forEach(([key, c]) => {
+      let v = r[c];
+      if (NUM_FIELDS.has(key)) { v = parseFloat(v); v = Number.isFinite(v) ? v : 0; }
+      else if (DATE_FIELDS.has(key)) v = toDateStr(v);
+      else if (key === "year") { const y = parseInt(v); v = Number.isFinite(y) ? String(y) : String(v || "").trim(); }
+      else v = String(v || "").trim();
+      car[key] = v;
+    });
+    if (!car.make || !car.model) { skipped.push({ rowNo, why: "missing make or model" }); return; }
+    const p = normPlate(car.plate);
+    if (p && existingPlates.has(p)) { skipped.push({ rowNo, why: `plate ${car.plate} already in your fleet` }); return; }
+    if (p && seenPlates.has(p)) { skipped.push({ rowNo, why: `plate ${car.plate} appears twice in the file` }); return; }
+    if (p) seenPlates.add(p);
+    ok.push(car);
+  });
+
+  const limit = carLimit();
+  let limitNote = "";
+  if (limit && state.cars.length + ok.length > limit) {
+    el(root, "import-go").disabled = true;
+    limitNote = ` Your plan includes ${limit} cars and you have ${state.cars.length} — this import would need ${state.cars.length + ok.length}. Reduce the file or ask about upgrading.`;
+  } else {
+    el(root, "import-go").disabled = ok.length === 0;
+  }
+
+  importReady = ok;
+  el(root, "import-summary").textContent =
+    `${ok.length} car${ok.length === 1 ? "" : "s"} ready to import` +
+    (skipped.length ? ` · ${skipped.length} row${skipped.length === 1 ? "" : "s"} will be skipped` : "") +
+    `.${limitNote}`;
+
+  el(root, "import-list").innerHTML =
+    ok.map(c => `<div class="jd-row"><span class="jd-v">${esc(`${c.year || ""} ${c.make} ${c.model}`.trim())}` +
+      `${c.plate ? ` (${esc(c.plate)})` : " — no plate"}` +
+      `${c.dailyRate ? ` · ${esc(String(c.dailyRate))}/day` : ""}</span></div>`).join("") +
+    (skipped.length ? `<p style="margin:10px 0 4px;color:var(--muted);font-size:12px;">Skipped:</p>` +
+      skipped.map(x => `<div class="jd-row"><span class="jd-v" style="color:var(--muted);">Row ${x.rowNo} — ${esc(x.why)}</span></div>`).join("") : "");
+
+  openModal(root, "import-modal");
+}
+
+async function doImport() {
+  if (!importReady.length) return;
+  const btn = el(root, "import-go");
+  btn.disabled = true; btn.textContent = "Importing...";
+  setSync("saving");
+  try {
+    // One batch: either the whole list arrives, or none of it does.
+    const batch = writeBatch(db);
+    importReady.forEach(c => {
+      batch.set(doc(collection(db, "cars")), {
+        companyId: state.ctx.companyId,
+        automatic: false, rowColour: "",
+        ...c,
+        // Rates after the spread: an empty Weekly/Monthly column in the file
+        // must not zero out the 7x/30x defaults computed from the daily rate.
+        weeklyRate: c.weeklyRate || (c.dailyRate ? c.dailyRate * 7 : 0),
+        monthlyRate: c.monthlyRate || (c.dailyRate ? c.dailyRate * 30 : 0)
+      });
+    });
+    await batch.commit();
+    closeModal(root, "import-modal");
+    importReady = [];
+  } catch (e) {
+    showError(root, "import-error", "Import failed (" + (e.code || e.message) + "). Nothing was added — try again.");
+    setSync("error");
+  }
+  btn.disabled = false; btn.textContent = "Import";
 }
 
 // ---------- Car add / edit ----------
