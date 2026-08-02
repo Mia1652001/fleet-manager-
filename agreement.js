@@ -278,12 +278,12 @@ ${DOC_ACTIONS}
 
   <div class="ag-sign">
     <div>
-      <div class="ag-rule">${b.signature ? `<img src="${b.signature}" alt="" style="height:40px;display:block;">` : ""}</div>
-      <div class="ag-cap">Renter — signature and date${b.signature && b.signedAt ? ` · signed ${esc(formatDate(String(b.signedAt).slice(0, 10)))}` : ""}</div>
+      <div class="ag-rule"></div>
+      <div class="ag-cap">Renter — signature and date</div>
     </div>
     <div>
-      <div class="ag-rule"></div>
-      <div class="ag-cap">For ${esc(companyName())} — signature and date</div>
+      <div class="ag-rule">${b.signature ? `<img src="${b.signature}" alt="" style="height:40px;display:block;">` : ""}</div>
+      <div class="ag-cap">For ${esc(companyName())} — signature and date${b.signature && b.signedAt ? ` · signed ${esc(formatDate(String(b.signedAt).slice(0, 10)))}` : ""}</div>
     </div>
   </div>
 
