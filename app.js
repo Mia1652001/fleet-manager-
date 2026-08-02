@@ -3,7 +3,7 @@
 // between views without ever reloading the page.
 
 import { db, auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setSync } from "./firebase-init.js";
-import { collection, query, where, onSnapshot, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, query, where, onSnapshot, doc, getDoc, terminate, clearIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, bookingRef, loadPref, savePref } from "./store.js";
 
 import * as fleet from "./view-fleet.js";
@@ -86,6 +86,22 @@ onAuthStateChanged(auth, async (user) => {
     // code, but diagnosing a denial needs the whole object — and a swallowed
     // error left the console empty at exactly the moment it was needed.
     console.error("Profile load failed for uid " + (user?.uid || "?") + ":", e);
+
+    // A double denial for a signed-in user with a fresh token means the local
+    // Firestore state is poisoned — seen in the wild on Safari: the cached
+    // connection presents no credentials however valid the sign-in is. The
+    // device-side cure is wiping that state, which users of the installed app
+    // cannot do by hand — so the app does it for itself, once, and reloads.
+    // The one-shot flag stops any possibility of a reload loop.
+    if ((e.code || "") === "permission-denied" && !sessionStorage.getItem("fm-cache-reset")) {
+      sessionStorage.setItem("fm-cache-reset", "1");
+      console.warn("Clearing local Firestore state and reloading once to recover.");
+      try { await terminate(db); await clearIndexedDbPersistence(db); } catch (e2) {
+        console.warn("Local state clear failed:", e2);
+      }
+      location.reload();
+      return;
+    }
     showLogin("Signed in, but couldn't load your profile (" + (e.code || e.message) + ").");
   }
 });
