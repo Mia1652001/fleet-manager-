@@ -1285,12 +1285,16 @@ input:focus, select:focus { border-color: var(--text); }
 
 /* ================= Settings page ================= */
 .settings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 14px;
+  /* Two columns whose heights the browser balances itself — the cards flow
+     down the left and continue on the right, breaking wherever the halves
+     come out even. Cards never split internally. */
+  columns: 2;
+  column-gap: 14px;
   align-items: start;
 }
 .settings-card {
+  break-inside: avoid;
+  margin-bottom: 14px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -1381,7 +1385,7 @@ input:focus, select:focus { border-color: var(--text); }
 .backup-banner-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
 @media (max-width: 640px) {
-  .settings-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .settings-grid { columns: 1; column-gap: 10px; }
   .settings-card { padding: 1rem 0.9rem 1.1rem; }
   .settings-card h3 { font-size: 1.05rem; }
   .logo-row { flex-direction: column; }
