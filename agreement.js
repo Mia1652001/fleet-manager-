@@ -29,7 +29,7 @@ function line(label, value) {
 
 function companyBlock() {
   const s = state.settings || {};
-  const bits = [s.address, s.phone, s.email].filter(Boolean);
+  const bits = [s.address, s.phone, s.email, s.website].filter(Boolean);
   return `
     <div class="ag-company">
       ${s.logo ? `<img class="ag-logo" src="${s.logo}" alt="">` : ""}
@@ -212,6 +212,7 @@ ${DOC_ACTIONS}
         ${line("Name", b.renter)}
         ${line("Phone", b.phone || customer?.phone)}
         ${line("Email", customer?.email)}
+        ${line("Passport number", b.passport || customer?.passport)}
         ${line("Licence number", customer?.license)}
         ${line("Broker", b.broker)}
       </table>
@@ -278,8 +279,8 @@ ${DOC_ACTIONS}
 
   <div class="ag-sign">
     <div>
-      <div class="ag-rule"></div>
-      <div class="ag-cap">Renter — signature and date</div>
+      <div class="ag-rule">${b.renterSignature ? `<img src="${b.renterSignature}" alt="" style="height:40px;display:block;">` : ""}</div>
+      <div class="ag-cap">Renter — signature and date${b.renterSignature && b.renterSignedAt ? ` · signed ${esc(formatDate(String(b.renterSignedAt).slice(0, 10)))}` : ""}</div>
     </div>
     <div>
       <div class="ag-rule">${b.signature ? `<img src="${b.signature}" alt="" style="height:40px;display:block;">` : ""}</div>
@@ -488,6 +489,89 @@ export function openConfirmation(bookingId) {
   const b = state.bookings.find(x => x.id === bookingId);
   if (!b) return { ok: false, reason: "That booking could not be found." };
   return openPrintable(confirmationHtml(b));
+}
+
+// A receipt is proof that money was received — the third printed document,
+// built from the same blocks so all three are visibly the same family. It
+// states what was paid, when, and what (if anything) remains.
+export function openReceipt(bookingId) {
+  const b = state.bookings.find(x => x.id === bookingId);
+  if (!b) return { ok: false, reason: "That booking could not be found." };
+  if (!b.paid && !(Number(b.advancePaid) > 0)) {
+    return { ok: false, reason: "Nothing has been received on this booking yet — mark the balance paid, or record an advance, first." };
+  }
+  return openPrintable(receiptHtml(b));
+}
+
+function receiptHtml(b) {
+  const ref = bookingRef(b);
+  const customer = customerForBooking(b);
+  const total = invoiceTotal(b);
+  const advance = Number(b.advancePaid) || 0;
+  const settled = b.paid ? total : advance;
+  const outstanding = Math.max(0, total - settled);
+  const paidOn = b.paid && b.paidAt ? String(b.paidAt).slice(0, 10) : todayStr();
+
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>Receipt ${esc(ref)}</title>
+${DOC_STYLES}
+</head><body>
+
+${DOC_ACTIONS}
+
+  <div class="ag-head">
+    ${companyBlock()}
+    <div class="ag-title">
+      <h1>Receipt</h1>
+      <div class="ag-ref">${esc(ref)}</div>
+      <div class="ag-issued">Issued ${esc(formatDate(todayStr()))}</div>
+    </div>
+  </div>
+
+  <p>Received with thanks from <strong>${esc(b.renter || "")}</strong>${b.passport ? ` (passport ${esc(b.passport)})` : ""},
+  the sum of <strong>${esc(formatAmount(settled))}</strong> on ${esc(formatDate(paidOn))}${b.paidBy ? `, ${esc(b.paidBy)}` : ""}.</p>
+
+  <div class="ag-cols">
+    <div>
+      <h2>Paid by</h2>
+      <table class="ag-table">
+        ${line("Name", b.renter)}
+        ${line("Phone", b.phone || customer?.phone)}
+        ${line("Email", b.email || customer?.email)}
+      </table>
+    </div>
+    <div>
+      <h2>For the rental of</h2>
+      <table class="ag-table">
+        ${line("Vehicle", bookingCarLabel(b))}
+        ${line("From", formatDate(b.startDate))}
+        ${line("To", formatDate(b.endDate))}
+      </table>
+    </div>
+  </div>
+
+  <h2>Amount</h2>
+  <table class="ag-table">
+    <tr><th>Total charges</th><td class="ag-num">${esc(formatAmount(total))}</td></tr>
+    <tr class="ag-total"><th>${b.paid ? "Received in full" : "Received (advance)"}</th>
+      <td class="ag-num">${esc(formatAmount(settled))}</td></tr>
+    ${outstanding > 0 ? `<tr><th>Still outstanding</th><td class="ag-num">${esc(formatAmount(outstanding))}</td></tr>` : ""}
+    ${Number(b.securityDeposit) > 0 ? `<tr><th>Security deposit ${esc(b.securityStatus === "refunded" ? "(refunded)" : b.securityStatus === "kept" ? "(retained)" : "(held)")}</th>
+      <td class="ag-num">${esc(formatAmount(Number(b.securityDeposit)))}</td></tr>` : ""}
+  </table>
+
+  <div class="ag-sign" style="margin-top:26px;">
+    <div>
+      <div class="ag-rule">${b.signature ? `<img src="${b.signature}" alt="" style="height:40px;display:block;">` : ""}</div>
+      <div class="ag-cap">For ${esc(companyName())} — received by</div>
+    </div>
+    <div></div>
+  </div>
+
+  ${SELF_PRINT}
+
+</body></html>`;
 }
 
 function confirmationHtml(b) {

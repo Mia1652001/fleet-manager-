@@ -111,6 +111,7 @@ export function render() {
   setVal(root, "s-name", s.companyName || state.ctx?.companyName || "");
   setVal(root, "s-phone", s.phone || "");
   setVal(root, "s-email", s.email || "");
+  setVal(root, "s-website", s.website || "");
   setVal(root, "s-address", s.address || "");
   setVal(root, "s-currency", s.currency || "");
   // Show the matching preset rather than "Choose a currency…" next to a symbol
@@ -322,6 +323,7 @@ async function saveSettings() {
     companyName: name,
     phone: val(root, "s-phone"),
     email: val(root, "s-email"),
+    website: val(root, "s-website"),
     address: val(root, "s-address"),
     currency: val(root, "s-currency"),
     terms: val(root, "s-terms"),

@@ -201,7 +201,9 @@ export function render() {
     .filter(matchesStaff)
     .filter(x => `${x.staff || ""} ${x.category || ""} ${x.note || ""} ${carLabel(x.carId)}`
       .toLowerCase().includes(search))
-    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    // Oldest first — an expense sheet reads like a ledger, forward in time,
+    // which is how the team checks off what has been settled.
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
   el(root, "staff-filter-btn").textContent =
     staffFilter.size ? `Staff (${staffFilter.size})` : "All staff";
@@ -277,7 +279,7 @@ function boardColumns(items) {
 function renderBoard(items) {
   const box = el(root, "xboard");
   const cols = boardColumns(items);
-  const days = [...new Set(items.map(x => x.date).filter(Boolean))].sort().reverse();
+  const days = [...new Set(items.map(x => x.date).filter(Boolean))].sort();
 
   if (!days.length) {
     box.style.gridTemplateColumns = "1fr";

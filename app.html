@@ -637,6 +637,10 @@
               <label for="s-email">Email</label>
               <input type="email" id="s-email" data-el="s-email" placeholder="bookings@example.mu">
             </div>
+            <div class="field">
+              <label for="s-website">Website</label>
+              <input id="s-website" data-el="s-website" placeholder="www.yourcompany.mu">
+            </div>
           </div>
           <div class="field">
             <label for="s-address">Address</label>
@@ -934,13 +938,27 @@
        the renter's signature line. -->
   <div class="overlay" data-el="sign-modal" id="sign-modal-root">
     <div class="modal" style="width:560px;">
-      <h2>Company signature</h2>
-      <canvas class="sign-pad" data-el="sign-pad" width="600" height="220"></canvas>
-      <div class="modal-actions">
-        <button class="btn" data-close="sign-modal">Cancel</button>
+      <h2>Signatures</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Sign with a finger or the mouse.
+        Both signatures print on the rental agreement; either can be left empty and signed on paper.</p>
+
+      <label style="font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">Renter</label>
+      <canvas class="sign-pad" data-el="rsign-pad" width="600" height="180"></canvas>
+      <div style="display:flex;gap:8px;margin:6px 0 14px;">
+        <button class="btn" data-el="rsign-clear">Clear</button>
+        <button class="btn danger" data-el="rsign-remove" style="display:none;">Remove saved</button>
+      </div>
+
+      <label style="font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">For the company</label>
+      <canvas class="sign-pad" data-el="sign-pad" width="600" height="180"></canvas>
+      <div style="display:flex;gap:8px;margin:6px 0 4px;">
         <button class="btn" data-el="sign-clear">Clear</button>
         <button class="btn danger" data-el="sign-remove" style="display:none;">Remove saved</button>
-        <button class="btn-primary" data-el="save-sign">Save signature</button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" data-close="sign-modal">Cancel</button>
+        <button class="btn-primary" data-el="save-sign">Save signatures</button>
       </div>
     </div>
   </div>
@@ -1046,6 +1064,9 @@
         <div class="field"><label>Recovered by</label><input data-el="b-recoveredby" list="dl-staff" placeholder="Choose or type"></div>
       </div>
 
+      <div class="field"><label>Passport number <span class="field-hint">optional — for the rental agreement and receipt</span></label>
+        <input data-el="b-passport" placeholder="e.g. AB1234567"></div>
+
       <div class="field"><label>Broker <span class="field-hint">optional — who brought this booking</span></label>
         <input data-el="b-broker" list="dl-brokers" placeholder="Choose or type"></div>
 
@@ -1077,6 +1098,7 @@
           <button class="btn" data-el="damage-btn" style="display:none;">Damage diagram</button>
           <button class="btn" data-el="sign-btn" style="display:none;">Signature</button>
           <button class="btn" data-el="print-confirmation" style="display:none;">Booking confirmation</button>
+          <button class="btn" data-el="print-receipt" style="display:none;">Receipt</button>
           <button class="btn" data-el="print-agreement" style="display:none;">Rental agreement</button>
           <button class="btn" data-el="email-booking" style="display:none;">Email customer</button>
           <button class="btn" data-el="whatsapp-booking" style="display:none;">WhatsApp</button>

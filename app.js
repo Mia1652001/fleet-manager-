@@ -3,7 +3,7 @@
 // between views without ever reloading the page.
 
 import { db, auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setSync } from "./firebase-init.js";
-import { collection, query, where, onSnapshot, doc, getDoc, terminate, clearIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, query, where, onSnapshot, doc, getDoc, getDocFromServer, terminate, clearIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, bookingRef, loadPref, savePref } from "./store.js";
 
 import * as fleet from "./view-fleet.js";
@@ -60,15 +60,26 @@ onAuthStateChanged(auth, async (user) => {
     // sign-in token is attached; the server then correctly denies what looks
     // like an anonymous request. One retry with a forcibly refreshed token
     // separates that race from a real denial — and fixes it when it is one.
+    // Server-first for the profile: an account created a minute ago exists on
+    // the server but not in this device's cache, and the cache once answered
+    // "no such profile" for a brand-new company. Cache is only the offline
+    // fallback.
+    const readProfile = async () => {
+      try { return await getDocFromServer(doc(db, "users", user.uid)); }
+      catch (e) {
+        if ((e.code || "") === "unavailable") return await getDoc(doc(db, "users", user.uid));
+        throw e;
+      }
+    };
     let snap;
     try {
-      snap = await getDoc(doc(db, "users", user.uid));
+      snap = await readProfile();
     } catch (e1) {
       if ((e1.code || "") !== "permission-denied") throw e1;
       console.warn("First profile read denied — refreshing the sign-in token and retrying once.", e1);
       try { await user.getIdToken(true); } catch {}
       await new Promise(r => setTimeout(r, 900));
-      snap = await getDoc(doc(db, "users", user.uid));
+      snap = await readProfile();
     }
     if (!snap.exists() || !snap.data().companyId) {
       await signOut(auth);
@@ -159,7 +170,12 @@ function startApp() {
       // Everything, settings included: leaving the settings behind meant the
       // next person to sign in on this device briefly saw the previous
       // company's currency, logo and name until their own snapshot arrived.
-      state.ctx = null; state.cars = []; state.bookings = []; state.customers = []; state.tasks = []; state.expenses = [];
+      state.ctx = null; state.cars = []; state.bookings = []; state.customers = []; state.tasks = []; state.expenses = []; state.settings = {};
+      // Repaint immediately: the views keep their drawn content otherwise, and
+      // the next person to sign in would briefly see the previous company's
+      // screen — not their data (the rules forbid that), but their pixels,
+      // which looks identical to a breach and must never happen.
+      notifyDataChange();
       state.settings = {};
       loadedCollections = new Set();
       document.title = "Fleet Manager";

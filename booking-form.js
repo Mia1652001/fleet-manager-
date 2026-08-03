@@ -5,7 +5,7 @@
 // element (#booking-form-root) so the shared el()/val() helpers keep working.
 
 import { db, setSync } from "./firebase-init.js";
-import { openAgreement, openConfirmation, emailBooking, whatsappBooking, CAR_OUTLINE } from "./agreement.js";
+import { openAgreement, openConfirmation, openReceipt, emailBooking, whatsappBooking, CAR_OUTLINE } from "./agreement.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
@@ -42,6 +42,12 @@ export function mountBookingForm() {
     if (!r.ok) showError(root, "booking-error", r.reason);
   });
   wireDamageAndSignature();
+  const rcptBtn = el(root, "print-receipt");
+  if (rcptBtn) rcptBtn.addEventListener("click", () => {
+    if (!editingBookingId) return;
+    const r = openReceipt(editingBookingId);
+    if (!r.ok) showError(root, "booking-error", r.reason);
+  });
   const confBtn = el(root, "print-confirmation");
   if (confBtn) confBtn.addEventListener("click", () => {
     if (!editingBookingId) return;
@@ -346,8 +352,6 @@ export function recalcAtTodayRate(fieldRoot, { fxInputId, homeInputId, sym, isPa
 // numbered mark with a note; saving writes them to the booking. The signature
 // pad saves a small image that lands on the agreement's signature line.
 let damageDraft = [];
-let signDrawing = null;
-let signHasInk = false;
 
 function wireDamageAndSignature() {
   const dmgBtn = el(root, "damage-btn");
@@ -401,69 +405,97 @@ function wireDamageAndSignature() {
     saveDmg.disabled = false; saveDmg.textContent = "Save marks";
   });
 
-  // ---- signature pad ----
+  // ---- signature pads: renter and company, on one screen ----
+  // One pad factory driving two canvases: the renter signs, the company signs,
+  // both save together. Each pad remembers whether it has fresh ink, so saving
+  // never overwrites a stored signature with an empty canvas.
   const signBtn = el(root, "sign-btn");
-  const pad = el(root, "sign-pad");
-  if (signBtn && pad) {
-    const ctx = pad.getContext("2d");
-    const clearPad = () => {
-      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, pad.width, pad.height);
-      ctx.strokeStyle = "#14213d"; ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
-      signHasInk = false;
-    };
-    const pos = (e) => {
-      const r = pad.getBoundingClientRect();
-      return { x: (e.clientX - r.left) * (pad.width / r.width), y: (e.clientY - r.top) * (pad.height / r.height) };
-    };
+  if (signBtn) {
+    const pads = [
+      { pad: "rsign-pad", clear: "rsign-clear", remove: "rsign-remove",
+        field: "renterSignature", stamp: "renterSignedAt" },
+      { pad: "sign-pad", clear: "sign-clear", remove: "sign-remove",
+        field: "signature", stamp: "signedAt" }
+    ].map(cfg => {
+      const canvas = el(root, cfg.pad);
+      if (!canvas) return null;
+      const ctx = canvas.getContext("2d");
+      const api = { cfg, canvas, ctx, ink: false, drawing: null };
+      api.reset = () => {
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = "#14213d"; ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
+        api.ink = false;
+      };
+      const pos = (e) => {
+        const r = canvas.getBoundingClientRect();
+        return { x: (e.clientX - r.left) * (canvas.width / r.width),
+                 y: (e.clientY - r.top) * (canvas.height / r.height) };
+      };
+      canvas.addEventListener("pointerdown", (e) => {
+        api.drawing = pos(e);
+        try { canvas.setPointerCapture(e.pointerId); } catch {}
+        e.preventDefault();
+      });
+      canvas.addEventListener("pointermove", (e) => {
+        if (!api.drawing) return;
+        const p = pos(e);
+        ctx.beginPath(); ctx.moveTo(api.drawing.x, api.drawing.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+        api.drawing = p; api.ink = true;
+        e.preventDefault();
+      });
+      const stop = () => { api.drawing = null; };
+      canvas.addEventListener("pointerup", stop);
+      canvas.addEventListener("pointercancel", stop);
+
+      const clearBtn = el(root, cfg.clear);
+      if (clearBtn) clearBtn.addEventListener("click", api.reset);
+
+      const removeBtn = el(root, cfg.remove);
+      if (removeBtn) removeBtn.addEventListener("click", async () => {
+        if (!editingBookingId) return;
+        try {
+          await updateDoc(doc(db, "bookings", editingBookingId),
+            { [cfg.field]: null, [cfg.stamp]: null });
+          api.reset();
+          removeBtn.style.display = "none";
+        } catch (err) { alert("Couldn't remove (" + (err.code || err.message) + ")."); }
+      });
+      return api;
+    }).filter(Boolean);
+
     signBtn.addEventListener("click", () => {
       if (!editingBookingId) return;
       const b = state.bookings.find(x => x.id === editingBookingId);
-      clearPad();
-      el(root, "sign-remove").style.display = b?.signature ? "inline-block" : "none";
+      pads.forEach(p => {
+        p.reset();
+        const btn = el(root, p.cfg.remove);
+        if (btn) btn.style.display = b?.[p.cfg.field] ? "inline-block" : "none";
+      });
       openModal(root, "sign-modal");
     });
-    pad.addEventListener("pointerdown", (e) => {
-      signDrawing = pos(e);
-      try { pad.setPointerCapture(e.pointerId); } catch {}
-      e.preventDefault();
-    });
-    pad.addEventListener("pointermove", (e) => {
-      if (!signDrawing) return;
-      const p = pos(e);
-      ctx.beginPath(); ctx.moveTo(signDrawing.x, signDrawing.y); ctx.lineTo(p.x, p.y); ctx.stroke();
-      signDrawing = p; signHasInk = true;
-      e.preventDefault();
-    });
-    const stop = () => { signDrawing = null; };
-    pad.addEventListener("pointerup", stop);
-    pad.addEventListener("pointercancel", stop);
 
-    el(root, "sign-clear").addEventListener("click", clearPad);
-    el(root, "sign-remove").addEventListener("click", async () => {
-      if (!editingBookingId) return;
-      try {
-        await updateDoc(doc(db, "bookings", editingBookingId), { signature: null, signedAt: null });
-        closeModal(root, "sign-modal");
-      } catch (err) { alert("Couldn't remove (" + (err.code || err.message) + ")."); }
-    });
     el(root, "save-sign").addEventListener("click", async () => {
       if (!editingBookingId) return;
-      if (!signHasInk) { alert("Sign first, or Cancel."); return; }
-      // Downscaled before storing: the booking document carries it, so it is
-      // kept about the size of the company logo, not a photograph.
-      const small = document.createElement("canvas");
-      small.width = 400; small.height = Math.round(400 * pad.height / pad.width);
-      small.getContext("2d").drawImage(pad, 0, 0, small.width, small.height);
+      const fresh = pads.filter(p => p.ink);
+      if (!fresh.length) { alert("Sign at least one of the two, or Cancel."); return; }
       const btn = el(root, "save-sign");
       btn.disabled = true; btn.textContent = "Saving...";
+      const patch = {};
+      fresh.forEach(p => {
+        // Downscaled before storing: the booking document carries these, so
+        // they stay about the size of the company logo, not photographs.
+        const small = document.createElement("canvas");
+        small.width = 400;
+        small.height = Math.round(400 * p.canvas.height / p.canvas.width);
+        small.getContext("2d").drawImage(p.canvas, 0, 0, small.width, small.height);
+        patch[p.cfg.field] = small.toDataURL("image/png");
+        patch[p.cfg.stamp] = new Date().toISOString();
+      });
       try {
-        await updateDoc(doc(db, "bookings", editingBookingId), {
-          signature: small.toDataURL("image/png"),
-          signedAt: new Date().toISOString()
-        });
+        await updateDoc(doc(db, "bookings", editingBookingId), patch);
         closeModal(root, "sign-modal");
       } catch (err) { alert("Couldn't save (" + (err.code || err.message) + ")."); }
-      btn.disabled = false; btn.textContent = "Save signature";
+      btn.disabled = false; btn.textContent = "Save signatures";
     });
   }
 }
@@ -526,7 +558,7 @@ export function openBookingModal(bookingId, preset) {
   csel.value = "__quick__";
 
   ["b-name","b-phone","b-email","b-quickname","b-quickphone","b-quickemail","b-start","b-end",
-   "b-pickup","b-dropoff","b-total","b-delivery","b-insurance","b-other",
+   "b-pickup","b-dropoff","b-total","b-delivery","b-insurance","b-other","b-passport",
    "b-managedby","b-deliveredby","b-recoveredby","b-broker","b-notes"]
     .forEach(n => setVal(root, n, ""));
   el(root, "b-currency").value = "";
@@ -565,6 +597,7 @@ export function openBookingModal(bookingId, preset) {
     }
     setVal(root, "b-fxtotal", editing.fxTotal ?? "");
     syncCurrencyFields();
+    setVal(root, "b-passport", editing.passport || "");
     setVal(root, "b-delivery", editing.fxDelivery ?? editing.deliveryCost ?? "");
     setVal(root, "b-insurance", editing.fxInsurance ?? editing.insuranceCost ?? "");
     setVal(root, "b-other", editing.fxOther ?? editing.otherCost ?? "");
@@ -601,6 +634,8 @@ export function openBookingModal(bookingId, preset) {
   {
     const cb = el(root, "print-confirmation");
     if (cb) cb.style.display = editing ? "inline-block" : "none";
+    const rb = el(root, "print-receipt");
+    if (rb) rb.style.display = editing ? "inline-block" : "none";
     const db2 = el(root, "damage-btn");
     if (db2) db2.style.display = editing ? "inline-block" : "none";
     const sb = el(root, "sign-btn");
@@ -739,6 +774,7 @@ async function saveBooking() {
       deliveredBy: val(root, "b-deliveredby"),
       recoveredBy: val(root, "b-recoveredby"),
       broker: val(root, "b-broker"),
+      passport: val(root, "b-passport"),
       // Blank stays blank rather than becoming a zero, so an invoice only shows
       // the extras that were actually charged.
       // Extras typed in the booking currency are converted at the booking's
