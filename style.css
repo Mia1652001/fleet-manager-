@@ -2113,10 +2113,17 @@ input:focus, select:focus { border-color: var(--text); }
   }
 }
 
-/* The Expenses board gets the same breakout as the Tasks board — a column per
-   category needs the window, not the reading column. Lists and filters stay
-   centred; only the board steps out. Self-limiting, phones unaffected. */
+/* The whole Expenses view gets the window, like the Dashboard and Settings:
+   with only the board breaking out, the search, filters, totals and category
+   strip crowded the narrow centre while the sides sat empty. Inside the
+   full-width view the board's own breakout resolves to zero shift, so the two
+   rules coexist harmlessly. */
 @media (min-width: 641px) {
+  #view-expenses.view {
+    --exp-w: min(100vw - 2rem, 2600px);
+    width: var(--exp-w);
+    margin-left: calc(-1 * max(0px, (var(--exp-w) - 100%) / 2));
+  }
   #view-expenses .staff-board {
     --board-w: min(100vw - 2rem, 2600px);
     width: var(--board-w);
