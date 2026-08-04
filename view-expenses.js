@@ -6,7 +6,7 @@ import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr,
-  staffNames, expenseCategoryNames, orderedCars,
+  staffNames, expenseCategoryNames, orderedCars, initPanelToggle,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
@@ -56,6 +56,7 @@ export function mount(container) {
 
   wireBoard();
   el(root, "save-expense").addEventListener("click", saveExpense);
+  initPanelToggle(root, "expSummary1", "toggle-summary", "hide-summary", "Summary");
 
   // Paid-with drives whether the Refunded tick applies at all.
   el(root, "x-paidwith").addEventListener("change", () => {

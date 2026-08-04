@@ -2255,3 +2255,20 @@ input:focus, select:focus { border-color: var(--text); }
    shared axis clean. */
 #view-tasks .planner-bar .toolbar { align-items: center; }
 #view-tasks .planner-bar .filter-row { display: inline-flex; }
+
+/* One line for the Tasks controls even on a laptop: the search field is the
+   flexible member — it compresses before anything wraps, down to a still
+   typeable minimum. Everything else keeps its natural size. */
+@media (min-width: 641px) {
+  #view-tasks .planner-bar input[type="text"] {
+    flex: 0 1 340px;
+    min-width: 150px;
+  }
+  #view-tasks .planner-bar .toolbar { gap: 6px; }
+  #view-tasks .planner-bar .filter-row { gap: 6px; }
+}
+
+/* Expenses summary behind the same toggle as other pages: the stat cards and
+   the category strip hide together. */
+#view-expenses.hide-summary .stats,
+#view-expenses.hide-summary [data-el="cat-totals"] { display: none; }
