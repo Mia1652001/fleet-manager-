@@ -2213,3 +2213,15 @@ input:focus, select:focus { border-color: var(--text); }
      typed query, then the other controls sit beside it. */
   .toolbar input[type="text"] { max-width: 460px; }
 }
+
+/* The Expenses totals sentence rides on the search line, pushed to the right
+   so the controls keep the left. It drops onto its own line on a phone, where
+   the toolbar wraps anyway. */
+.inline-total {
+  margin: 0 0 0 auto;
+  align-self: center;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .inline-total { margin-left: 0; white-space: normal; }
+}
