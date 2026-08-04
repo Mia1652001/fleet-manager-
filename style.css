@@ -2139,3 +2139,40 @@ input:focus, select:focus { border-color: var(--text); }
    must paint above it — explicit stacking, immune to DOM order. */
 .overlay[data-el="damage-modal"],
 .overlay[data-el="sign-modal"] { z-index: 110; }
+
+/* Per-category totals on the Expenses page: a strip of small cards that
+   always matches whatever the filters currently show. */
+.cat-total-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.cat-total {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 7px 12px;
+  background: var(--surface);
+  min-width: 120px;
+}
+.cat-total-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cat-total-val { font-size: 1.15rem; line-height: 1.35; }
+.cat-total-sub { font-size: 10px; color: var(--muted); }
+.board-head-total {
+  display: block;
+  font-size: 9.5px;
+  color: var(--muted);
+  letter-spacing: 0;
+  text-transform: none;
+  margin-top: 2px;
+}
+@media (max-width: 640px) {
+  .cat-total { min-width: 100px; padding: 6px 9px; }
+  .cat-total-val { font-size: 1rem; }
+}

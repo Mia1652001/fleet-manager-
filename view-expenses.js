@@ -191,8 +191,15 @@ export function render() {
     .filter(x => (x.date || "").slice(0, 7) === t.slice(0, 7))
     .reduce((s, x) => s + (Number(x.amount) || 0), 0);
   const allTime = state.expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  // Refunded means the company has paid the staff member back, so it no longer
+  // sits on the books as money owed. Both figures are shown: what was spent,
+  // and what is still to be settled.
+  const owed = state.expenses
+    .filter(x => !x.done)
+    .reduce((s, x) => s + (Number(x.amount) || 0), 0);
   el(root, "stats").innerHTML = !summaryOpen() ? "" : `
     <div class="stat"><div class="stat-label">This month</div><div class="stat-val">${formatAmount(thisMonth)}</div></div>
+    <div class="stat"><div class="stat-label">Still to refund</div><div class="stat-val">${formatAmount(owed)}</div></div>
     <div class="stat"><div class="stat-label">All time</div><div class="stat-val">${formatAmount(allTime)}</div></div>
   `;
 
@@ -209,13 +216,19 @@ export function render() {
     staffFilter.size ? `Staff (${staffFilter.size})` : "All staff";
 
   const total = list.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  const refunded = list.filter(x => x.done).reduce((s, x) => s + (Number(x.amount) || 0), 0);
   const bits = [];
   if (periodYear || periodMonth) {
     bits.push(periodMonth ? `${MONTH_NAMES[Number(periodMonth) - 1]}${periodYear ? " " + periodYear : ""}` : periodYear);
   }
   if (categoryFilter) bits.push(categoryFilter);
   el(root, "list-total").textContent =
-    `${list.length} expense${list.length === 1 ? "" : "s"}${bits.length ? ` · ${bits.join(" · ")}` : ""} · ${formatAmount(total)}`;
+    `${list.length} expense${list.length === 1 ? "" : "s"}${bits.length ? ` · ${bits.join(" · ")}` : ""}` +
+    ` · ${formatAmount(total)} spent` +
+    (refunded > 0 ? ` · ${formatAmount(refunded)} refunded · ${formatAmount(total - refunded)} still to refund` : "");
+
+  // A total per category, always matching exactly what the filters show.
+  renderCategoryTotals(list);
 
   el(root, "list").style.display = mode === "list" ? "" : "none";
   el(root, "xboard").style.display = mode === "board" ? "" : "none";
@@ -234,7 +247,7 @@ export function render() {
       <div class="card-top">
         <div style="display:flex;align-items:center;gap:10px;">
           <input type="checkbox" class="job-tick" data-tick="${x.id}" ${x.done ? "checked" : ""}
-            title="Tick when this expense is settled">
+            title="Tick when the staff member has been refunded">
           <div>
           <div class="card-title">${esc(formatAmount(x.amount))}${x.category ? ` — ${esc(x.category)}` : ""}</div>
           <div class="card-sub">${formatDate(x.date)}${x.staff ? ` · ${esc(x.staff)}` : ""}</div>
@@ -264,6 +277,34 @@ function fillSuggestions() {
 // Columns are the company's own categories, Settings order first — the same
 // rule the Tasks board follows for staff. Days run down, newest first; every
 // cell can be dropped on or added to.
+// The per-category breakdown: what each category has cost, and how much of it
+// is still to be refunded. Always computed from the same filtered list as the
+// totals line, so the two can never disagree.
+function renderCategoryTotals(list) {
+  const box = el(root, "cat-totals");
+  if (!box) return;
+  const map = new Map();
+  list.forEach(x => {
+    const name = (x.category || "").trim() || "Uncategorised";
+    const key = name.toLowerCase();
+    const row = map.get(key) || { name, total: 0, refunded: 0, count: 0 };
+    const amt = Number(x.amount) || 0;
+    row.total += amt;
+    if (x.done) row.refunded += amt;
+    row.count += 1;
+    map.set(key, row);
+  });
+  if (!map.size) { box.innerHTML = ""; return; }
+  const rows = [...map.values()].sort((a, b) => b.total - a.total);
+  box.innerHTML = `<div class="cat-total-strip">` + rows.map(r => `
+    <div class="cat-total">
+      <div class="cat-total-name">${esc(r.name)}</div>
+      <div class="cat-total-val">${esc(formatAmount(r.total))}</div>
+      <div class="cat-total-sub">${r.count} item${r.count === 1 ? "" : "s"}${
+        r.refunded > 0 ? ` · ${esc(formatAmount(r.total - r.refunded))} to refund` : ""}</div>
+    </div>`).join("") + `</div>`;
+}
+
 function boardColumns(items) {
   const seen = new Map();
   expenseCategoryNames().forEach(n => seen.set(n.toLowerCase(), n));
@@ -292,7 +333,16 @@ function renderBoard(items) {
     `minmax(84px, 0.6fr) repeat(${cols.length}, minmax(${phone ? 170 : 130}px, 1fr))`;
 
   const head = `<div class="board-cell board-corner">Day</div>` +
-    cols.map(cName => `<div class="board-cell board-head${cName ? "" : " unassigned"}">${cName ? esc(cName) : "Uncategorised"}</div>`).join("");
+    cols.map(cName => {
+      const mine = items.filter(x => (x.category || "").trim().toLowerCase() === cName.toLowerCase());
+      const tot = mine.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+      const ref = mine.filter(x => x.done).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+      return `<div class="board-cell board-head${cName ? "" : " unassigned"}">
+        ${cName ? esc(cName) : "Uncategorised"}
+        ${tot ? `<span class="board-head-total">${esc(formatAmount(tot))}${
+          ref > 0 ? ` · ${esc(formatAmount(tot - ref))} left` : ""}</span>` : ""}
+      </div>`;
+    }).join("");
 
   const rows = days.map(ds => {
     const cells = cols.map(cName => {

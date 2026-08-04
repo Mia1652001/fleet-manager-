@@ -169,7 +169,7 @@ function expenseRows() {
     return c ? `${c.make} ${c.model} (${c.plate || ""})` : "";
   };
   return [
-    ["Date", "Amount", "Category", "Spent by", "Car", "Note", "Settled", "Recorded by"],
+    ["Date", "Amount", "Category", "Spent by", "Car", "Note", "Refunded", "Recorded by"],
     ...state.expenses.slice()
       .sort((a, b) => String(a.date).localeCompare(String(b.date)))
       .map(x => [x.date || "", x.amount || 0, x.category || "", x.staff || "",
