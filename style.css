@@ -2161,6 +2161,8 @@ input:focus, select:focus { border-color: var(--text); }
   padding: 7px 12px;
   background: var(--surface);
   min-width: 120px;
+  flex: 1 1 180px;
+  max-width: 380px;
 }
 .cat-total-name {
   font-family: 'DM Mono', monospace;
@@ -2218,7 +2220,7 @@ input:focus, select:focus { border-color: var(--text); }
    so the controls keep the left. It drops onto its own line on a phone, where
    the toolbar wraps anyway. */
 .inline-total {
-  margin: 0 0 0 auto;
+  margin: 0 0 0 18px;
   align-self: center;
   white-space: nowrap;
 }
