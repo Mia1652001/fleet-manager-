@@ -558,7 +558,7 @@ export function openBookingModal(bookingId, preset) {
   csel.value = "__quick__";
 
   ["b-name","b-phone","b-email","b-quickname","b-quickphone","b-quickemail","b-start","b-end",
-   "b-pickup","b-dropoff","b-total","b-delivery","b-insurance","b-other","b-passport",
+   "b-pickup","b-dropoff","b-total","b-delivery","b-insurance","b-other","b-passport","b-licence",
    "b-managedby","b-deliveredby","b-recoveredby","b-broker","b-notes"]
     .forEach(n => setVal(root, n, ""));
   el(root, "b-currency").value = "";
@@ -598,6 +598,7 @@ export function openBookingModal(bookingId, preset) {
     setVal(root, "b-fxtotal", editing.fxTotal ?? "");
     syncCurrencyFields();
     setVal(root, "b-passport", editing.passport || "");
+    setVal(root, "b-licence", editing.licence || "");
     setVal(root, "b-delivery", editing.fxDelivery ?? editing.deliveryCost ?? "");
     setVal(root, "b-insurance", editing.fxInsurance ?? editing.insuranceCost ?? "");
     setVal(root, "b-other", editing.fxOther ?? editing.otherCost ?? "");
@@ -775,6 +776,7 @@ async function saveBooking() {
       recoveredBy: val(root, "b-recoveredby"),
       broker: val(root, "b-broker"),
       passport: val(root, "b-passport"),
+      licence: val(root, "b-licence"),
       // Blank stays blank rather than becoming a zero, so an invoice only shows
       // the extras that were actually charged.
       // Extras typed in the booking currency are converted at the booking's

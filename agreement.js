@@ -213,7 +213,7 @@ ${DOC_ACTIONS}
         ${line("Phone", b.phone || customer?.phone)}
         ${line("Email", customer?.email)}
         ${line("Passport number", b.passport || customer?.passport)}
-        ${line("Licence number", customer?.license)}
+        ${line("Licence number", b.licence || customer?.license)}
         ${line("Broker", b.broker)}
       </table>
     </div>

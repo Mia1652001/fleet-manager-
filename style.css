@@ -2286,3 +2286,7 @@ input:focus, select:focus { border-color: var(--text); }
    the category strip hide together. */
 #view-expenses.hide-summary .stats,
 #view-expenses.hide-summary [data-el="cat-totals"] { display: none; }
+
+/* The Summary toggle rides at the far right of each page's control line. */
+.toolbar .push-right { margin-left: auto; }
+@media (max-width: 640px) { .toolbar .push-right { margin-left: 0; } }
