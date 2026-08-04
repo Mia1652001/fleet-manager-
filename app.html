@@ -461,8 +461,9 @@
         <span class="inline-label">Period</span>
         <select data-el="period-year"></select>
         <select data-el="period-month"></select>
-        <span class="inline-label">Broker</span>
-        <select data-el="period-broker"></select>
+        <!-- No "Broker" label: the dropdown's own default option reads
+             "All brokers", so a label beside it only repeats the word. -->
+        <select data-el="period-broker" style="margin-left:14px;"></select>
       </div>
       <div class="list-total" data-el="list-total"></div>
       <div class="card-list" data-el="list"><div class="loading-screen">Loading invoices...</div></div>
