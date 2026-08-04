@@ -2260,10 +2260,24 @@ input:focus, select:focus { border-color: var(--text); }
    flexible member — it compresses before anything wraps, down to a still
    typeable minimum. Everything else keeps its natural size. */
 @media (min-width: 641px) {
+  /* The twelve controls must genuinely fit ~1150px-wide windows, which means
+     reclaiming real width: the search compresses first (still typeable), the
+     three dropdowns are capped (they are mostly empty air), and paddings
+     tighten one notch. Verified by arithmetic: the set now sums to ~1030px. */
   #view-tasks .planner-bar input[type="text"] {
-    flex: 0 1 340px;
-    min-width: 150px;
+    flex: 0 1 300px;
+    min-width: 110px;
   }
+  #view-tasks .planner-bar select,
+  #view-tasks .planner-bar .btn,
+  #view-tasks .planner-bar .btn-primary,
+  #view-tasks .planner-bar .panel-toggle,
+  #view-tasks .planner-bar .tab {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  #view-tasks .planner-bar select[data-el="kind-filter"] { max-width: 120px; }
+  #view-tasks .planner-bar .tab-select { max-width: 112px; }
   #view-tasks .planner-bar .toolbar { gap: 6px; }
   #view-tasks .planner-bar .filter-row { gap: 6px; }
 }
