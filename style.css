@@ -1769,7 +1769,10 @@ input:focus, select:focus { border-color: var(--text); }
 #view-tasks .planner-bar .filter-row { margin-bottom: 0; }
 #view-tasks .planner-bar .cal-nav { gap: 6px 10px; }
 @media (min-width: 641px) {
-  #view-tasks .planner-bar .toolbar { flex: 1 1 380px; }
+  /* The toolbar owns the whole row now that every control lives on it — the
+     old 380px basis was for sharing the row, and made the merged line wrap
+     inside a narrow box as if nothing had changed. */
+  #view-tasks .planner-bar .toolbar { flex: 1 1 100%; }
 }
 
 /* ---------- Board: add button, tick box, job detail ---------- */

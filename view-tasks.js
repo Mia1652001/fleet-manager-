@@ -32,7 +32,9 @@ export function mount(container) {
 
   // The summary figures start closed so the working part of the view is
   // first on screen — the phone screens had almost nothing else visible.
-  summaryOpen = initPanelToggle(root, "tasksShowSummary", "toggle-summary", "hide-summary", "Summary");
+  // Fresh preference key: devices that remembered the old open state start
+  // closed like every other page; opening it is still remembered per device.
+  summaryOpen = initPanelToggle(root, "tasksSummary2", "toggle-summary", "hide-summary", "Summary");
 
   fillTimeOptions(root, "t-time");
   el(root, "search").addEventListener("input", render);
