@@ -571,7 +571,6 @@
 
     <!-- ---------- TASKS ---------- -->
     <section class="view" id="view-expenses">
-      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
       <div data-el="cat-totals"></div>
       <div class="toolbar">
@@ -581,7 +580,6 @@
           <div class="multi-panel" data-el="staff-filter-panel" style="display:none;"></div>
         </span>
         <button class="btn-primary" data-el="add-expense">+ Add expense</button>
-        <div class="list-total inline-total" data-el="list-total"></div>
       </div>
       <div class="filter-row">
         <button class="tab" data-mode="list">List</button>
@@ -609,7 +607,17 @@
           </div>
           <div class="field"><label>Car (optional)</label><select data-el="x-car"></select></div>
           <div class="field"><label>Note</label><input data-el="x-note" placeholder="optional"></div>
+          <div class="field-row equal">
+            <div class="field"><label>Paid with</label>
+              <select data-el="x-paidwith">
+                <option value="staff">Staff's own money — to be refunded</option>
+                <option value="company">Company money</option>
+              </select></div>
+            <div class="field checkbox-field" data-el="x-refund-wrap" style="align-self:center;margin-top:18px;">
+              <label><input type="checkbox" data-el="x-refunded"> Refunded</label></div>
+          </div>
           <div class="modal-actions">
+            <button class="btn danger" data-el="delete-expense" style="margin-right:auto;display:none;">Delete</button>
             <button class="btn" data-close="expense-modal">Cancel</button>
             <button class="btn-primary" data-el="save-expense">Save</button>
           </div>

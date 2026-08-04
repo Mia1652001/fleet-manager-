@@ -2229,3 +2229,5 @@ input:focus, select:focus { border-color: var(--text); }
 @media (max-width: 640px) {
   .inline-total { margin-left: 0; white-space: normal; }
 }
+
+.stat-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }

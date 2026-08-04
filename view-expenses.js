@@ -6,7 +6,7 @@ import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr,
-  staffNames, expenseCategoryNames, orderedCars, initPanelToggle,
+  staffNames, expenseCategoryNames, orderedCars,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
@@ -17,7 +17,6 @@ let periodMonth = "";
 let categoryFilter = "";
 let mode = "board";                  // the pilot plans by category, so board leads
 let staffFilter = new Set();         // empty = everyone; "__none__" = no name given
-let summaryOpen = () => true;
 let boardDrag = null;
 
 const MONTH_NAMES = ["January","February","March","April","May","June",
@@ -28,7 +27,6 @@ export function mount(container) {
 
   el(root, "search").addEventListener("input", render);
   el(root, "add-expense").addEventListener("click", () => openExpenseModal(null));
-  summaryOpen = initPanelToggle(root, "expensesShowSummary", "toggle-summary", "hide-summary", "Summary");
 
   root.querySelectorAll("[data-mode]").forEach(t => t.addEventListener("click", () => {
     mode = t.dataset.mode;
@@ -58,6 +56,32 @@ export function mount(container) {
 
   wireBoard();
   el(root, "save-expense").addEventListener("click", saveExpense);
+
+  // Paid-with drives whether the Refunded tick applies at all.
+  el(root, "x-paidwith").addEventListener("change", () => {
+    el(root, "x-refund-wrap").style.display =
+      el(root, "x-paidwith").value === "staff" ? "" : "none";
+  });
+
+  // Deleting from inside the window, with the same money-naming confirm.
+  el(root, "delete-expense").addEventListener("click", async () => {
+    if (!editingId) return;
+    const x = state.expenses.find(v => v.id === editingId);
+    if (!x) return;
+    if (!confirm(
+      `Delete this expense?\n\n${formatDate(x.date)} · ${formatAmount(x.amount)}` +
+      `${x.category ? ` · ${x.category}` : ""}${x.staff ? ` · ${x.staff}` : ""}\n\n` +
+      `It leaves the totals and the backups. This cannot be undone.`)) return;
+    const btn = el(root, "delete-expense");
+    btn.disabled = true;
+    setSync("saving");
+    try {
+      await deleteDoc(doc(db, "expenses", editingId));
+      closeModal(root, "expense-modal");
+      editingId = null;
+    } catch (err) { alert("Couldn't delete (" + (err.code || err.message) + ")."); setSync("error"); }
+    btn.disabled = false;
+  });
 
   el(root, "period-year").addEventListener("change", () => {
     periodYear = el(root, "period-year").value; render();
@@ -129,6 +153,13 @@ function matchesStaff(x) {
       : (x.staff || "").trim().toLowerCase() === v.trim().toLowerCase());
 }
 
+// Whose money paid this? Staff-paid expenses are owed back until refunded;
+// company-paid ones never enter the refund figures. Entries from before this
+// distinction existed count as staff-paid, which preserves their totals.
+function staffPaid(x) {
+  return (x.paidWith || "staff") === "staff";
+}
+
 function inPeriodFilter(x) {
   const d = x.date || "";
   if (periodYear && d.slice(0, 4) !== periodYear) return false;
@@ -186,23 +217,6 @@ export function render() {
   fillSuggestions();
   const search = el(root, "search").value.toLowerCase();
 
-  const t = todayStr();
-  const thisMonth = state.expenses
-    .filter(x => (x.date || "").slice(0, 7) === t.slice(0, 7))
-    .reduce((s, x) => s + (Number(x.amount) || 0), 0);
-  const allTime = state.expenses.reduce((s, x) => s + (Number(x.amount) || 0), 0);
-  // Refunded means the company has paid the staff member back, so it no longer
-  // sits on the books as money owed. Both figures are shown: what was spent,
-  // and what is still to be settled.
-  const owed = state.expenses
-    .filter(x => !x.done)
-    .reduce((s, x) => s + (Number(x.amount) || 0), 0);
-  el(root, "stats").innerHTML = !summaryOpen() ? "" : `
-    <div class="stat"><div class="stat-label">This month</div><div class="stat-val">${formatAmount(thisMonth)}</div></div>
-    <div class="stat"><div class="stat-label">Still to refund</div><div class="stat-val">${formatAmount(owed)}</div></div>
-    <div class="stat"><div class="stat-label">All time</div><div class="stat-val">${formatAmount(allTime)}</div></div>
-  `;
-
   const list = state.expenses
     .filter(inPeriodFilter)
     .filter(matchesStaff)
@@ -215,17 +229,25 @@ export function render() {
   el(root, "staff-filter-btn").textContent =
     staffFilter.size ? `Staff (${staffFilter.size})` : "All staff";
 
-  const total = list.reduce((s, x) => s + (Number(x.amount) || 0), 0);
-  const refunded = list.filter(x => x.done).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  // The headline figures, in the same stat cards every other page uses, and
+  // always describing exactly what the filters currently show.
+  const spent = list.reduce((s2, x) => s2 + (Number(x.amount) || 0), 0);
+  const refunded = list.filter(x => staffPaid(x) && x.done)
+    .reduce((s2, x) => s2 + (Number(x.amount) || 0), 0);
+  const owed = list.filter(x => staffPaid(x) && !x.done)
+    .reduce((s2, x) => s2 + (Number(x.amount) || 0), 0);
   const bits = [];
   if (periodYear || periodMonth) {
     bits.push(periodMonth ? `${MONTH_NAMES[Number(periodMonth) - 1]}${periodYear ? " " + periodYear : ""}` : periodYear);
   }
   if (categoryFilter) bits.push(categoryFilter);
-  el(root, "list-total").textContent =
-    `${list.length} expense${list.length === 1 ? "" : "s"}${bits.length ? ` · ${bits.join(" · ")}` : ""}` +
-    ` · ${formatAmount(total)} spent` +
-    (refunded > 0 ? ` · ${formatAmount(refunded)} refunded · ${formatAmount(total - refunded)} still to refund` : "");
+  el(root, "stats").innerHTML = `
+    <div class="stat"><div class="stat-label">Spent${bits.length ? ` · ${esc(bits.join(" · "))}` : ""}</div>
+      <div class="stat-val">${formatAmount(spent)}</div>
+      <div class="stat-sub">${list.length} expense${list.length === 1 ? "" : "s"}</div></div>
+    <div class="stat"><div class="stat-label">Refunded</div><div class="stat-val">${formatAmount(refunded)}</div></div>
+    <div class="stat"><div class="stat-label">Still to refund</div><div class="stat-val" style="color:${owed > 0 ? "var(--red-text)" : "inherit"};">${formatAmount(owed)}</div></div>
+  `;
 
   // A total per category, always matching exactly what the filters show.
   renderCategoryTotals(list);
@@ -246,8 +268,8 @@ export function render() {
     <div class="item-card available${x.done ? " expense-done" : ""}">
       <div class="card-top">
         <div style="display:flex;align-items:center;gap:10px;">
-          <input type="checkbox" class="job-tick" data-tick="${x.id}" ${x.done ? "checked" : ""}
-            title="Tick when the staff member has been refunded">
+          ${staffPaid(x) ? `<input type="checkbox" class="job-tick" data-tick="${x.id}" ${x.done ? "checked" : ""}
+            title="Tick when the staff member has been refunded">` : ""}
           <div>
           <div class="card-title">${esc(formatAmount(x.amount))}${x.category ? ` — ${esc(x.category)}` : ""}</div>
           <div class="card-sub">${formatDate(x.date)}${x.staff ? ` · ${esc(x.staff)}` : ""}</div>
@@ -287,10 +309,10 @@ function renderCategoryTotals(list) {
   list.forEach(x => {
     const name = (x.category || "").trim() || "Uncategorised";
     const key = name.toLowerCase();
-    const row = map.get(key) || { name, total: 0, refunded: 0, count: 0 };
+    const row = map.get(key) || { name, total: 0, owed: 0, count: 0 };
     const amt = Number(x.amount) || 0;
     row.total += amt;
-    if (x.done) row.refunded += amt;
+    if (staffPaid(x) && !x.done) row.owed += amt;
     row.count += 1;
     map.set(key, row);
   });
@@ -301,7 +323,7 @@ function renderCategoryTotals(list) {
       <div class="cat-total-name">${esc(r.name)}</div>
       <div class="cat-total-val">${esc(formatAmount(r.total))}</div>
       <div class="cat-total-sub">${r.count} item${r.count === 1 ? "" : "s"}${
-        r.refunded > 0 ? ` · ${esc(formatAmount(r.total - r.refunded))} to refund` : ""}</div>
+        r.owed > 0 ? ` · ${esc(formatAmount(r.owed))} to refund` : ""}</div>
     </div>`).join("") + `</div>`;
 }
 
@@ -336,11 +358,11 @@ function renderBoard(items) {
     cols.map(cName => {
       const mine = items.filter(x => (x.category || "").trim().toLowerCase() === cName.toLowerCase());
       const tot = mine.reduce((s, x) => s + (Number(x.amount) || 0), 0);
-      const ref = mine.filter(x => x.done).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+      const owed2 = mine.filter(x => staffPaid(x) && !x.done).reduce((s2, x) => s2 + (Number(x.amount) || 0), 0);
       return `<div class="board-cell board-head${cName ? "" : " unassigned"}">
         ${cName ? esc(cName) : "Uncategorised"}
         ${tot ? `<span class="board-head-total">${esc(formatAmount(tot))}${
-          ref > 0 ? ` · ${esc(formatAmount(tot - ref))} left` : ""}</span>` : ""}
+          owed2 > 0 ? ` · ${esc(formatAmount(owed2))} to refund` : ""}</span>` : ""}
       </div>`;
     }).join("");
 
@@ -353,7 +375,7 @@ function renderBoard(items) {
       return `<div class="board-cell${cName ? "" : " unassigned"}" data-cell-day="${ds}" data-cell-cat="${esc(cName)}">
         ${mine.map(x => `
           <div class="board-chip kind-task${x.done ? " done" : ""}" data-chip="${x.id}">
-            <input type="checkbox" class="job-tick" data-tick="${x.id}" ${x.done ? "checked" : ""}>
+            ${staffPaid(x) ? `<input type="checkbox" class="job-tick" data-tick="${x.id}" ${x.done ? "checked" : ""}>` : ""}
             <span class="board-chip-main"><strong>${esc(formatAmount(x.amount))}</strong>${x.staff ? ` ${esc(x.staff)}` : ""}${x.note ? ` · ${esc(x.note)}` : ""}</span>
           </div>`).join("")}${add}</div>`;
     }).join("");
@@ -424,6 +446,12 @@ function openExpenseModal(id, preset) {
   setVal(root, "x-category", x?.category || preset?.category || "");
   setVal(root, "x-amount", x?.amount ?? "");
   setVal(root, "x-note", x?.note || "");
+  el(root, "x-paidwith").value = x ? (x.paidWith || "staff") : "staff";
+  el(root, "x-refund-wrap").style.display =
+    el(root, "x-paidwith").value === "staff" ? "" : "none";
+  const rc = el(root, "x-refunded");
+  if (rc) rc.checked = !!x?.done;
+  el(root, "delete-expense").style.display = x ? "inline-block" : "none";
 
   const sel = el(root, "x-car");
   sel.innerHTML = `<option value="">— not car-related —</option>` +
@@ -443,13 +471,16 @@ async function saveExpense() {
     showError(root, "expense-error", "Enter the amount spent."); return;
   }
 
+  const paidWith = el(root, "x-paidwith").value;
   const data = {
     date,
     staff: val(root, "x-staff"),
     category: val(root, "x-category"),
     amount,
     carId: el(root, "x-car").value || "",
-    note: val(root, "x-note")
+    note: val(root, "x-note"),
+    paidWith,
+    done: paidWith === "staff" ? el(root, "x-refunded").checked : false
   };
 
   const btn = el(root, "save-expense");
@@ -461,7 +492,6 @@ async function saveExpense() {
     } else {
       await addDoc(collection(db, "expenses"), {
         companyId: state.ctx.companyId,
-        done: false,
         createdAt: new Date().toISOString(),
         by: state.ctx?.user?.email || "",
         ...data

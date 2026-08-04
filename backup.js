@@ -169,11 +169,12 @@ function expenseRows() {
     return c ? `${c.make} ${c.model} (${c.plate || ""})` : "";
   };
   return [
-    ["Date", "Amount", "Category", "Spent by", "Car", "Note", "Refunded", "Recorded by"],
+    ["Date", "Amount", "Category", "Spent by", "Car", "Note", "Paid with", "Refunded", "Recorded by"],
     ...state.expenses.slice()
       .sort((a, b) => String(a.date).localeCompare(String(b.date)))
       .map(x => [x.date || "", x.amount || 0, x.category || "", x.staff || "",
-        carName(x.carId), x.note || "", x.done ? "Yes" : "", x.by || ""])
+        carName(x.carId), x.note || "", (x.paidWith || "staff") === "company" ? "Company money" : "Staff",
+        x.done ? "Yes" : "", x.by || ""])
   ];
 }
 
