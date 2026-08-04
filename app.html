@@ -447,25 +447,22 @@
     <section class="view" id="view-billing">
       <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
-      <div class="toolbar">
+      <!-- One control line, like the other pages: search, the payment tabs,
+           then the period and broker filters. Year and month are independent:
+           either alone works, together they narrow to one month of one year. -->
+      <div class="toolbar one-line-tools">
         <input type="text" data-el="search" placeholder="Search by customer or car...">
-      </div>
-      <div class="filter-row" data-el="filters">
-        <button class="tab active" data-f="unpaid">Unpaid</button>
-        <button class="tab" data-f="paid">Paid</button>
-        <button class="tab" data-f="upcoming">Not started</button>
-        <button class="tab" data-f="all">All</button>
-      </div>
-      <!-- Narrows the list to a month or a year, so it does not grow without
-           limit as the business builds up history. -->
-      <!-- Year and month are independent: either on its own works, and together
-           they narrow to one month of one year. -->
-      <div class="period-row">
-        <label for="bill-year">Period</label>
-        <select id="bill-year" data-el="period-year"></select>
+        <span class="filter-row" data-el="filters" style="display:inline-flex;gap:6px;margin:0 0 0 12px;">
+          <button class="tab active" data-f="unpaid">Unpaid</button>
+          <button class="tab" data-f="paid">Paid</button>
+          <button class="tab" data-f="upcoming">Not started</button>
+          <button class="tab" data-f="all">All</button>
+        </span>
+        <span class="inline-label">Period</span>
+        <select data-el="period-year"></select>
         <select data-el="period-month"></select>
-        <label for="bill-broker" style="margin-left:10px;">Broker</label>
-        <select id="bill-broker" data-el="period-broker"></select>
+        <span class="inline-label">Broker</span>
+        <select data-el="period-broker"></select>
       </div>
       <div class="list-total" data-el="list-total"></div>
       <div class="card-list" data-el="list"><div class="loading-screen">Loading invoices...</div></div>
