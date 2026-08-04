@@ -2206,9 +2206,11 @@ input:focus, select:focus { border-color: var(--text); }
   #view-billing .card-list,
   #view-maintenance .card-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    /* Two equal columns, and every row the same height as the tallest card —
+       the grid reads as uniform tiles rather than a staggered mosaic. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
     gap: 10px;
-    align-items: start;
   }
 
   /* A search field does not need the whole window — long enough to read a
