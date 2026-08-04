@@ -2183,3 +2183,33 @@ input:focus, select:focus { border-color: var(--text); }
   .cat-total { min-width: 100px; padding: 6px 9px; }
   .cat-total-val { font-size: 1rem; }
 }
+
+/* ---------- Wide layout, remaining pages ----------
+   Fleet, Customers, Billing and Maintenance now take the window like the
+   others. Their card lists become a responsive grid rather than one column of
+   very wide cards: cards keep a comfortable reading width and simply sit side
+   by side when there is room. */
+@media (min-width: 641px) {
+  #view-fleet.view,
+  #view-customers.view,
+  #view-billing.view,
+  #view-maintenance.view {
+    --page-w: min(100vw - 2rem, 2600px);
+    width: var(--page-w);
+    margin-left: calc(-1 * max(0px, (var(--page-w) - 100%) / 2));
+  }
+
+  #view-fleet .card-list,
+  #view-customers .card-list,
+  #view-billing .card-list,
+  #view-maintenance .card-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 10px;
+    align-items: start;
+  }
+
+  /* A search field does not need the whole window — long enough to read a
+     typed query, then the other controls sit beside it. */
+  .toolbar input[type="text"] { max-width: 460px; }
+}
