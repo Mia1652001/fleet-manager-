@@ -2231,3 +2231,17 @@ input:focus, select:focus { border-color: var(--text); }
 }
 
 .stat-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* One control line on the Expenses page: everything vertically centred so
+   inputs, buttons, tabs and selects sit on a shared axis, with quiet
+   small-caps labels instead of heavy text between groups. Wraps in order on
+   narrower windows. */
+.one-line-tools { align-items: center; }
+.inline-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-left: 14px;
+}
