@@ -2245,3 +2245,10 @@ input:focus, select:focus { border-color: var(--text); }
   color: var(--muted);
   margin-left: 14px;
 }
+
+/* Tasks: the whole control set on one centred line, like Expenses. The two
+   filter groups keep their internal grouping and wrap as units on narrower
+   windows; the compact uniform control size from the toolbar pass keeps the
+   shared axis clean. */
+#view-tasks .planner-bar .toolbar { align-items: center; }
+#view-tasks .planner-bar .filter-row { display: inline-flex; }
