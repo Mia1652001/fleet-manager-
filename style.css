@@ -2195,6 +2195,13 @@ input:focus, select:focus { border-color: var(--text); }
    very wide cards: cards keep a comfortable reading width and simply sit side
    by side when there is room. */
 @media (min-width: 641px) {
+  /* Bookings and Tasks join the whole-view breakout: without it their
+     toolbars and Summary buttons stayed in the centred column — indented,
+     narrow, and wrapping — while every other page had moved on. Their inner
+     planner/board breakouts resolve to zero shift inside a full-width parent,
+     so the old rules coexist harmlessly. */
+  #view-bookings.view,
+  #view-tasks.view,
   #view-fleet.view,
   #view-customers.view,
   #view-billing.view,
