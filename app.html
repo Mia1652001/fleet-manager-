@@ -160,6 +160,7 @@
 
     <!-- ---------- FLEET ---------- -->
     <section class="view" id="view-fleet">
+      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search car, plate, or renter...">
@@ -171,7 +172,6 @@
         <button class="btn-primary" data-el="add-car">+ Add car</button>
         <button class="btn" data-el="import-cars" title="Add many cars at once from a spreadsheet">Import from Excel</button>
         <input type="file" data-el="import-file" accept=".xlsx,.xls,.csv" style="display:none;">
-        <button type="button" class="panel-toggle push-right" data-el="toggle-summary">Summary</button>
       </div>
       <div class="filter-row" data-el="filters">
         <button class="tab active" data-f="all">All</button>
@@ -288,6 +288,7 @@
 
     <!-- ---------- BOOKINGS ---------- -->
     <section class="view" id="view-bookings">
+      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
       <!-- Wrapped so a wide screen can lay the search row and the planner
            controls out as a single line, which gives the planner back a whole
@@ -297,7 +298,6 @@
         <input type="text" data-el="search" placeholder="Search booking by car or renter...">
         <button class="btn-primary" data-el="new-booking">+ New booking</button>
         <button class="btn" data-el="check-avail" title="Enter dates and see every free car">Check availability</button>
-        <button type="button" class="panel-toggle push-right" data-el="toggle-summary">Summary</button>
       </div>
       <div class="cal-header">
         <div class="cal-title" data-el="cal-title">—</div>
@@ -507,10 +507,10 @@
 
     <!-- ---------- MAINTENANCE ---------- -->
     <section class="view" id="view-maintenance">
+      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search car or plate...">
-        <button type="button" class="panel-toggle push-right" data-el="toggle-summary">Summary</button>
       </div>
       <div class="filter-row" data-el="filters">
         <button class="tab active" data-f="all">All</button>
@@ -571,6 +571,7 @@
 
     <!-- ---------- TASKS ---------- -->
     <section class="view" id="view-expenses">
+      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
       <div data-el="cat-totals"></div>
       <div class="toolbar one-line-tools">
@@ -587,7 +588,6 @@
         <select data-el="period-month"></select>
         <span class="inline-label">Category</span>
         <select data-el="period-category"></select>
-        <button type="button" class="panel-toggle push-right" data-el="toggle-summary">Summary</button>
       </div>
       <div class="card-list" data-el="list" style="display:none;"><div class="loading-screen">Loading expenses...</div></div>
       <div class="staff-board" data-el="xboard"></div>
@@ -789,6 +789,7 @@
       </div>
     </section>
     <section class="view" id="view-tasks">
+      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
 
       <!-- Four separate rows of controls used to sit above the work itself,
@@ -812,7 +813,6 @@
             <option value="service">Servicing only</option>
           </select>
           <button class="btn-primary" data-el="add-task">+ Add task</button>
-          <button type="button" class="panel-toggle push-right" data-el="toggle-summary">Summary</button>
           <div class="filter-row" data-el="filters" style="margin-left:18px;">
             <select class="tab tab-select" data-el="range-past" title="Look back">
               <option value="">Past…</option>
