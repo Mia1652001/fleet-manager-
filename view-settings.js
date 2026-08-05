@@ -25,13 +25,15 @@ let logoTouched = false;    // so saving without touching the logo leaves it alo
 const LOGO_MAX_PX = 320;
 const LOGO_MAX_BYTES = 180 * 1024;
 
+// The same four currencies the booking form offers, in the same order — a
+// symbol offered here but not there would be pickable as the home currency
+// and then unavailable on a booking. The box below the list still accepts any
+// symbol typed by hand, so a company outside this list is not shut out.
 const CURRENCY_PRESETS = [
   { label: "Mauritian rupee — Rs", value: "Rs" },
   { label: "Euro — €", value: "€" },
   { label: "US dollar — $", value: "$" },
-  { label: "Pound — £", value: "£" },
-  { label: "Indian rupee — ₹", value: "₹" },
-  { label: "South African rand — R", value: "R" }
+  { label: "Pound — £", value: "£" }
 ];
 
 export function mount(container) {
