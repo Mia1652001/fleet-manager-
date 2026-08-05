@@ -15,6 +15,7 @@ import {
   fillTimeOptions, getTime, setTime, onTimeChange,
   getSwatch, setSwatch,
   el, val, setVal, checked, setChecked, openModal, closeModal, showError,
+  modalTouched,
   requestFocus
 } from "./store.js";
 
@@ -131,8 +132,18 @@ export function mountBookingForm() {
 
   root.querySelectorAll("[data-close]").forEach(b =>
     b.addEventListener("click", () => closeModal(root, b.dataset.close)));
+  // Clicking the dark surround closes a dialog. That is the usual way out of
+  // one and, on a form this long, the usual way to lose a quarter of an hour
+  // of typing to a stray click beside it. A dialog nobody has typed in still
+  // closes on the first click, so the gesture keeps working where there is
+  // nothing to lose; one that has been filled in asks first.
   root.querySelectorAll(".overlay").forEach(o =>
-    o.addEventListener("click", e => { if (e.target === o) o.classList.remove("open"); }));
+    o.addEventListener("click", e => {
+      if (e.target !== o) return;
+      if (modalTouched(o) &&
+          !confirm("This form has not been saved. Close it and lose what you have entered?")) return;
+      o.classList.remove("open");
+    }));
 }
 
 function keepReturnAfterPickup() {

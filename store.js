@@ -858,7 +858,51 @@ export function openModal(root, name) {
   // like a half-finished form rather than an empty one. Every dialog opens at
   // its first field. (showError scrolls back to the top for the same reason.)
   const box = m.querySelector(".modal");
-  if (box) box.scrollTop = 0;
+  if (box) {
+    box.scrollTop = 0;
+    modalSnapshots.set(box, formSnapshot(box));
+  }
+}
+
+// ---------- Has this dialog been touched? ----------
+// Clicking the dark surround closes a dialog, which is the usual way out and
+// also the usual way to lose twenty minutes of typing — the pilot clicked
+// beside the booking form and the whole thing went. A caller can ask whether
+// anything has actually been entered before it throws the form away.
+//
+// The answer comes from a reading of every field taken when the dialog opened,
+// compared with the same reading now, rather than a "changed" flag each
+// control would have to set — which every field added later would have to
+// remember to do. Typing something and typing it back out again reads as
+// untouched, which is the honest answer.
+const modalSnapshots = new WeakMap();
+
+function formSnapshot(box) {
+  const parts = [];
+  box.querySelectorAll("input, select, textarea").forEach(f => {
+    parts.push(f.type === "checkbox" || f.type === "radio" ? (f.checked ? "1" : "0") : f.value);
+  });
+  // Not everything a dialog holds is a field: the planner colour is a chosen
+  // swatch, the damage marks are drawn into an SVG, and a signature is pixels
+  // on a canvas. All three are work someone would hate to lose.
+  box.querySelectorAll(".swatch.selected").forEach(s => parts.push(s.dataset.colour || ""));
+  box.querySelectorAll("svg").forEach(s => parts.push(s.innerHTML));
+  box.querySelectorAll("canvas").forEach(c => {
+    try { parts.push(c.toDataURL()); } catch (e) { /* tainted canvas — skip it */ }
+  });
+  // Joined on a control character no field can contain, so "ab" + "c" cannot
+  // read the same as "a" + "bc".
+  return parts.join("\u0001");
+}
+
+// True when something has been entered since the dialog opened. A dialog with
+// no recorded snapshot counts as untouched, so this can never block a close
+// on a dialog it does not know about.
+export function modalTouched(overlay) {
+  const box = overlay && overlay.querySelector(".modal");
+  if (!box) return false;
+  const before = modalSnapshots.get(box);
+  return before !== undefined && before !== formSnapshot(box);
 }
 export function closeModal(root, name) {
   const m = el(root, name);
