@@ -849,7 +849,16 @@ export function setChecked(root, name, v) {
 
 export function openModal(root, name) {
   const m = el(root, name);
-  if (m) m.classList.add("open");
+  if (!m) return;
+  m.classList.add("open");
+  // A dialog is a scrolling box that keeps the position it was left at, so
+  // reopening one landed wherever the last person stopped reading. On the
+  // booking form — the longest of them — a new booking opened at the colour
+  // swatches and the Save button, well past the customer fields, and looked
+  // like a half-finished form rather than an empty one. Every dialog opens at
+  // its first field. (showError scrolls back to the top for the same reason.)
+  const box = m.querySelector(".modal");
+  if (box) box.scrollTop = 0;
 }
 export function closeModal(root, name) {
   const m = el(root, name);
