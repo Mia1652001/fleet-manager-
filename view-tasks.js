@@ -210,8 +210,6 @@ function shiftDate(days) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-const DONE_LOOKBACK_DAYS = 7;
-
 // Declared here because rangeBounds needs them too: the board has to fetch
 // every day it intends to draw, or the extra rows come out empty.
 const BOARD_MIN_DAYS = 7;    // a board showing one day is not a board
@@ -312,10 +310,17 @@ function rangeBounds() {
   if (range === "past30") return { from: shiftDate(-PAST_DAYS), to: shiftDate(-1) };
   if (range === "pastall") return { from: null, to: shiftDate(-1) };
 
-  // Showing completed work is a review action, so reach back a week. Without
-  // this, "Today" plus "show completed" turns up nothing unless a job happened
-  // to be finished today.
-  const from = showDone ? shiftDate(-DONE_LOOKBACK_DAYS) : todayStr();
+  // Forward ranges begin today, always. They used to reach a week backwards
+  // whenever "Show completed" was on, so that a review had something to show —
+  // but the pilot turned the toggle on, chose Today, and got a board opening on
+  // last Wednesday full of finished jobs. He read that as the filter being
+  // broken, and he was right to: a range called Today cannot start six days
+  // ago. Reviewing finished work is what the Past ranges are for, and those
+  // switch completed jobs on by themselves.
+  //
+  // Overdue work is unaffected: buildSchedule keeps every unfinished job whose
+  // day has passed whatever the range says, so nothing outstanding hides.
+  const from = todayStr();
   let to =
     range === "today" ? todayStr() :
     range === "week" ? shiftDate(6) :
