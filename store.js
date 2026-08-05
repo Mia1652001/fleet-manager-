@@ -353,10 +353,58 @@ export function initPanelToggle(root, prefKey, elName, className, label, default
 }
 
 // ---------- The reporting period ----------
-// Calendar months do not suit this business: rentals routinely start in one
-// month and end in the next, so a month boundary cuts single rentals in half
-// and every figure lurches on the 1st. A rolling window ending today is steady
-// and always covers the same amount of trading.
+// The money figures used to run on a rolling 30-day window ending today. It
+// was steady, but it answered a question no accountant asks: "Received (30
+// days)" gave a number nobody could tie to a month, could not be compared with
+// last month, and could not be seen for a month still to come. Money is now
+// reported by calendar month. The rolling window survives below for the
+// customer count, which is a trend rather than a figure anyone books.
+export const MONTH_NAMES = ["January","February","March","April","May","June",
+                            "July","August","September","October","November","December"];
+
+// A month is a plain "YYYY-MM" string, so it sorts and compares as text.
+export function monthOf(dateStr) { return String(dateStr || "").slice(0, 7); }
+export function thisMonth() { return todayStr().slice(0, 7); }
+
+export function shiftMonth(key, delta) {
+  const y = Number(key.slice(0, 4)), m = Number(key.slice(5, 7));
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function monthLabel(key) {
+  const m = Number(key.slice(5, 7));
+  return `${MONTH_NAMES[m - 1] || "?"} ${key.slice(0, 4)}`;
+}
+
+// The money figures for one reporting period, in one place, so the Dashboard
+// card and the Billing summary can never drift apart. `inScope(dateStr)` says
+// whether a date belongs to the period being shown — one calendar month on the
+// Dashboard, whatever the dropdowns say on Billing.
+//
+// Note which date each figure is filed under. Outstanding, Booked and Deposits
+// go by the day the rental starts, which is how the desk files an invoice
+// ("the August invoices" are the rentals that began in August). Received goes
+// by the day the money actually arrived, which is not the same day at all: an
+// advance taken in August on a September rental was received in August. That
+// distinction is the whole point of reporting by month.
+export function moneySummary(bookings, inScope) {
+  const ofPeriod = bookings.filter(b => inScope(b.startDate));
+  // Owed means owed now. A rental that has not started yet owes nothing, and
+  // sits under Booked instead — the same rule the Billing tabs use, so the
+  // headline figure and the Unpaid tab always tell the same story.
+  const owed = ofPeriod.filter(b => !b.paid && hasStarted(b));
+  return {
+    outstanding: owed.reduce((s, b) => s + balanceFor(b), 0),
+    unpaidCount: owed.length,
+    booked: ofPeriod.reduce((s, b) => s + invoiceTotal(b), 0),
+    deposits: ofPeriod.reduce((s, b) => s + securityHeld(b), 0),
+    received: bookings
+      .filter(b => b.paid && inScope(settledOn(b)))
+      .reduce((s, b) => s + settledAmount(b), 0)
+  };
+}
+
 export const PERIOD_DAYS = 30;
 
 export function periodStart() {

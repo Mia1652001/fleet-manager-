@@ -6,7 +6,7 @@ import { updateDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/1
 import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName, takeFocus,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
-  settledAmount, isBillable, hasStarted, inPeriod, settledOn, PERIOD_DAYS,
+  settledAmount, isBillable, hasStarted, settledOn, moneySummary,
   brokerNames, fxPair, fxRate,
   initPanelToggle,
   el, val, setVal, openModal, closeModal, showError,
@@ -177,31 +177,32 @@ export function render() {
   const search = el(root, "search").value.toLowerCase();
   const billable = state.bookings.filter(isBillable);
 
-  // Same definition the Unpaid tab uses, so the headline count and the number
-  // of cards in that tab are always the same number.
-  const unpaid = billable.filter(b => categoryOf(b) === "unpaid");
-  const outstanding = unpaid.reduce((sum, b) => sum + balanceFor(b), 0);
+  // The summary answers for whatever the Period and Broker filters above it are
+  // showing, not for a rolling 30-day window of its own. A row of figures that
+  // ignored the filters directly under them read as the whole ledger however
+  // the page was filtered — and "Received (30 days)" named a period nobody
+  // could tie to a month. Same helper the Dashboard's Money card uses, so the
+  // two screens cannot drift apart.
+  const scoped = billable.filter(matchesBroker);
+  const m = moneySummary(scoped, inChosenDates);
+  const scope = periodLabel();
 
-  // Money in over the window. settledOn() rather than paidAt directly, so
-  // bookings ticked as paid on the booking form are counted too.
-  const received = billable
-    .filter(b => b.paid && inPeriod(settledOn(b)))
-    .reduce((sum, b) => sum + settledAmount(b), 0);
+  // The period goes on its own line under each label rather than trailing it.
+  // Five figures all reading "OUTSTANDING · AUGUST 2026" wrapped onto two ragged
+  // lines each; naming the period still matters, so it stays — just quieter and
+  // where it lines up card to card.
+  const stat = (label, value, tone) => `
+    <div class="stat">
+      <div class="stat-label">${esc(label)}<span class="stat-scope">${esc(scope)}</span></div>
+      <div class="stat-val ${tone}">${value}</div>
+    </div>`;
 
-  // What the period is worth in rentals, settled or not, by when they started.
-  const booked = billable
-    .filter(b => inPeriod(b.startDate))
-    .reduce((sum, b) => sum + invoiceTotal(b), 0);
-
-  const depositsHeld = billable.reduce((sum, b) => sum + securityHeld(b), 0);
-
-  if (summaryOpen()) el(root, "stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Outstanding</div><div class="stat-val red">${formatAmount(outstanding)}</div></div>
-    <div class="stat"><div class="stat-label">Unpaid invoices</div><div class="stat-val amber">${unpaid.length}</div></div>
-    <div class="stat"><div class="stat-label">Booked (${PERIOD_DAYS} days)</div><div class="stat-val">${formatAmount(booked)}</div></div>
-    <div class="stat"><div class="stat-label">Received (${PERIOD_DAYS} days)</div><div class="stat-val green">${formatAmount(received)}</div></div>
-    <div class="stat"><div class="stat-label">Deposits held</div><div class="stat-val blue">${formatAmount(depositsHeld)}</div></div>
-  `;
+  if (summaryOpen()) el(root, "stats").innerHTML =
+    stat("Outstanding", formatAmount(m.outstanding), "red") +
+    stat("Unpaid invoices", String(m.unpaidCount), "amber") +
+    stat("Booked", formatAmount(m.booked), "") +
+    stat("Received", formatAmount(m.received), "green") +
+    stat("Deposits held", formatAmount(m.deposits), "blue");
 
   refreshPeriodOptions();
   refreshBrokerOptions();
@@ -362,15 +363,26 @@ function refreshBrokerOptions() {
 // them work on its own. Folding the month into the year used to mean picking
 // "October" alone filtered nothing at all — the broker filter follows the
 // same rule so it never depends on a date filter also being set.
-function inChosenPeriod(b) {
-  const d = b.startDate || "";
+// Split in two so the summary can ask the date question about a date other
+// than the rental's start. Money is received on the day it arrives, which may
+// be a different month from the one the rental starts in, and the summary has
+// to file it under the month it actually landed.
+function inChosenDates(d) {
+  d = d || "";
   if (periodYear && d.slice(0, 4) !== periodYear) return false;
   if (periodMonth && d.slice(5, 7) !== periodMonth) return false;
+  return true;
+}
+
+function matchesBroker(b) {
   // Loose match: "popo" typed on a booking still counts for "Popo" in
   // Settings, the same way the suggestion lists treat spellings.
-  if (periodBroker &&
-      (b.broker || "").trim().toLowerCase() !== periodBroker.trim().toLowerCase()) return false;
-  return true;
+  if (!periodBroker) return true;
+  return (b.broker || "").trim().toLowerCase() === periodBroker.trim().toLowerCase();
+}
+
+function inChosenPeriod(b) {
+  return inChosenDates(b.startDate) && matchesBroker(b);
 }
 
 function periodLabel() {
@@ -397,10 +409,14 @@ function renderListTotals(list) {
 
   let money;
   if (filter === "paid") {
+    // The cards are filed by when their rental started; this second figure
+    // says how much of that money actually arrived inside the chosen period,
+    // which is the number that reconciles against a bank statement. With no
+    // period chosen the two are equal and the clause does not appear.
     const received = sum(list, settledAmount);
-    const inWindow = sum(list.filter(b => inPeriod(settledOn(b))), settledAmount);
+    const inScope = sum(list.filter(b => inChosenDates(settledOn(b))), settledAmount);
     money = `${formatAmount(received)} received in total` +
-      (inWindow !== received ? ` · ${formatAmount(inWindow)} of it in the last ${PERIOD_DAYS} days` : "");
+      (inScope !== received ? ` · ${formatAmount(inScope)} of it in ${periodLabel()}` : "");
   } else if (filter === "unpaid") {
     money = `${formatAmount(sum(list, balanceFor))} owed`;
   } else if (filter === "upcoming") {

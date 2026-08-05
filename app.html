@@ -89,10 +89,19 @@
           <div data-el="today-jobs"></div>
         </div>
 
+        <!-- The month is named beside the heading rather than repeated on each
+             figure: "Received" on its own was the complaint — nobody could say
+             which month it covered. Same three-button nav the planner below
+             uses, so stepping to next month is the gesture already learnt. -->
         <div class="dash-card">
           <div class="dash-head">
-            <h3>Money</h3>
-            <a href="#billing" class="dash-link">Billing →</a>
+            <h3>Money <span class="dash-range" data-el="money-range"></span></h3>
+            <span class="dash-minnav">
+              <button class="btn" data-el="money-prev">‹</button>
+              <button class="btn" data-el="money-this">This month</button>
+              <button class="btn" data-el="money-next">›</button>
+              <a href="#billing" class="dash-link">Billing →</a>
+            </span>
           </div>
           <div class="dash-figures" data-el="money"></div>
         </div>

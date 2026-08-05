@@ -6,17 +6,23 @@ import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr,
   orderedCars, carStatus, currentBooking, serviceDue,
   bookingState, bookingCarLabel, buildSchedule,
-  startTime, endTime, rentalTotal, balanceFor, securityHeld, settledAmount, hasStarted,
-  inPeriod, settledOn, PERIOD_DAYS,
+  startTime, endTime, rentalTotal, balanceFor, hasStarted,
+  inPeriod, PERIOD_DAYS,
+  moneySummary, monthOf, thisMonth, shiftMonth, monthLabel,
   sharesStartHandover, sharesEndHandover,
   el,
   requestFocus,
-  invoiceTotal, carDocsDue
+  carDocsDue
 } from "./store.js";
 
 let root = null;
 const DASH_DAYS = 14;
 let anchorOffset = -1;   // days relative to today for the first visible column
+
+// Which month the Money card is reporting. Starts on the current one every
+// time the app opens: a figure left on some month three back would be read as
+// today's position by whoever glanced at it next.
+let moneyMonth = thisMonth();
 
 function shiftAnchor(days) { anchorOffset += days; render(); }
 
@@ -60,6 +66,21 @@ export function mount(container) {
   el(root, "mini-prev").addEventListener("click", () => { shiftAnchor(-7); });
   el(root, "mini-next").addEventListener("click", () => { shiftAnchor(7); });
   el(root, "mini-today").addEventListener("click", () => { anchorOffset = -1; render(); });
+
+  // Prev / this month / next for the Money card. Guarded the same way the
+  // booking form guards its newer buttons: if the browser is still holding an
+  // older copy of the page these three do not exist yet, and reaching for them
+  // unguarded would throw during startup and take the whole app down rather
+  // than just this one control.
+  const mNav = [
+    ["money-prev", () => { moneyMonth = shiftMonth(moneyMonth, -1); }],
+    ["money-next", () => { moneyMonth = shiftMonth(moneyMonth, 1); }],
+    ["money-this", () => { moneyMonth = thisMonth(); }]
+  ];
+  mNav.forEach(([name, step]) => {
+    const btn = el(root, name);
+    if (btn) btn.addEventListener("click", () => { step(); render(); });
+  });
 
   // Rotating a phone or resizing changes which column sizes apply, so redraw.
   let resizeTimer = null;
@@ -179,30 +200,24 @@ function renderTodayJobs() {
 }
 
 // ---------- Money ----------
+// One calendar month at a time, steppable in both directions. Stepping forward
+// is the point as much as stepping back: a month still to come shows nothing
+// received and nothing owed yet, but its Booked figure is the company's order
+// book for that month, which is what the pilot's accountant asked to see.
 function renderMoney() {
-  const started = state.bookings.filter(hasStarted);
-  const unpaid = started.filter(b => !b.paid);
-  const outstanding = unpaid.reduce((s, b) => s + balanceFor(b), 0);
+  const m = moneySummary(state.bookings, d => monthOf(d) === moneyMonth);
+  const label = monthLabel(moneyMonth);
 
-  // What actually came in. This has to be the settled amount, not the rental
-  // total: an advance taken before the window was received then, not now.
-  // Billing counts it exactly the same way, so the two screens agree.
-  const received = state.bookings
-    .filter(b => b.paid && inPeriod(settledOn(b)))
-    .reduce((s, b) => s + settledAmount(b), 0);
-
-  // What the period's rentals are worth in total, settled or not
-  const booked = state.bookings
-    .filter(b => inPeriod(b.startDate))
-    .reduce((s, b) => s + invoiceTotal(b), 0);
-
-  const deposits = state.bookings.reduce((s, b) => s + securityHeld(b), 0);
+  const range = el(root, "money-range");
+  if (range) {
+    range.textContent = moneyMonth === thisMonth() ? `${label} · this month` : label;
+  }
 
   el(root, "money").innerHTML =
-    figure("Outstanding", formatAmount(outstanding), "red", "billing") +
-    figure(`Received (${PERIOD_DAYS} days)`, formatAmount(received), "green", "billing") +
-    figure(`Booked (${PERIOD_DAYS} days)`, formatAmount(booked), "", "bookings") +
-    figure("Deposits held", formatAmount(deposits), "blue", "billing");
+    figure("Outstanding", formatAmount(m.outstanding), "red", "billing") +
+    figure("Received", formatAmount(m.received), "green", "billing") +
+    figure("Booked", formatAmount(m.booked), "", "bookings") +
+    figure("Deposits held", formatAmount(m.deposits), "blue", "billing");
 }
 
 // ---------- Compact read-only planner ----------
