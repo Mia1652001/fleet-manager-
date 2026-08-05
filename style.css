@@ -310,7 +310,9 @@ input:focus, select:focus { border-color: var(--text); }
 /* ---------- Mobile ---------- */
 @media (max-width: 640px) {
   header { padding: 1rem 1rem 0; }
-  .main { padding: 1.25rem 0.9rem; }
+  /* Kept as a variable so the full-bleed grids at the foot of this file can
+     cancel exactly this much padding and never drift out of step with it. */
+  .main { --main-pad-x: 0.9rem; padding: 1.25rem var(--main-pad-x); }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   /* Stack the date range above the controls instead of squeezing both
@@ -2297,3 +2299,40 @@ input:focus, select:focus { border-color: var(--text); }
 /* The Summary toggle rides at the far right of each page's control line. */
 .toolbar .push-right { margin-left: auto; }
 @media (max-width: 640px) { .toolbar .push-right { margin-left: 0; } }
+
+/* ---------- Full-bleed grids on a phone ----------
+   Lists and cards want the page margin; the three grids do not. The planner
+   and the two boards are the only places where a column falls off the right
+   edge, and on a phone every pixel of margin is a slice of calendar or a
+   staff column paid for in sideways scrolling. So on a phone alone these
+   three step outside .main's padding and run to both screen edges.
+
+   The width is 100% plus the padding it is cancelling, and the left margin
+   pulls back by that same padding, so the right edge lands exactly on the
+   screen edge — no page-wide sideways scroll. Side borders and corner radii
+   go with it: a rounded corner hard against the glass reads as a mistake.
+
+   Everything above each grid — search, tabs, date controls, the legend —
+   keeps the normal margin, so the controls stay in line with the rest of the
+   app and only the grid itself widens. */
+@media (max-width: 640px) {
+  #view-bookings .tl-head-wrap,
+  #view-bookings .timeline-wrap,
+  #view-tasks .board-head-wrap,
+  #view-tasks .staff-board,
+  #view-expenses .staff-board {
+    width: calc(100% + 2 * var(--main-pad-x, 0.9rem));
+    margin-left: calc(-1 * var(--main-pad-x, 0.9rem));
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+  }
+
+  /* The frozen date/name strip holds its own copy of the grid. It must fill
+     that strip and not shift again, or the two would sit a padding apart and
+     the columns would stop lining up. */
+  #view-tasks .board-head-wrap .staff-board {
+    width: 100%;
+    margin-left: 0;
+  }
+}
