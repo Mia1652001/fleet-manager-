@@ -194,6 +194,7 @@ function startApp() {
       v.mod.mount(v.root);
     }
 
+    guardNumberFields();
     wireBackupBanner();
     applyTabOrder();
     wireTabDragging();
@@ -421,6 +422,36 @@ async function checkBackupDue() {
 // ---------- Export / backup ----------
 // Everything is built in the browser from data already loaded, so exporting
 // costs no extra database reads.
+
+// ---------- Number fields never step ----------
+// A focused <input type="number"> answers the mouse wheel and the up/down
+// arrow keys as well as its own steppers, so a total could be changed without
+// anyone meaning to touch it: the pilot scrolled a booking form with the
+// pointer still resting in the total and sent the client a confirmation
+// reading Rs 14,498 instead of Rs 14,500. Money is not a value you nudge.
+//
+// One listener on the document in the capture phase, so it covers every number
+// field in the app — including the exchange-rate rows the Settings page builds
+// after this runs — and cannot be bypassed by a handler on the field itself.
+//
+// Wheel: blur rather than preventDefault. The field stops stepping because it
+// is no longer focused, and the page keeps scrolling normally, which is what
+// the person was trying to do. Killing the scroll instead would trade a
+// dangerous bug for an infuriating one.
+function guardNumberFields() {
+  document.addEventListener("wheel", e => {
+    const t = e.target;
+    if (t instanceof HTMLInputElement && t.type === "number" && t === document.activeElement) {
+      t.blur();
+    }
+  }, { capture: true, passive: true });
+
+  document.addEventListener("keydown", e => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    const t = e.target;
+    if (t instanceof HTMLInputElement && t.type === "number") e.preventDefault();
+  }, true);
+}
 
 function wireExport() {
   const modal = document.getElementById("export-modal");

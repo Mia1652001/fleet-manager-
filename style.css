@@ -153,6 +153,25 @@ input[type="text"], input[type="date"], input[type="email"], input[type="passwor
 .toolbar input[type="text"] { flex: 1; min-width: 180px; }
 input:focus, select:focus { border-color: var(--text); }
 
+/* ---------- No steppers on money fields ----------
+   A number field's up/down arrows sit right where the cursor rests, and the
+   same control answers the mouse wheel: scrolling the page with the pointer
+   still inside a total quietly changed Rs 14,500 into Rs 14,498, and the
+   booking confirmation went out with the wrong figure on it. An amount is
+   never one-more-than the last one, so the stepper buys nothing and costs
+   that. Hidden here; the wheel and the arrow keys are stopped in app.js.
+   To change an amount you now clear it and type the new one. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 .btn-primary {
   font-family: 'DM Mono', monospace;
   font-size: 12px;
