@@ -15,6 +15,7 @@ import * as tasks from "./view-tasks.js";
 import * as dashboard from "./view-dashboard.js";
 import * as settings from "./view-settings.js";
 import * as expenses from "./view-expenses.js";
+import * as reports from "./view-reports.js";
 import { backupDue, backupPrefs, daysSinceBackup, runBackup } from "./backup.js";
 import { mountBookingForm, onBookingChange } from "./booking-form.js";
 
@@ -24,6 +25,7 @@ const VIEWS = {
   bookings: { mod: bookings, root: null },
   customers: { mod: customers, root: null },
   billing: { mod: billing, root: null },
+  reports: { mod: reports, root: null },
   maintenance: { mod: maintenance, root: null },
   tasks: { mod: tasks, root: null },
   expenses: { mod: expenses, root: null },

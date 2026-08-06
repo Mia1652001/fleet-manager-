@@ -2395,3 +2395,64 @@ input[type="number"] {
     font-size: 16px;
   }
 }
+
+/* ---------- Reports: revenue by car and month ----------
+   Twelve money columns plus a total and an average will not fit a phone and
+   should not try: shrinking them to fit produces a grid nobody can read a
+   figure out of. The table keeps a legible size and the box scrolls sideways,
+   with the car column frozen so a row never loses the vehicle it belongs to —
+   the same treatment the planner and the boards get. */
+.rep-title { font-family: 'Fraunces', serif; font-size: 1.05rem; font-weight: 400; margin: 0 8px 0 0; }
+
+.rep-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  margin-bottom: 1rem;
+}
+
+.rep-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.rep-table th, .rep-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.rep-table thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--bg);
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); font-weight: 400; text-align: right;
+}
+.rep-table thead th.rep-car { text-align: left; z-index: 4; }
+
+/* The vehicle stays put while the months scroll past it. */
+.rep-car {
+  position: sticky; left: 0; z-index: 3;
+  background: var(--surface);
+  text-align: left; font-weight: 400; min-width: 190px;
+}
+.rep-table thead .rep-car, .rep-table tfoot .rep-car { background: var(--bg); }
+.rep-plate { display: block; font-weight: 500; }
+.rep-model { display: block; font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+.rep-num { text-align: right; font-variant-numeric: tabular-nums; }
+.rep-strong { font-weight: 500; border-left: 1px solid var(--border); }
+.rep-zero { color: var(--border); }
+.rep-idle .rep-car { opacity: 0.55; }
+
+.rep-table tfoot th, .rep-table tfoot td {
+  background: var(--bg);
+  border-top: 1px solid var(--text);
+  border-bottom: 0;
+  font-weight: 500;
+  position: sticky; bottom: 0;
+}
+
+.rep-note {
+  font-size: 11px; color: var(--muted); line-height: 1.6;
+  max-width: 62ch; margin: 0 0 2rem;
+}
+
+@media (max-width: 640px) {
+  .rep-table th, .rep-table td { padding: 6px 8px; }
+  .rep-car { min-width: 150px; }
+  .rep-title { font-size: 1rem; }
+}

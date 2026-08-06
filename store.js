@@ -895,6 +895,84 @@ export function orderedCars() {
   });
 }
 
+// ---------- Revenue by car and month ----------
+// The grid the pilot's accountant keeps by hand in a spreadsheet: one row per
+// vehicle, one column per month, the invoice value of everything that vehicle
+// earned. Built from the same numbers as everything else so the two never
+// disagree.
+//
+// Filed by the day a rental starts, which is how the whole app files invoices —
+// "the August invoices" are the rentals that began in August. A rental crossing
+// a month boundary therefore counts wholly in the month it started, and a row
+// here adds up to the Booked figure on the Billing summary for the same period.
+// Splitting one rental across two months would read more precisely and
+// reconcile against nothing.
+//
+// Bank charges are excluded, for the reason they are excluded everywhere: the
+// company collects them for the bank, so they are not what the car earned.
+export function revenueByCarMonth(year) {
+  const y = String(year);
+  const blank = () => new Array(12).fill(0);
+
+  const rows = orderedCars().map(c => ({
+    carId: c.id,
+    label: `${c.year || ""} ${c.make} ${c.model}`.trim(),
+    plate: c.plate || "",
+    months: blank()
+  }));
+  const byId = new Map(rows.map(r => [r.carId, r]));
+
+  // A car sold last year still earned money while it was here. Dropping its
+  // bookings would leave the report short of the year's real takings, and a
+  // total that does not match Billing is a report nobody trusts again.
+  const gone = { carId: "", label: "Cars no longer in the fleet", plate: "", months: blank() };
+
+  state.bookings.forEach(b => {
+    const d = String(b.startDate || "");
+    if (d.slice(0, 4) !== y) return;
+    const m = Number(d.slice(5, 7)) - 1;
+    if (!(m >= 0 && m < 12)) return;
+    (byId.get(b.carId) || gone).months[m] += invoiceTotal(b);
+  });
+
+  const out = rows.slice();
+  if (gone.months.some(v => v > 0)) out.push(gone);
+
+  out.forEach(r => {
+    r.total = r.months.reduce((s, v) => s + v, 0);
+    // Averaged over the months that actually earned, not over twelve. A car
+    // bought in October would otherwise show a twelfth of its takings and read
+    // as the worst vehicle in the fleet.
+    r.earningMonths = r.months.filter(v => v > 0).length;
+    r.average = r.earningMonths ? r.total / r.earningMonths : 0;
+  });
+
+  const totals = blank();
+  out.forEach(r => r.months.forEach((v, i) => { totals[i] += v; }));
+  const grandTotal = totals.reduce((s, v) => s + v, 0);
+  const busyMonths = totals.filter(v => v > 0).length;
+
+  return {
+    year: y,
+    rows: out,
+    totals,
+    grandTotal,
+    average: busyMonths ? grandTotal / busyMonths : 0
+  };
+}
+
+// Every year that has a booking in it, newest first, so the report's year
+// picker offers exactly the years there is something to show.
+export function bookingYears() {
+  const years = new Set();
+  state.bookings.forEach(b => {
+    const y = String(b.startDate || "").slice(0, 4);
+    if (/^\d{4}$/.test(y)) years.add(y);
+  });
+  years.add(todayStr().slice(0, 4));
+  return [...years].sort().reverse();
+}
+
 // ---------- Small DOM helpers ----------
 // Each view works inside its own container and uses data-el attributes,
 // so element names can repeat across views without clashing.

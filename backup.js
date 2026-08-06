@@ -326,7 +326,7 @@ async function folderForWriting({ mayPrompt }) {
 
 // ---------- Running a backup ----------
 
-function downloadBlob(filename, blob) {
+export function downloadBlob(filename, blob) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

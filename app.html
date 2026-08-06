@@ -59,6 +59,7 @@
       <a href="#fleet" data-view="fleet">Fleet</a>
       <a href="#customers" data-view="customers">Customers</a>
       <a href="#billing" data-view="billing">Billing</a>
+      <a href="#reports" data-view="reports">Reports</a>
       <a href="#maintenance" data-view="maintenance">Maintenance</a>
       <a href="#settings" data-view="settings">Settings</a>
     </nav>
@@ -513,6 +514,24 @@
     </section>
 
     <!-- ---------- MAINTENANCE ---------- -->
+    <!-- ---------- REPORTS ---------- -->
+    <!-- One control line like every other page: the year, then the download.
+         The grid itself scrolls sideways rather than shrinking to fit — twelve
+         money columns squeezed into a phone are unreadable, and finance opens
+         this on a desktop anyway. -->
+    <section class="view" id="view-reports">
+      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
+      <div class="stats" data-el="stats"></div>
+      <div class="toolbar one-line-tools">
+        <h2 class="rep-title">Revenue by car</h2>
+        <span class="inline-label">Year</span>
+        <select data-el="rep-year"></select>
+        <button class="btn" data-el="rep-export">Download for Excel</button>
+      </div>
+      <div class="rep-wrap" data-el="rep-table"></div>
+      <p class="rep-note" data-el="rep-note"></p>
+    </section>
+
     <section class="view" id="view-maintenance">
       <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
