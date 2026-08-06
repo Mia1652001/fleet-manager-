@@ -41,6 +41,23 @@ function companyBlock() {
     </div>`;
 }
 
+// Every printed document ends with the company's own details, so a sheet that
+// leaves the office carries the company on it wherever it is separated from
+// its envelope. Note what this is NOT: the browser prints its own footer with
+// the page's web address unless "Headers and footers" is unticked in the print
+// dialog. No stylesheet can suppress that — it is the browser's, not ours —
+// which is all the more reason the document should end with the company rather
+// than with nothing.
+function docFoot(label, extra = "") {
+  const s = state.settings || {};
+  const bits = [companyName(), s.address, s.phone, s.email, s.website].filter(Boolean);
+  return `
+  <div class="ag-foot">
+    <div>${esc(label)}${extra}</div>
+    ${bits.length ? `<div class="ag-foot-co">${esc(bits.join(" · "))}</div>` : ""}
+  </div>`;
+}
+
 function moneyBlock(b) {
   const days = rentalDays(b);
   const rate = rateFor(b);
@@ -134,6 +151,7 @@ const DOC_STYLES = `<style>
 
   .ag-foot { margin-top: 22px; border-top: 1px solid #bbb; padding-top: 6px;
              font-size: 8pt; color: #666; }
+  .ag-foot-co { margin-top: 2px; }
   /* The toolbar belongs to the screen only; the printed page starts at the
      agreement itself. */
   @media print { .ag-bar { display: none !important; } }
@@ -306,10 +324,8 @@ ${DOC_ACTIONS}
     </div>
   </div>
 
-  <div class="ag-foot">
-    Agreement ${esc(ref)} · ${esc(companyName())}
-    ${b.broker ? ` · Broker ${esc(b.broker)}` : ""}${b.managedBy ? ` · Managed by ${esc(b.managedBy)}` : ""}
-  </div>
+  ${docFoot(`Agreement ${ref}`,
+    `${b.broker ? ` · Broker ${esc(b.broker)}` : ""}${b.managedBy ? ` · Managed by ${esc(b.managedBy)}` : ""}`)}
 
 ${SELF_PRINT}
 
@@ -595,6 +611,8 @@ ${DOC_ACTIONS}
     <div></div>
   </div>
 
+  ${docFoot(`Receipt ${ref}`)}
+
   ${SELF_PRINT}
 
 </body></html>`;
@@ -672,6 +690,8 @@ ${DOC_ACTIONS}
     return body.split("\n").filter(l => l.trim())
       .map(l => `<p>${esc(l.trim())}</p>`).join("\n  ");
   })()}
+
+  ${docFoot(`Booking confirmation ${ref}`)}
 
   ${SELF_PRINT}
 
