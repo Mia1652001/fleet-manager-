@@ -1,0 +1,43 @@
+name: Deploy to GitHub Pages
+
+# Publishes the site whenever files are pushed to main. This replaces the
+# legacy "pages build and deployment" job, which ran Jekyll over the site and
+# had been taking ten minutes and timing out. Nothing here builds anything —
+# the app is plain HTML and JavaScript, so the whole job is: take the files,
+# hand them to Pages.
+on:
+  push:
+    branches: [main]
+  # Lets you re-publish from the Actions tab without changing a file.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time. cancel-in-progress means a new upload stops the
+# previous build instead of queueing behind it — which is what turned four
+# uploads in an afternoon into a growing backlog.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Package every file in the repository
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
