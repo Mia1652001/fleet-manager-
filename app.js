@@ -564,15 +564,29 @@ function applyTabOrder() {
   const all = Array.from(nav.querySelectorAll("a[data-view]"));
   const known = new Set(saved);
 
-  // A tab added to the app after someone last dragged their tabs will not be in
-  // their saved order. Re-appending only the saved ones left it stranded at the
-  // front — which is how Settings ended up before Dashboard on a device where
-  // the tabs had once been rearranged. Anything unknown goes to the end instead,
-  // in the order it appears in the markup, which is where a new tab belongs.
-  const ordered = [
-    ...saved.map(name => all.find(a => a.dataset.view === name)).filter(Boolean),
-    ...all.filter(a => !known.has(a.dataset.view))
-  ];
+  // A tab added to the app after someone last dragged their tabs is not in
+  // their saved order, and has to be placed somewhere. It used to go on the
+  // end. That is not where a new tab belongs: Expenses ships next to Tasks
+  // because the two are used together, and on the pilot's phone — which had a
+  // saved order from before Expenses existed — it sat past Maintenance,
+  // eight tabs from the one it belongs beside. Reordering is mouse-only (a tap
+  // slides more than the drag threshold, so touch was excluded), which left him
+  // no way to move it there himself.
+  //
+  // Each unknown tab now lands where the markup puts it: directly after
+  // whichever of its markup predecessors is nearest in the saved order. A
+  // device whose saved order already knows every tab is untouched.
+  const ordered = saved.map(name => all.find(a => a.dataset.view === name)).filter(Boolean);
+
+  all.forEach((link, i) => {
+    if (known.has(link.dataset.view)) return;
+    let at = 0;
+    for (let j = i - 1; j >= 0; j--) {
+      const seen = ordered.indexOf(all[j]);
+      if (seen !== -1) { at = seen + 1; break; }
+    }
+    ordered.splice(at, 0, link);
+  });
 
   ordered.forEach(link => nav.appendChild(link));
 }

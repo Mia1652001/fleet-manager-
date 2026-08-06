@@ -2358,3 +2358,40 @@ input[type="number"] {
     margin-left: 0;
   }
 }
+
+/* ---------- Bigger tick boxes on a phone ----------
+   The board's tick is 13px square. On a desktop that is a precise little
+   control under a mouse pointer; under a thumb it is a miss waiting to happen,
+   and the pilot's staff mark jobs done on their phones all day. It roughly
+   doubles on a phone — 24px, which is 3.4 times the area — and centres itself
+   in the chip rather than sitting on the text baseline, where a taller box
+   would hang low.
+
+   Deliberately not stretched into an invisible 44px pad: chips sit a few pixels
+   apart in a cell, and a pad that big would swallow taps meant for the chip
+   beside it and mark the wrong job done. A visible box you can actually see and
+   hit beats a large invisible one.
+
+   Desktop is untouched — every rule here is inside the phone breakpoint. */
+@media (max-width: 640px) {
+  .board-tick {
+    width: 24px;
+    height: 24px;
+    /* Top-aligned, not centred: a chip whose text wraps to four lines would
+       float the box halfway down it, away from the line it belongs to. The
+       chip's own alignment is baseline, which suits a 13px box and hangs a
+       24px one well below the first line. */
+    align-self: flex-start;
+    border-radius: 4px;
+    font-size: 15px;
+    line-height: 22px;
+  }
+
+  /* The same job in List mode. 22px was already the better of the two, but it
+     is still under the thumb and the two views should not disagree. */
+  #view-tasks .job-tick {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+}
