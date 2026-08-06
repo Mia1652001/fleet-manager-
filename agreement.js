@@ -115,6 +115,13 @@ const DOC_STYLES = `<style>
 
   .ag-terms { white-space: pre-wrap; font-size: 9pt; color: #222; }
 
+  /* Terms start their own sheet, always. They sit after the hand-over diagram
+     so page one is the booking — details, charges, the car's condition — and
+     page two is the contract the renter signs under. Filing and handing over a
+     predictable two sheets beats a layout that reflows with the length of a
+     booking. */
+  .ag-termspage { page-break-before: always; break-before: page; }
+
   .ag-damage { display: flex; gap: 18px; align-items: flex-start; page-break-inside: avoid; }
   .ag-car { width: 46%; max-width: 300px; height: auto; }
   .ag-damage-key { flex: 1; font-size: 9pt; color: #333; }
@@ -258,8 +265,6 @@ ${DOC_ACTIONS}
 
   ${b.notes ? `<h2>Notes</h2><div class="ag-terms">${esc(b.notes)}</div>` : ""}
 
-  ${terms ? `<h2>Terms and conditions</h2><div class="ag-terms">${esc(terms)}</div>` : ""}
-
   <h2>Condition at hand-over</h2>
   <div class="ag-damage">
     <!-- Drawn rather than an image file, so it prints crisply at any size and
@@ -283,6 +288,12 @@ ${DOC_ACTIONS}
       </div>
     </div>
   </div>
+
+  ${terms ? `
+  <div class="ag-termspage">
+    <h2>Terms and conditions</h2>
+    <div class="ag-terms">${esc(terms)}</div>
+  </div>` : ""}
 
   <div class="ag-sign">
     <div>
@@ -651,8 +662,16 @@ ${DOC_ACTIONS}
   <h2>Price</h2>
   ${moneyBlock(b)}
 
-  <p>${esc(DEFAULT_MESSAGE_NOTE.split("\n").join(" "))}</p>
-  <p>We look forward to welcoming you.</p>
+  ${(function () {
+    // The same wording the email and WhatsApp confirmations use. The printed
+    // one used to hard-code the standard lines and ignore Settings entirely,
+    // so a company that had customised its message still handed the customer a
+    // sheet saying something else.
+    const custom = (state.settings?.messageNote || "").trim();
+    const body = custom || (DEFAULT_MESSAGE_NOTE + "\nWe look forward to welcoming you.");
+    return body.split("\n").filter(l => l.trim())
+      .map(l => `<p>${esc(l.trim())}</p>`).join("\n  ");
+  })()}
 
   ${SELF_PRINT}
 
