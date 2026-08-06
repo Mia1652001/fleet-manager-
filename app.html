@@ -685,6 +685,18 @@
           </div>
 
           <div class="field">
+            <label for="s-bankcharge">Bank charge on card payments (%)</label>
+            <input type="number" id="s-bankcharge" data-el="s-bankcharge"
+                   min="0" max="100" step="any" placeholder="e.g. 3" style="max-width:160px;">
+            <p class="settings-note">What your bank takes on a credit-card
+              payment, passed on to the client. This is only the default: it
+              fills in on a booking when "Paying by credit card" is ticked, and
+              can be changed there for a one-off. Bookings already saved keep
+              the rate they were agreed at, so changing this never alters an
+              invoice that has gone out. Leave blank if you never take cards.</p>
+          </div>
+
+          <div class="field">
             <label for="s-logo-file">Company logo</label>
             <div class="logo-row">
               <div class="logo-preview" data-el="s-logo-preview"></div>
@@ -1076,6 +1088,19 @@
           <input type="number" min="0" step="any" data-el="b-other" placeholder="0"></div>
       </div>
       <div style="font-size:11px;color:var(--muted);margin:-6px 0 10px;" data-el="b-extras-hint"></div>
+
+      <!-- Card fee passed on to the client. Off unless ticked, because most of
+           this market pays cash or Juice and carries no fee at all. The rate
+           fills itself from Settings and stays editable for a one-off. -->
+      <div class="field checkbox-field" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <label><input type="checkbox" data-el="b-card"> Paying by credit card — add bank charge</label>
+        <span data-el="b-card-pct-wrap" style="display:none;align-items:center;gap:6px;">
+          <input type="number" min="0" max="100" step="any" data-el="b-card-pct"
+                 style="width:80px;" placeholder="3">
+          <span class="field-hint">% of the total charges</span>
+        </span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin:-6px 0 10px;" data-el="b-card-hint"></div>
 
       <div class="field-row equal">
         <div class="field"><label>Managed by</label><input data-el="b-managedby" list="dl-staff" placeholder="Choose or type"></div>

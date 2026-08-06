@@ -4,9 +4,15 @@ Requests from the pilot company (30 July 2026), parked deliberately during the
 testing period. New features wait; fixes to existing behaviour go out as found.
 
 ## Money & documents
-- [ ] **Bank charges / commission %** on a booking, shown on the agreement.
-      Decide: percentage of what (rental total? invoice total?), who pays it,
-      and whether it changes the balance owed.
+- [x] **Bank charges / commission %** — done (v92). Answers from the pilot,
+      6 August: a percentage of the invoice total (rental + all extras), added
+      on top of what the client pays, and it does change the balance owed. Only
+      when the client pays by credit card. Default rate on the Settings page,
+      snapshotted onto each booking so a later change never rewrites an agreed
+      one. Deliberately excluded from Booked and the monthly revenue figures —
+      the company collects it and hands it to the bank, so it is not income.
+      Its own line on the agreement, confirmation, receipt, invoice card and
+      both exports.
 - [x] **Extras in the booking currency** — typed in the booking currency when
       one is set; converted at the booking's own agreed rate (house rate as
       fallback) and recorded in Rs, both figures kept and shown paired.

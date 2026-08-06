@@ -15,6 +15,7 @@
 import { state, bookingCarLabel, rentalDays, rateFor, rentalTotal,
          advancePaid, balanceFor, settledOn, bookingRef,
          deliveryCost, insuranceCost, otherCost, invoiceTotal,
+         bankCharge, bankChargePct, amountDue,
          loadPref, savePref } from "./store.js";
 
 export const CATEGORIES = [
@@ -87,7 +88,7 @@ export function backupDue() {
 function bookingRows() {
   return [
     ["Reference","Customer","Phone","Car","Pick-up","Pick-up time","Return","Return time",
-     "Days","Daily rate","Rental total","Delivery","Insurance","Other","Invoice total",
+     "Days","Daily rate","Rental total","Delivery","Insurance","Other","Invoice total","Bank charge %","Bank charge","Total due",
      "Currency","Total (foreign)","Advance (foreign)","Security (foreign)",
      "Delivery (foreign)","Insurance (foreign)","Other (foreign)",
      "Advance paid","Balance",
@@ -100,6 +101,7 @@ function bookingRows() {
         b.startDate || "", b.startTime || "", b.endDate || "", b.endTime || "",
         rentalDays(b), rateFor(b), rentalTotal(b),
         deliveryCost(b), insuranceCost(b), otherCost(b), invoiceTotal(b),
+        bankChargePct(b), bankCharge(b), amountDue(b),
         b.fxCurrency || "", b.fxTotal || "", b.fxAdvance || "", b.fxSecurity || "",
         b.fxDelivery || "", b.fxInsurance || "", b.fxOther || "",
         advancePaid(b), balanceFor(b),

@@ -116,6 +116,8 @@ export function render() {
   setVal(root, "s-website", s.website || "");
   setVal(root, "s-address", s.address || "");
   setVal(root, "s-currency", s.currency || "");
+  setVal(root, "s-bankcharge",
+    (typeof s.bankChargePct === "number" && s.bankChargePct > 0) ? s.bankChargePct : "");
   // Show the matching preset rather than "Choose a currency…" next to a symbol
   // that is plainly already set — it reads as though nothing has been chosen.
   const preset = el(root, "s-currency-preset");
@@ -328,6 +330,12 @@ async function saveSettings() {
     website: val(root, "s-website"),
     address: val(root, "s-address"),
     currency: val(root, "s-currency"),
+    // Blank means "we never take cards" and must stay distinguishable
+    // from a rate of zero, so it is stored as null rather than 0.
+    bankChargePct: (function () {
+      const n = parseFloat(val(root, "s-bankcharge"));
+      return Number.isFinite(n) && n > 0 ? n : null;
+    })(),
     terms: val(root, "s-terms"),
     messageNote: val(root, "s-note"),
     locations: linesTo(val(root, "s-locations")),

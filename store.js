@@ -314,7 +314,45 @@ export function invoiceTotal(b) {
   return rentalTotal(b) + extrasTotal(b);
 }
 
-export function balanceFor(b) { return Math.max(0, invoiceTotal(b) - advancePaid(b)); }
+// ---------- Bank charge on card payments ----------
+// A client paying by credit card carries the processor's fee rather than the
+// company absorbing it: a percentage of everything charged, added on top.
+// Rs 3,500 of rental and extras at 3% is Rs 3,605 due.
+//
+// It is deliberately NOT part of invoiceTotal. The company collects this money
+// and hands it straight to the bank, so it is not rental income — folding it in
+// would inflate Booked and every monthly figure built on it. invoiceTotal stays
+// what the rental is worth; amountDue is what the customer hands over.
+//
+// The rate is snapshotted on the booking, exactly as the daily rate is.
+// Changing the company default later must never rewrite what was agreed on a
+// booking already signed.
+export function bankChargePct(b) {
+  if (!b?.cardPayment) return 0;
+  const p = Number(b.bankChargePct);
+  return Number.isFinite(p) && p > 0 ? p : 0;
+}
+
+export function bankCharge(b) {
+  const pct = bankChargePct(b);
+  if (!pct) return 0;
+  // Rounded to the cent: 3.5% of an odd total is otherwise a figure no invoice
+  // can print and no till can take.
+  return Math.round(invoiceTotal(b) * pct) / 100;
+}
+
+// What the customer actually pays. Everything owed, settled or outstanding
+// works from this; invoiceTotal remains the rental's own worth.
+export function amountDue(b) { return invoiceTotal(b) + bankCharge(b); }
+
+// The company's standard rate, set once on the Settings page and copied onto a
+// booking when the card box is ticked.
+export function defaultBankChargePct() {
+  const p = Number(state.settings?.bankChargePct);
+  return Number.isFinite(p) && p > 0 ? p : 0;
+}
+
+export function balanceFor(b) { return Math.max(0, amountDue(b) - advancePaid(b)); }
 export function securityHeld(b) {
   // Anything not explicitly refunded or kept is still in hand. Requiring the
   // status to say "held" meant a deposit recorded without one was left out of

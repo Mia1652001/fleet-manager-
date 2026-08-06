@@ -18,7 +18,8 @@ import {
   state, esc, formatDate, formatAmount, bookingCarLabel, bookingRef,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor,
   startTime, endTime, customerForBooking, companyName, companyTerms, todayStr,
-  deliveryCost, insuranceCost, otherCost, invoiceTotal, extrasTotal, fxPair
+  deliveryCost, insuranceCost, otherCost, invoiceTotal, extrasTotal, fxPair,
+  bankCharge, bankChargePct, amountDue
 } from "./store.js";
 
 function line(label, value) {
@@ -47,6 +48,9 @@ function moneyBlock(b) {
   const advance = advancePaid(b);
   const balance = balanceFor(b);
   const security = b.securityDeposit || 0;
+  // Its own line, never folded into the total: the client is entitled to see
+  // what the card is costing them and to choose to pay another way instead.
+  const charge = bankCharge(b);
 
   const basis = hasManualTotal(b)
     ? `Agreed price for ${days} day${days === 1 ? "" : "s"}`
@@ -66,9 +70,12 @@ function moneyBlock(b) {
       ${extras.length
         ? `<tr><th>Total charges</th><td class="ag-num">${esc(formatAmount(invoiceTotal(b)))}</td></tr>`
         : ""}
+      ${charge > 0
+        ? `<tr><th>Bank charge (${esc(String(bankChargePct(b)))}% — card payment)</th><td class="ag-num">${esc(formatAmount(charge))}</td></tr>`
+        : ""}
       ${advance > 0 ? `<tr><th>Less advance already paid</th><td class="ag-num">− ${esc(fxPair(b, advance, b.fxAdvance))}</td></tr>` : ""}
       <tr class="ag-total"><th>${b.paid ? "Total (settled)" : "Balance due"}</th>
-        <td class="ag-num">${esc(formatAmount(b.paid ? invoiceTotal(b) : balance))}</td></tr>
+        <td class="ag-num">${esc(formatAmount(b.paid ? amountDue(b) : balance))}</td></tr>
       ${security > 0 ? `<tr><th>Refundable security deposit</th><td class="ag-num">${esc(fxPair(b, security, b.fxSecurity))}</td></tr>` : ""}
     </table>`;
 }
@@ -347,6 +354,9 @@ function confirmationText(b) {
   if (insuranceCost(b) > 0) lines.push(`Insurance: ${fxPair(b, insuranceCost(b), b.fxInsurance)}`);
   if (otherCost(b) > 0) lines.push(`Other charges: ${fxPair(b, otherCost(b), b.fxOther)}`);
   if (extrasTotal(b) > 0) lines.push(`Total: ${formatAmount(invoiceTotal(b))}`);
+  if (bankCharge(b) > 0) {
+    lines.push(`Bank charge (${bankChargePct(b)}% — card payment): ${formatAmount(bankCharge(b))}`);
+  }
 
   if (advance > 0) lines.push(`Advance already paid: ${fxPair(b, advance, b.fxAdvance)}`);
   lines.push(b.paid ? "Paid in full — thank you." : `Balance due: ${formatAmount(balance)}`);
@@ -506,7 +516,9 @@ export function openReceipt(bookingId) {
 function receiptHtml(b) {
   const ref = bookingRef(b);
   const customer = customerForBooking(b);
-  const total = invoiceTotal(b);
+  // What the client actually handed over includes the card fee, so a receipt
+  // that showed only the rental would not match their statement.
+  const total = amountDue(b);
   const advance = Number(b.advancePaid) || 0;
   const settled = b.paid ? total : advance;
   const outstanding = Math.max(0, total - settled);
@@ -553,7 +565,10 @@ ${DOC_ACTIONS}
 
   <h2>Amount</h2>
   <table class="ag-table">
-    <tr><th>Total charges</th><td class="ag-num">${esc(formatAmount(total))}</td></tr>
+    <tr><th>Total charges</th><td class="ag-num">${esc(formatAmount(invoiceTotal(b)))}</td></tr>
+    ${bankCharge(b) > 0
+      ? `<tr><th>Bank charge (${esc(String(bankChargePct(b)))}% — card payment)</th><td class="ag-num">${esc(formatAmount(bankCharge(b)))}</td></tr>`
+      : ""}
     <tr class="ag-total"><th>${b.paid ? "Received in full" : "Received (advance)"}</th>
       <td class="ag-num">${esc(formatAmount(settled))}</td></tr>
     ${outstanding > 0 ? `<tr><th>Still outstanding</th><td class="ag-num">${esc(formatAmount(outstanding))}</td></tr>` : ""}

@@ -11,6 +11,7 @@ import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
   makeBookingRef, bookingRef, showToast,
   staffNames, locationNames, brokerNames, FX_CURRENCIES, fxRate, deleteBookingWarning,
+  rentalDays, formatAmount, defaultBankChargePct,
   startTime, endTime,
   fillTimeOptions, getTime, setTime, onTimeChange,
   getSwatch, setSwatch,
@@ -77,7 +78,25 @@ export function mountBookingForm() {
     location.hash = "#billing";
   });
   ["b-delivery", "b-insurance", "b-other", "b-total"].forEach(name =>
-    el(root, name).addEventListener("input", syncExtrasHint));
+    el(root, name).addEventListener("input", () => { syncExtrasHint(); syncCardCharge(); }));
+  // Guarded like the other later additions: an older cached page has no
+  // card box, and reaching for it unguarded would break the whole form.
+  const cardBox = el(root, "b-card");
+  if (cardBox) cardBox.addEventListener("change", () => {
+    // Ticking it for the first time fills the company rate, so nobody has to
+    // remember what it is. An empty field after that is a deliberate blank.
+    if (cardBox.checked && val(root, "b-card-pct") === "") {
+      const d = defaultBankChargePct();
+      if (d) setVal(root, "b-card-pct", d);
+    }
+    syncCardCharge();
+  });
+  const cardPct = el(root, "b-card-pct");
+  if (cardPct) cardPct.addEventListener("input", syncCardCharge);
+  ["b-start", "b-end", "b-car"].forEach(n => {
+    const f = el(root, n);
+    if (f) f.addEventListener("change", syncCardCharge);
+  });
   // Guarded: if the page the browser cached is older than this script, the
   // button is not there yet — the feature waits for the fresh page instead of
   // crashing the whole app at startup.
@@ -337,6 +356,62 @@ function syncExtrasHint() {
     : `Typed in ${fx.sym}; the ${home} equivalent records automatically.`;
 }
 
+// ---------- Bank charge on card payments ----------
+// The percentage box appears only when the card box is ticked, and the line
+// below spells the arithmetic out in full. The pilot's accountant reads these
+// documents, so the figure has to be checkable at a glance rather than a
+// percentage the desk has to trust.
+//
+// Worked from the form's own values rather than the saved booking, because it
+// has to keep up while somebody is still typing.
+function cardChargeBase() {
+  const fx = extrasInFx();
+  const extras = ["delivery", "insurance", "other"].reduce((sum, name) => {
+    const v = parseFloat(val(root, `b-${name}`)) || 0;
+    // Extras typed in a foreign currency are recorded converted, so the charge
+    // has to be worked on the converted figure, not the typed one.
+    return sum + Math.max(0, fx ? v * fx.rate : v);
+  }, 0);
+
+  const typed = val(root, "b-total");
+  let rental;
+  if (typed !== "") {
+    rental = Math.max(0, parseFloat(typed) || 0);
+  } else {
+    // Blank means "calculate from the daily rate", which is what saving will do.
+    const car = state.cars.find(c => c.id === el(root, "b-car").value);
+    const days = rentalDays({
+      startDate: val(root, "b-start"), endDate: val(root, "b-end"),
+      startTime: getTime(root, "b-start-time"), endTime: getTime(root, "b-end-time")
+    });
+    rental = Math.max(0, days * (car?.dailyRate || 0));
+  }
+  return rental + extras;
+}
+
+function syncCardCharge() {
+  const box = el(root, "b-card");
+  const wrap = el(root, "b-card-pct-wrap");
+  const hint = el(root, "b-card-hint");
+  if (!box || !wrap || !hint) return;
+
+  const on = box.checked;
+  wrap.style.display = on ? "inline-flex" : "none";
+  if (!on) { hint.textContent = ""; return; }
+
+  const pct = parseFloat(val(root, "b-card-pct"));
+  if (!Number.isFinite(pct) || pct <= 0) {
+    hint.textContent = "Enter the percentage your bank charges, or untick the box.";
+    return;
+  }
+
+  const base = cardChargeBase();
+  const charge = Math.round(base * pct) / 100;
+  hint.textContent =
+    `${pct}% of ${formatAmount(base)} = ${formatAmount(charge)} · ` +
+    `total due from the client ${formatAmount(base + charge)}`;
+}
+
 // Recalculates one field pair (foreign amount → home amount) at today's house
 // rate. Used by the booking total and, in view-billing.js, by both deposit
 // fields — same pattern, same guard for an already-paid booking.
@@ -576,6 +651,8 @@ export function openBookingModal(bookingId, preset) {
   setVal(root, "b-fxtotal", "");
   syncCurrencyFields();
   setChecked(root, "b-paid", false);
+  setChecked(root, "b-card", false);
+  setVal(root, "b-card-pct", "");
   setSwatch(root, "b-colour", "");
   // Sensible default times so staff only change them when it matters
   setTime(root, "b-start-time", "12:00");
@@ -615,6 +692,12 @@ export function openBookingModal(bookingId, preset) {
     setVal(root, "b-other", editing.fxOther ?? editing.otherCost ?? "");
     setVal(root, "b-notes", editing.notes || "");
     setChecked(root, "b-paid", editing.paid === true);
+    // The rate the booking was agreed at, not today's company default — the
+    // whole point of snapshotting it.
+    setChecked(root, "b-card", editing.cardPayment === true);
+    setVal(root, "b-card-pct",
+      (typeof editing.bankChargePct === "number" && editing.bankChargePct > 0)
+        ? editing.bankChargePct : "");
     setSwatch(root, "b-colour", editing.barColour || "");
     if (editing.customerId && state.customers.some(c => c.id === editing.customerId)) {
       csel.value = editing.customerId;
@@ -657,6 +740,7 @@ export function openBookingModal(bookingId, preset) {
   el(root, "whatsapp-booking").style.display = editing ? "inline-block" : "none";
 
   toggleNewCustomer();
+  syncCardCharge();
   showError(root, "booking-error", null);
   openModal(root, "booking-modal");
 }
@@ -786,6 +870,16 @@ async function saveBooking() {
       deliveredBy: val(root, "b-deliveredby"),
       recoveredBy: val(root, "b-recoveredby"),
       broker: val(root, "b-broker"),
+      // Snapshotted at save, like the daily rate: a later change to the company
+      // default must never move the amount owed on a booking already agreed.
+      // Unticking the box clears the rate too, so nothing stale can be revived
+      // by ticking it again months later.
+      ...(function () {
+        const on = checked(root, "b-card");
+        if (!on) return { cardPayment: false, bankChargePct: null };
+        const n = parseFloat(val(root, "b-card-pct"));
+        return { cardPayment: true, bankChargePct: Number.isFinite(n) && n > 0 ? n : null };
+      })(),
       passport: val(root, "b-passport"),
       licence: val(root, "b-licence"),
       // Blank stays blank rather than becoming a zero, so an invoice only shows

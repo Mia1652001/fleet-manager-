@@ -4,7 +4,7 @@
 
 import { db, auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setSync } from "./firebase-init.js";
 import { collection, query, where, onSnapshot, doc, getDoc, getDocFromServer, terminate, clearIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, bookingRef, loadPref, savePref } from "./store.js";
+import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, bookingRef, loadPref, savePref, bankCharge, bankChargePct, amountDue } from "./store.js";
 
 import * as fleet from "./view-fleet.js";
 import * as bookings from "./view-bookings.js";
@@ -507,7 +507,7 @@ function toCsv(headers, rows) {
 }
 
 function exportBookingsCsv() {
-  const headers = ["Reference","Customer","Phone","Car","Pick-up","Return","Days","Daily rate","Rental total","Advance paid","Balance","Security deposit","Deposit status","Paid","Paid on","Status","Broker","Currency","Total (foreign)","Advance (foreign)","Security (foreign)","Delivery (foreign)","Insurance (foreign)","Other (foreign)"];
+  const headers = ["Reference","Customer","Phone","Car","Pick-up","Return","Days","Daily rate","Rental total","Bank charge %","Bank charge","Total due","Advance paid","Balance","Security deposit","Deposit status","Paid","Paid on","Status","Broker","Currency","Total (foreign)","Advance (foreign)","Security (foreign)","Delivery (foreign)","Insurance (foreign)","Other (foreign)"];
   const rows = state.bookings
     .slice()
     .sort((a,b) => b.startDate.localeCompare(a.startDate))
@@ -515,6 +515,7 @@ function exportBookingsCsv() {
       bookingRef(b), b.renter || "", b.phone || "", bookingCarLabel(b),
       b.startDate || "", b.endDate || "",
       rentalDays(b), rateFor(b), rentalTotal(b),
+      bankChargePct(b), bankCharge(b), amountDue(b),
       advancePaid(b), balanceFor(b),
       b.securityDeposit || 0, b.securityStatus || "",
       b.paid ? "Yes" : "No", b.paidAt ? b.paidAt.slice(0,10) : "",

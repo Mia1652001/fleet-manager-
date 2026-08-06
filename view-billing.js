@@ -7,6 +7,7 @@ import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName, takeFocus,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
   settledAmount, isBillable, hasStarted, settledOn, moneySummary,
+  bankCharge, bankChargePct, amountDue,
   brokerNames, fxPair, fxRate,
   initPanelToggle,
   el, val, setVal, openModal, closeModal, showError,
@@ -252,6 +253,8 @@ export function render() {
         ${insuranceCost(b) > 0 ? `<span>Insurance: <strong>${formatAmount(insuranceCost(b))}</strong></span>` : ""}
         ${otherCost(b) > 0 ? `<span>Other: <strong>${formatAmount(otherCost(b))}</strong></span>` : ""}
         ${extrasTotal(b) > 0 ? `<span>Invoice total: <strong>${formatAmount(invoiceTotal(b))}</strong></span>` : ""}
+        ${bankCharge(b) > 0 ? `<span>Bank charge ${bankChargePct(b)}%: <strong>+${formatAmount(bankCharge(b))}</strong> <span style="opacity:0.7;">(card payment)</span></span>` : ""}
+        ${bankCharge(b) > 0 ? `<span>Total due: <strong>${formatAmount(amountDue(b))}</strong></span>` : ""}
         ${adv > 0 ? `<span>Advance paid: <strong>-${fxPair(b, adv, b.fxAdvance)}</strong></span>` : ""}
         ${adv > 0 && !b.paid ? `<span>Balance: <strong>${formatAmount(balance)}</strong></span>` : ""}
         ${b.paid && b.paidAt ? `<span>Paid on: <strong>${formatDate(b.paidAt.slice(0, 10))}</strong></span>` : ""}
@@ -259,7 +262,7 @@ export function render() {
           const log = Array.isArray(b.paidLog) && b.paidLog.length ? b.paidLog[b.paidLog.length - 1] : null;
           return log ? `<span style="color:var(--muted);">Last change: ${esc(log.action)} ${formatDate(String(log.at).slice(0, 10))}${log.by ? ` by ${esc(log.by)}` : ""}</span>` : "";
         })()}
-        ${b.paid && settledAmount(b) !== total ? `<span>Counted as received: <strong>${formatAmount(settledAmount(b))}</strong> <span style="opacity:0.7;">(the advance came in earlier)</span></span>` : ""}
+        ${b.paid && settledAmount(b) !== amountDue(b) ? `<span>Counted as received: <strong>${formatAmount(settledAmount(b))}</strong> <span style="opacity:0.7;">(the advance came in earlier)</span></span>` : ""}
         ${(rate === 0 && !hasManualTotal(b)) ? `<span style="color:var(--red-text);">No daily rate set on this car — edit the car in Fleet, or enter a total on the booking</span>` : ""}
       </div>
       ${sec > 0 ? `
