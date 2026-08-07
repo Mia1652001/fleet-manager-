@@ -472,11 +472,22 @@ export function whatsappBooking(bookingId) {
     return { ok: false, reason: "No phone number saved for this booking or customer." };
   }
 
-  window.open(
-    `https://wa.me/${digits}?text=${encodeURIComponent(confirmationText(b))}`,
-    "_blank"
-  );
+  openWhatsApp(raw, confirmationText(b));
   return { ok: true };
+}
+
+/**
+ * Opens a WhatsApp chat with a message ready to send. Exported because the
+ * Billing page sends payment reminders the same way and must not carry a second
+ * copy of the number rules — a reminder that reached a different number from
+ * the confirmation would be its own kind of bug.
+ * Returns false when there is no usable number, so the caller can say so.
+ */
+export function openWhatsApp(rawPhone, text) {
+  const digits = waNumber(rawPhone);
+  if (!digits) return false;
+  window.open(`https://wa.me/${digits}?text=${encodeURIComponent(text)}`, "_blank");
+  return true;
 }
 
 /**

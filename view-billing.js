@@ -2,6 +2,7 @@
 // security deposits tracked separately.
 import { db, setSync } from "./firebase-init.js";
 import { openBookingModal, recalcAtTodayRate } from "./booking-form.js";
+import { openWhatsApp } from "./agreement.js";
 import { updateDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName, takeFocus,
@@ -123,7 +124,7 @@ export function mount(container) {
     if (btn.dataset.act === "deposits") { openDepositModal(id); return; }
     if (btn.dataset.act === "open") { openBookingModal(id); return; }
     if (btn.dataset.act === "email") { contactByEmail(b); return; }
-    if (btn.dataset.act === "sms") { contactBySms(b); return; }
+    if (btn.dataset.act === "whatsapp") { contactByWhatsApp(b); return; }
 
     btn.disabled = true;
     setSync("saving");
@@ -198,11 +199,13 @@ export function render() {
       <div class="stat-val ${tone}">${value}</div>
     </div>`;
 
+  // Same order as the dashboard's Money card, which is the order finance asked
+  // for: sold, collected, still owed, then the two supporting figures.
   if (summaryOpen()) el(root, "stats").innerHTML =
-    stat("Outstanding", formatAmount(m.outstanding), "red") +
-    stat("Unpaid invoices", String(m.unpaidCount), "amber") +
     stat("Booked", formatAmount(m.booked), "") +
     stat("Received", formatAmount(m.received), "green") +
+    stat("Outstanding", formatAmount(m.outstanding), "red") +
+    stat("Unpaid invoices", String(m.unpaidCount), "amber") +
     stat("Deposits held", formatAmount(m.deposits), "blue");
 
   refreshPeriodOptions();
@@ -281,7 +284,7 @@ export function render() {
         <button class="btn" data-act="deposits" data-id="${b.id}">Deposits</button>
         <button class="btn" data-act="open" data-id="${b.id}">View booking</button>
         ${!b.paid && hasEmail ? `<button class="btn" data-act="email" data-id="${b.id}">Email reminder</button>` : ""}
-        ${!b.paid && hasPhone ? `<button class="btn" data-act="sms" data-id="${b.id}">SMS reminder</button>` : ""}
+        ${!b.paid && hasPhone ? `<button class="btn" data-act="whatsapp" data-id="${b.id}">WhatsApp reminder</button>` : ""}
         ${sec > 0 && secStatus === "held" ? `
           <button class="btn" data-act="refund" data-id="${b.id}">Refund deposit</button>
           <button class="btn" data-act="keep" data-id="${b.id}">Keep deposit</button>` : ""}
@@ -587,15 +590,19 @@ function contactByEmail(b) {
     `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(reminderText(b))}`;
 }
 
-function contactBySms(b) {
+// WhatsApp rather than SMS. This market runs on WhatsApp: an SMS costs money,
+// is often ignored, and gives the desk no sign of whether it arrived, while the
+// confirmation the customer already has came to them on WhatsApp — a reminder
+// on the same thread reads as the same conversation rather than a cold text.
+// The number is normalised by the same helper the confirmation uses, so both
+// messages can only ever reach the same chat.
+function contactByWhatsApp(b) {
   const c = customerForBooking(b);
-  const to = (b.phone || c?.phone || "").replace(/\s+/g, "");
-  if (!to) { alert("No phone number saved for this customer."); return; }
+  const raw = b.phone || c?.phone || "";
   const short =
     `Reminder from ${companyName() || "us"}: ${formatAmount(balanceFor(b))} outstanding for your rental ` +
     `(${formatDate(b.startDate)} - ${formatDate(b.endDate)}). Please contact us to arrange payment. Thank you.`;
-  // "?body=" is the standard form and works on modern iPhones and Android
-  // alike. The old "?&body=" was an iPhone-only trick: some Android phones
-  // opened the messaging app with the number filled in but the message blank.
-  window.location.href = `sms:${to}?body=${encodeURIComponent(short)}`;
+  if (!openWhatsApp(raw, short)) {
+    alert("No phone number saved for this customer. Add one on the booking or on the Customers page.");
+  }
 }

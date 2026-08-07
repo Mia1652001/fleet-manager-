@@ -213,10 +213,13 @@ function renderMoney() {
     range.textContent = moneyMonth === thisMonth() ? `${label} · this month` : label;
   }
 
+  // Booked, Received, Outstanding, Deposits — the order the pilot's finance
+  // office reads them in: what was sold, what came in, what is still owed, what
+  // is only being held. Each figure answers the one before it.
   el(root, "money").innerHTML =
-    figure("Outstanding", formatAmount(m.outstanding), "red", "billing") +
-    figure("Received", formatAmount(m.received), "green", "billing") +
     figure("Booked", formatAmount(m.booked), "", "bookings") +
+    figure("Received", formatAmount(m.received), "green", "billing") +
+    figure("Outstanding", formatAmount(m.outstanding), "red", "billing") +
     figure("Deposits held", formatAmount(m.deposits), "blue", "billing");
 }
 
