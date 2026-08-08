@@ -2342,7 +2342,8 @@ input[type="number"] {
   #view-bookings .timeline-wrap,
   #view-tasks .board-head-wrap,
   #view-tasks .staff-board,
-  #view-expenses .staff-board {
+  #view-expenses .staff-board,
+  #view-reports .rep-wrap {
     width: calc(100% + 2 * var(--main-pad-x, 0.9rem));
     margin-left: calc(-1 * var(--main-pad-x, 0.9rem));
     border-left: none;
@@ -2526,6 +2527,38 @@ input[type="number"] {
    narrow table across a wide screen. */
 .rep-months { width: auto; min-width: 460px; }
 .rep-neg { color: var(--red-text); }
+
+/* ---------- Reports get the window ----------
+   Two of the three reports are fifteen-column grids. Held inside the reading
+   column they spent most of a wide screen on empty margin while the months
+   scrolled sideways out of view — the worst of both. Same breakout the
+   Dashboard, Settings and Expenses views use, so the page still ends where
+   every other page ends. Phones are untouched: min() makes it self-limiting
+   and the rule only applies above the phone breakpoint. */
+@media (min-width: 641px) {
+  #view-reports.view {
+    --rep-w: min(100vw - 2rem, 2600px);
+    width: var(--rep-w);
+    margin-left: calc(-1 * max(0px, (var(--rep-w) - 100%) / 2));
+  }
+}
+
+/* Month by month has five columns and cannot use that width, so on a wide
+   screen its explanation sits beside it rather than under it. The note has to
+   be read to trust the occupancy figure, and putting it in the gap is better
+   than leaving the gap empty and the note below the fold. */
+@media (min-width: 1000px) {
+  .rep-section[data-el="sec-monthly"] .rep-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 32px;
+  }
+  .rep-section[data-el="sec-monthly"] .rep-note {
+    flex: 1;
+    margin-top: 0;
+    max-width: 52ch;
+  }
+}
 
 /* Month by month is five columns. Left to fill the page it draws a bordered
    box two-thirds empty, which reads as a table that failed to load. */
