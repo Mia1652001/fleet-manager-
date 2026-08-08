@@ -2456,3 +2456,20 @@ input[type="number"] {
   .rep-car { min-width: 150px; }
   .rep-title { font-size: 1rem; }
 }
+
+/* ---------- Reports: one collapsible block per report ----------
+   Three tables on one page is a lot to scroll past, so each folds away behind
+   the same button the Summary panels use. The state is kept per person per
+   device: the office manager and the accountant want different things open. */
+.rep-section { margin-bottom: 1.6rem; }
+.rep-section > .panel-toggle { margin-bottom: 0.6rem; }
+.rep-section.collapsed > .rep-body { display: none; }
+
+/* Month by month is five columns, not fifteen — it should not stretch a
+   narrow table across a wide screen. */
+.rep-months { width: auto; min-width: 460px; }
+.rep-neg { color: var(--red-text); }
+
+/* Month by month is five columns. Left to fill the page it draws a bordered
+   box two-thirds empty, which reads as a table that failed to load. */
+.rep-narrow { width: fit-content; max-width: 100%; }

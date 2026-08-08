@@ -519,17 +519,44 @@
          The grid itself scrolls sideways rather than shrinking to fit — twelve
          money columns squeezed into a phone are unreadable, and finance opens
          this on a desktop anyway. -->
+    <!-- Each report is its own collapsible block, folded with the same button
+         the Summary panels use, and each remembers its own state on this
+         device. One year picker and one download at the top: finance looks at
+         a year, not at a year per table, and one workbook with three tabs is
+         easier to hand on than three separate files. -->
     <section class="view" id="view-reports">
       <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
+
       <div class="toolbar one-line-tools">
-        <h2 class="rep-title">Revenue by car</h2>
         <span class="inline-label">Year</span>
         <select data-el="rep-year"></select>
         <button class="btn" data-el="rep-export">Download for Excel</button>
       </div>
-      <div class="rep-wrap" data-el="rep-table"></div>
-      <p class="rep-note" data-el="rep-note"></p>
+
+      <div class="rep-section" data-el="sec-revenue">
+        <button type="button" class="panel-toggle" data-el="tog-revenue">Revenue by car</button>
+        <div class="rep-body">
+          <div class="rep-wrap" data-el="rev-table"></div>
+          <p class="rep-note" data-el="rev-note"></p>
+        </div>
+      </div>
+
+      <div class="rep-section" data-el="sec-expenses">
+        <button type="button" class="panel-toggle" data-el="tog-expenses">Expenses by car</button>
+        <div class="rep-body">
+          <div class="rep-wrap" data-el="exp-table"></div>
+          <p class="rep-note" data-el="exp-note"></p>
+        </div>
+      </div>
+
+      <div class="rep-section" data-el="sec-monthly">
+        <button type="button" class="panel-toggle" data-el="tog-monthly">Month by month</button>
+        <div class="rep-body">
+          <div class="rep-wrap rep-narrow" data-el="mon-table"></div>
+          <p class="rep-note" data-el="mon-note"></p>
+        </div>
+      </div>
     </section>
 
     <section class="view" id="view-maintenance">

@@ -895,37 +895,59 @@ export function orderedCars() {
   });
 }
 
-// ---------- Revenue by car and month ----------
-// The grid the pilot's accountant keeps by hand in a spreadsheet: one row per
-// vehicle, one column per month, the invoice value of everything that vehicle
-// earned. Built from the same numbers as everything else so the two never
-// disagree.
+// ---------- Reports: the grids finance keeps by hand ----------
+// One row per vehicle, one column per month, a total and an average down the
+// right. Revenue and expenses share the shape, so they share the machinery —
+// two reports that disagreed about how a row is totalled would be worse than
+// no second report at all.
 //
-// Filed by the day a rental starts, which is how the whole app files invoices —
-// "the August invoices" are the rentals that began in August. A rental crossing
-// a month boundary therefore counts wholly in the month it started, and a row
-// here adds up to the Booked figure on the Billing summary for the same period.
-// Splitting one rental across two months would read more precisely and
-// reconcile against nothing.
-//
-// Bank charges are excluded, for the reason they are excluded everywhere: the
-// company collects them for the bank, so they are not what the car earned.
-export function revenueByCarMonth(year) {
-  const y = String(year);
-  const blank = () => new Array(12).fill(0);
+// Both are filed by date the same way the rest of the app files things, so a
+// column here reconciles against the Billing summary for the same month.
 
-  const rows = orderedCars().map(c => ({
+function blankYear() { return new Array(12).fill(0); }
+
+function carRows() {
+  return orderedCars().map(c => ({
     carId: c.id,
     label: `${c.year || ""} ${c.make} ${c.model}`.trim(),
     plate: c.plate || "",
-    months: blank()
+    months: blankYear()
   }));
+}
+
+// Totals, averages and the footer row. Averages are over the months that
+// actually had something in them, never over twelve: a car bought in October
+// would otherwise show a twelfth of its takings and read as the worst vehicle
+// in the fleet.
+function finishGrid(y, rows) {
+  rows.forEach(r => {
+    r.total = r.months.reduce((s, v) => s + v, 0);
+    r.activeMonths = r.months.filter(v => v > 0).length;
+    r.average = r.activeMonths ? r.total / r.activeMonths : 0;
+  });
+
+  const totals = blankYear();
+  rows.forEach(r => r.months.forEach((v, i) => { totals[i] += v; }));
+  const grandTotal = totals.reduce((s, v) => s + v, 0);
+  const busy = totals.filter(v => v > 0).length;
+
+  return { year: y, rows, totals, grandTotal, average: busy ? grandTotal / busy : 0 };
+}
+
+// What each vehicle earned. Filed by the day a rental starts — "the August
+// invoices" are the rentals that began in August — so a rental crossing a
+// month boundary counts wholly in the month it started. Bank charges are
+// excluded, for the reason they are excluded everywhere: the company collects
+// them for the bank, so they are not what the car earned.
+export function revenueByCarMonth(year) {
+  const y = String(year);
+  const rows = carRows();
   const byId = new Map(rows.map(r => [r.carId, r]));
 
   // A car sold last year still earned money while it was here. Dropping its
   // bookings would leave the report short of the year's real takings, and a
   // total that does not match Billing is a report nobody trusts again.
-  const gone = { carId: "", label: "Cars no longer in the fleet", plate: "", months: blank() };
+  const gone = { carId: "", label: "Cars no longer in the fleet", plate: "", months: blankYear() };
 
   state.bookings.forEach(b => {
     const d = String(b.startDate || "");
@@ -937,27 +959,137 @@ export function revenueByCarMonth(year) {
 
   const out = rows.slice();
   if (gone.months.some(v => v > 0)) out.push(gone);
+  return finishGrid(y, out);
+}
 
-  out.forEach(r => {
-    r.total = r.months.reduce((s, v) => s + v, 0);
-    // Averaged over the months that actually earned, not over twelve. A car
-    // bought in October would otherwise show a twelfth of its takings and read
-    // as the worst vehicle in the fleet.
-    r.earningMonths = r.months.filter(v => v > 0).length;
-    r.average = r.earningMonths ? r.total / r.earningMonths : 0;
+// What each vehicle cost. Same grid, from the Expenses page, matched by the
+// car and the date recorded on each expense.
+//
+// Money spent without a car against it — office costs, a bulk purchase — gets
+// its own row rather than being dropped. A per-car report whose total is
+// quietly less than the Expenses page is the first thing an accountant catches
+// and the last time they trust the report.
+export function expensesByCarMonth(year) {
+  const y = String(year);
+  const rows = carRows();
+  const byId = new Map(rows.map(r => [r.carId, r]));
+
+  const gone = { carId: "", label: "Cars no longer in the fleet", plate: "", months: blankYear() };
+  const noCar = { carId: "", label: "Not car-specific", plate: "", months: blankYear() };
+
+  (state.expenses || []).forEach(x => {
+    const d = String(x.date || "");
+    if (d.slice(0, 4) !== y) return;
+    const m = Number(d.slice(5, 7)) - 1;
+    if (!(m >= 0 && m < 12)) return;
+    const amount = Math.max(0, Number(x.amount) || 0);
+    const row = x.carId ? (byId.get(x.carId) || gone) : noCar;
+    row.months[m] += amount;
   });
 
-  const totals = blank();
-  out.forEach(r => r.months.forEach((v, i) => { totals[i] += v; }));
-  const grandTotal = totals.reduce((s, v) => s + v, 0);
-  const busyMonths = totals.filter(v => v > 0).length;
+  const out = rows.slice();
+  if (gone.months.some(v => v > 0)) out.push(gone);
+  if (noCar.months.some(v => v > 0)) out.push(noCar);
+  return finishGrid(y, out);
+}
+
+// ---------- Month by month: occupancy, income, expenses, net ----------
+
+export function daysInMonth(year, monthIndex) {
+  return new Date(Number(year), monthIndex + 1, 0).getDate();
+}
+
+function nextDay(ds) {
+  const d = new Date(ds + "T12:00");
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Every calendar day a rental holds the car. The return day is not counted —
+// the car comes back and can go out again — which makes a 3rd-to-6th rental
+// three days, the same answer the invoice gives. A same-day rental still
+// occupies the day it happened on.
+function occupiedDays(b, fn) {
+  const start = String(b.startDate || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return;
+  const end = String(b.endDate || "");
+  const stop = (end > start) ? end : nextDay(start);
+  let cur = start, guard = 0;
+  while (cur < stop && guard++ < 800) { fn(cur); cur = nextDay(cur); }
+}
+
+// The pilot's own monthly sheet: one row per month, occupancy beside the money.
+//
+// Income is what was invoiced — the same figure as Booked and as the revenue
+// grid above, so the three always agree. Expenses are what the Expenses page
+// recorded in that month. Net is simply one minus the other.
+//
+// Occupancy is days rented divided by days available, where available is the
+// fleet size times the days in the month. One caveat worth knowing: the fleet
+// size is today's fleet, because that is the only one the app can know — a car
+// sold in March still widens the denominator for January. With a steady fleet
+// it is accurate; through a big change it drifts, which is why the figure is
+// labelled on screen rather than left to speak for itself.
+export function monthlySummary(year) {
+  const y = String(year);
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    month: i, income: 0, expenses: 0, rentedDays: 0
+  }));
+
+  state.bookings.forEach(b => {
+    const d = String(b.startDate || "");
+    if (d.slice(0, 4) === y) {
+      const m = Number(d.slice(5, 7)) - 1;
+      if (m >= 0 && m < 12) months[m].income += invoiceTotal(b);
+    }
+    // Occupancy is counted day by day, so a rental spanning two months adds
+    // its days to both — unlike the money, which belongs to one month only.
+    occupiedDays(b, ds => {
+      if (ds.slice(0, 4) !== y) return;
+      const m = Number(ds.slice(5, 7)) - 1;
+      if (m >= 0 && m < 12) months[m].rentedDays += 1;
+    });
+  });
+
+  (state.expenses || []).forEach(x => {
+    const d = String(x.date || "");
+    if (d.slice(0, 4) !== y) return;
+    const m = Number(d.slice(5, 7)) - 1;
+    if (m >= 0 && m < 12) months[m].expenses += Math.max(0, Number(x.amount) || 0);
+  });
+
+  const fleet = state.cars.length;
+  months.forEach(mm => {
+    mm.net = mm.income - mm.expenses;
+    mm.availableDays = fleet * daysInMonth(y, mm.month);
+    mm.occupancy = mm.availableDays > 0 ? mm.rentedDays / mm.availableDays : 0;
+    mm.active = mm.income > 0 || mm.expenses > 0 || mm.rentedDays > 0;
+  });
+
+  const sum = f => months.reduce((s, m) => s + f(m), 0);
+  const active = months.filter(m => m.active).length;
+  const rentedDays = sum(m => m.rentedDays);
+  const availableDays = sum(m => m.availableDays);
 
   return {
     year: y,
-    rows: out,
-    totals,
-    grandTotal,
-    average: busyMonths ? grandTotal / busyMonths : 0
+    months,
+    fleet,
+    total: {
+      income: sum(m => m.income),
+      expenses: sum(m => m.expenses),
+      net: sum(m => m.net),
+      // Weighted across the whole year rather than an average of averages, so
+      // a quiet February cannot count for as much as a full August.
+      occupancy: availableDays > 0 ? rentedDays / availableDays : 0
+    },
+    average: {
+      months: active,
+      income: active ? sum(m => m.income) / active : 0,
+      expenses: active ? sum(m => m.expenses) / active : 0,
+      net: active ? sum(m => m.net) / active : 0,
+      occupancy: active ? months.filter(m => m.active).reduce((s, m) => s + m.occupancy, 0) / active : 0
+    }
   };
 }
 
@@ -965,10 +1097,14 @@ export function revenueByCarMonth(year) {
 // picker offers exactly the years there is something to show.
 export function bookingYears() {
   const years = new Set();
-  state.bookings.forEach(b => {
-    const y = String(b.startDate || "").slice(0, 4);
+  const add = d => {
+    const y = String(d || "").slice(0, 4);
     if (/^\d{4}$/.test(y)) years.add(y);
-  });
+  };
+  state.bookings.forEach(b => add(b.startDate));
+  // Expenses too: a year with spending but no rentals still has a report worth
+  // opening, and leaving it out of the list makes it unreachable.
+  (state.expenses || []).forEach(x => add(x.date));
   years.add(todayStr().slice(0, 4));
   return [...years].sort().reverse();
 }

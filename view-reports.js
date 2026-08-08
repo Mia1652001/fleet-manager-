@@ -1,17 +1,18 @@
-// Reports view — revenue by car and month.
+// Reports view — the grids the pilot's finance office kept by hand.
 //
-// Built for the pilot's finance office, who kept this grid by hand in a
-// spreadsheet: one row per vehicle, one column per month, the invoice value of
-// what that vehicle earned, then a total and an average down the right.
+// Three reports on one page, each in its own collapsible block: what each car
+// earned, what each car cost, and the two set against each other month by
+// month with an occupancy figure beside them.
 //
-// Everything here is derived from bookings already in memory, so the report
-// costs no extra database reads and can never disagree with Billing — both add
-// up the same invoices, filed by the day the rental starts.
+// Everything is derived from bookings and expenses already in memory, so the
+// page costs no extra database reads and can never disagree with Billing —
+// they add up the same records, filed the same way.
 
 import {
   state, onDataChange, esc, formatAmount, todayStr,
-  revenueByCarMonth, bookingYears, companyName,
-  initPanelToggle, el
+  revenueByCarMonth, expensesByCarMonth, monthlySummary,
+  bookingYears, companyName,
+  initPanelToggle, loadPref, savePref, el
 } from "./store.js";
 import { loadXlsx, downloadBlob } from "./backup.js";
 
@@ -22,18 +23,62 @@ let year = "";
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-// Bare numbers in the grid, with the currency named once above it. "Rs" on
-// every one of 168 cells is noise, and it costs the width that lets a month
+// Bare numbers in the grids, with the currency named once beneath each. "Rs"
+// on every one of 168 cells is noise, and it costs the width that lets a month
 // column fit on screen — a finance sheet reads as columns of figures, not as
 // columns of sentences.
 function money(n) {
   return Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
+function percent(x) {
+  return `${(Number(x || 0) * 100).toFixed(0)}%`;
+}
+
+// ---------- Collapsible blocks ----------
+// The shared panel helper toggles a class on a whole view, which suits one
+// panel per page. Here there are three, each folding independently, so each
+// block gets its own toggle and its own remembered state. Same button, same
+// arrow, same feel as the Summary panels everywhere else.
+const sections = [];
+
+function initSection(name, toggleName, label, defaultOpen) {
+  const box = el(root, name);
+  const btn = el(root, toggleName);
+  if (!box || !btn) return () => true;
+
+  const prefKey = `reports:${name}`;
+  let open = loadPref(prefKey, defaultOpen);
+  const paint = () => {
+    box.classList.toggle("collapsed", !open);
+    btn.textContent = `${open ? "▾" : "▸"} ${label}`;
+  };
+  btn.addEventListener("click", () => {
+    open = !open;
+    savePref(prefKey, open);
+    paint();
+    render();
+  });
+  paint();
+  const isOpen = () => open;
+  sections.push(isOpen);
+  return isOpen;
+}
+
+let revenueOpen = () => true;
+let expensesOpen = () => true;
+let monthlyOpen = () => true;
 
 export function mount(container) {
   root = container;
 
   summaryOpen = initPanelToggle(root, "reportsShowSummary", "toggle-summary", "hide-summary", "Summary");
+
+  // All three open to begin with: this is the reports page, and a page that
+  // opens empty makes someone hunt for what they came to read. Folding is
+  // there for the ones a given person never looks at.
+  revenueOpen = initSection("sec-revenue", "tog-revenue", "Revenue by car", true);
+  expensesOpen = initSection("sec-expenses", "tog-expenses", "Expenses by car", true);
+  monthlyOpen = initSection("sec-monthly", "tog-monthly", "Month by month", true);
 
   el(root, "rep-year").addEventListener("change", () => {
     year = el(root, "rep-year").value;
@@ -45,57 +90,70 @@ export function mount(container) {
   onDataChange(() => { if (root.classList.contains("active")) render(); });
 }
 
-// The year list is rebuilt on every draw because a booking saved for next year
-// has to appear in it without a reload. The current choice is kept if it still
-// exists, so a redraw never silently moves the report to another year.
+// Rebuilt on every draw because a booking or expense saved for another year
+// has to appear without a reload. The current choice is kept if it still
+// exists, so a redraw never silently moves the page to another year.
 function refreshYearOptions() {
   const sel = el(root, "rep-year");
   const years = bookingYears();
-  if (!years.includes(year)) year = years.includes(todayStr().slice(0, 4)) ? todayStr().slice(0, 4) : years[0];
+  if (!years.includes(year)) {
+    const thisYear = todayStr().slice(0, 4);
+    year = years.includes(thisYear) ? thisYear : years[0];
+  }
   sel.innerHTML = years.map(y => `<option value="${esc(y)}">${esc(y)}</option>`).join("");
   sel.value = year;
-}
-
-function clearNote() {
-  const note = el(root, "rep-note");
-  if (note) note.textContent = "";
 }
 
 export function render() {
   if (!root) return;
   refreshYearOptions();
 
-  const data = revenueByCarMonth(year);
+  const rev = revenueByCarMonth(year);
+  const exp = expensesByCarMonth(year);
+  const mon = monthlySummary(year);
 
-  if (summaryOpen()) {
-    const earning = data.rows.filter(r => r.total > 0).length;
-    const best = data.rows.slice().sort((a, b) => b.total - a.total)[0];
-    el(root, "stats").innerHTML = `
-      <div class="stat"><div class="stat-label">Invoiced<span class="stat-scope">${esc(year)}</span></div>
-        <div class="stat-val">${formatAmount(data.grandTotal)}</div></div>
-      <div class="stat"><div class="stat-label">Average per month<span class="stat-scope">months with rentals</span></div>
-        <div class="stat-val green">${formatAmount(data.average)}</div></div>
-      <div class="stat"><div class="stat-label">Cars that earned<span class="stat-scope">${esc(year)}</span></div>
-        <div class="stat-val">${earning}</div></div>
-      <div class="stat"><div class="stat-label">Best earner<span class="stat-scope">${best && best.total > 0 ? esc(best.plate || best.label) : "—"}</span></div>
-        <div class="stat-val blue">${formatAmount(best ? best.total : 0)}</div></div>
-    `;
-  }
+  renderSummary(rev, exp, mon);
+  if (revenueOpen()) renderCarGrid("rev", rev, "earned");
+  if (expensesOpen()) renderCarGrid("exp", exp, "spent");
+  if (monthlyOpen()) renderMonthly(mon);
+}
 
-  const box = el(root, "rep-table");
+function renderSummary(rev, exp, mon) {
+  if (!summaryOpen()) return;
+  const net = rev.grandTotal - exp.grandTotal;
+  el(root, "stats").innerHTML = `
+    <div class="stat"><div class="stat-label">Invoiced<span class="stat-scope">${esc(year)}</span></div>
+      <div class="stat-val">${formatAmount(rev.grandTotal)}</div></div>
+    <div class="stat"><div class="stat-label">Expenses<span class="stat-scope">${esc(year)}</span></div>
+      <div class="stat-val amber">${formatAmount(exp.grandTotal)}</div></div>
+    <div class="stat"><div class="stat-label">Net<span class="stat-scope">${esc(year)}</span></div>
+      <div class="stat-val ${net < 0 ? "red" : "green"}">${formatAmount(net)}</div></div>
+    <div class="stat"><div class="stat-label">Occupancy<span class="stat-scope">${esc(year)} · ${mon.fleet} car${mon.fleet === 1 ? "" : "s"}</span></div>
+      <div class="stat-val blue">${percent(mon.total.occupancy)}</div></div>
+  `;
+}
+
+// ---------- The two car grids ----------
+// One function for both: a report that totalled its rows differently from its
+// sibling would be a bug waiting to be argued about in a meeting.
+function renderCarGrid(prefix, data, verb) {
+  const box = el(root, `${prefix}-table`);
+  const note = el(root, `${prefix}-note`);
+  if (!box) return;
+
   if (!data.rows.length) {
     box.innerHTML = `<div class="empty">No cars yet — add some on the Fleet page.</div>`;
-    clearNote();
+    if (note) note.textContent = "";
     return;
   }
   if (data.grandTotal === 0) {
-    box.innerHTML = `<div class="empty">No bookings started in ${esc(year)}. Pick another year above.</div>`;
-    clearNote();
+    box.innerHTML = `<div class="empty">Nothing ${esc(verb)} in ${esc(year)}. Pick another year above.</div>`;
+    if (note) note.textContent = "";
     return;
   }
 
-  // A zero prints as a dash. A grid of "Rs 0" is unreadable, and the eye needs
-  // to find the months that earned, not the months that did not.
+  // A zero prints as a dash. A grid of "0" is unreadable, and the eye needs to
+  // find the months that moved, not the months that did not.
   const cell = v => v > 0
     ? `<td class="rep-num">${esc(money(v))}</td>`
     : `<td class="rep-num rep-zero">—</td>`;
@@ -114,7 +172,7 @@ export function render() {
         ${data.rows.map(r => `
           <tr${r.total === 0 ? ` class="rep-idle"` : ""}>
             <th class="rep-car">
-              <span class="rep-plate">${esc(r.plate || "no plate")}</span>
+              <span class="rep-plate">${esc(r.plate || (r.label === "Not car-specific" ? "—" : "no plate"))}</span>
               <span class="rep-model">${esc(r.label)}</span>
             </th>
             ${r.months.map(cell).join("")}
@@ -134,46 +192,157 @@ export function render() {
       </tfoot>
     </table>`;
 
-  // Outside the scrolling box, or the explanation slides away sideways with
-  // the months and is never read.
-  const note = el(root, "rep-note");
-  if (note) {
-    note.innerHTML =
-      `All amounts in ${esc(state.settings?.currency || "Rs")}. Invoiced value — rental plus
-       delivery, insurance and other charges, whether settled or not. Bank charges on card
-       payments are excluded: the company collects those for the bank. A rental is counted in
-       the month it starts, the same way invoices are filed everywhere else in the app, so the
-       total here matches Booked on the Billing page for the same year. Average is per month
-       that earned, not per calendar month — a car bought in October is not judged on twelve.`;
-  }
+  if (!note) return;
+  const cur = esc(state.settings?.currency || "Rs");
+  note.innerHTML = prefix === "rev"
+    ? `All amounts in ${cur}. Invoiced value — rental plus delivery, insurance and other
+       charges, whether settled or not. Bank charges on card payments are excluded: the company
+       collects those for the bank. A rental counts in the month it starts, the same way
+       invoices are filed everywhere else, so the total here matches Booked on Billing for the
+       same year. Average is per month that earned, not per calendar month.`
+    : `All amounts in ${cur}. Everything recorded on the Expenses page, by the date and car on
+       each entry. Spending with no car against it — office costs, a bulk purchase — sits in
+       its own row, so this total always matches the Expenses page. Average is per month that
+       had spending.`;
 }
 
-// The same grid as a spreadsheet, because finance works in one. Bare numbers,
-// no currency symbol: a column of text with "Rs" in front cannot be summed.
+// ---------- Month by month ----------
+function renderMonthly(mon) {
+  const box = el(root, "mon-table");
+  const note = el(root, "mon-note");
+  if (!box) return;
+
+  const anything = mon.months.some(m => m.active);
+  if (!anything) {
+    box.innerHTML = `<div class="empty">Nothing recorded in ${esc(year)}. Pick another year above.</div>`;
+    if (note) note.textContent = "";
+    return;
+  }
+
+  const num = (v, tone = "") => v !== 0
+    ? `<td class="rep-num ${tone}">${esc(money(v))}</td>`
+    : `<td class="rep-num rep-zero">—</td>`;
+
+  box.innerHTML = `
+    <table class="rep-table rep-months">
+      <thead>
+        <tr>
+          <th class="rep-car">Month</th>
+          <th class="rep-num">Occupancy</th>
+          <th class="rep-num">Income</th>
+          <th class="rep-num">Expenses</th>
+          <th class="rep-num rep-strong">Net income</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${mon.months.map(m => `
+          <tr${m.active ? "" : ` class="rep-idle"`}>
+            <th class="rep-car"><span class="rep-plate">${MONTHS[m.month]}</span></th>
+            ${m.active
+              ? `<td class="rep-num">${esc(percent(m.occupancy))}</td>`
+              : `<td class="rep-num rep-zero">—</td>`}
+            ${num(m.income)}
+            ${num(m.expenses)}
+            ${m.active
+              ? `<td class="rep-num rep-strong ${m.net < 0 ? "rep-neg" : ""}">${esc(money(m.net))}</td>`
+              : `<td class="rep-num rep-zero">—</td>`}
+          </tr>`).join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th class="rep-car">Total</th>
+          <td class="rep-num">${esc(percent(mon.total.occupancy))}</td>
+          <td class="rep-num">${esc(money(mon.total.income))}</td>
+          <td class="rep-num">${esc(money(mon.total.expenses))}</td>
+          <td class="rep-num rep-strong ${mon.total.net < 0 ? "rep-neg" : ""}">${esc(money(mon.total.net))}</td>
+        </tr>
+        <tr>
+          <th class="rep-car">Average</th>
+          <td class="rep-num">${esc(percent(mon.average.occupancy))}</td>
+          <td class="rep-num">${esc(money(mon.average.income))}</td>
+          <td class="rep-num">${esc(money(mon.average.expenses))}</td>
+          <td class="rep-num rep-strong ${mon.average.net < 0 ? "rep-neg" : ""}">${esc(money(mon.average.net))}</td>
+        </tr>
+      </tfoot>
+    </table>`;
+
+  if (!note) return;
+  note.innerHTML =
+    `All amounts in ${esc(state.settings?.currency || "Rs")}. Income is what was invoiced that
+     month — the same figure as the revenue grid above and as Booked on Billing. Expenses come
+     from the Expenses page. Net is one minus the other.
+     Occupancy is days rented divided by days available, where available is
+     ${mon.fleet} car${mon.fleet === 1 ? "" : "s"} times the days in the month; a rental
+     spanning two months contributes its days to both, unlike the money, which belongs to the
+     month it started in. Note it uses today's fleet size for every month, because that is the
+     only fleet the app can know — through a big change in fleet size it drifts.
+     Average is across the months that had activity, not across twelve.`;
+}
+
+// ---------- Excel ----------
+// One workbook, one tab per report, bare numbers. A column of text with "Rs"
+// in front of it cannot be summed, and finance will sum it.
 async function exportXlsx() {
   const btn = el(root, "rep-export");
   btn.disabled = true;
   const original = btn.textContent;
   btn.textContent = "Preparing...";
   try {
-    const data = revenueByCarMonth(year);
-    const rows = [
-      [`${companyName()} — revenue by car, ${data.year}`],
-      [`Invoiced value (rental + extras), counted in the month each rental starts. Bank charges excluded.`],
+    const rev = revenueByCarMonth(year);
+    const exp = expensesByCarMonth(year);
+    const mon = monthlySummary(year);
+    const co = companyName() || "Company";
+
+    const gridRows = (title, data) => [
+      [`${co} — ${title}, ${year}`],
       [],
       ["Plate", "Car", ...MONTHS, "Total", "Average"],
       ...data.rows.map(r => [r.plate, r.label, ...r.months, r.total, r.average]),
       [],
       ["", "All cars", ...data.totals, data.grandTotal, data.average]
     ];
+
+    const monthRows = [
+      [`${co} — month by month, ${year}`],
+      [`Occupancy based on ${mon.fleet} car${mon.fleet === 1 ? "" : "s"} in the fleet today.`],
+      [],
+      ["Month", "Occupancy", "Income", "Expenses", "Net income"],
+      ...mon.months.map(m => [MONTHS[m.month], m.occupancy, m.income, m.expenses, m.net]),
+      [],
+      ["Total", mon.total.occupancy, mon.total.income, mon.total.expenses, mon.total.net],
+      ["Average", mon.average.occupancy, mon.average.income, mon.average.expenses, mon.average.net]
+    ];
+
     const XLSX = await loadXlsx();
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws["!cols"] = [{ wch: 14 }, { wch: 26 }, ...MONTHS.map(() => ({ wch: 11 })), { wch: 13 }, { wch: 12 }];
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `Revenue ${data.year}`);
+
+    const gridCols = [{ wch: 14 }, { wch: 26 }, ...MONTHS.map(() => ({ wch: 11 })), { wch: 13 }, { wch: 12 }];
+
+    const wsRev = XLSX.utils.aoa_to_sheet(gridRows("revenue by car", rev));
+    wsRev["!cols"] = gridCols;
+    XLSX.utils.book_append_sheet(wb, wsRev, `Revenue ${year}`);
+
+    const wsExp = XLSX.utils.aoa_to_sheet(gridRows("expenses by car", exp));
+    wsExp["!cols"] = gridCols;
+    XLSX.utils.book_append_sheet(wb, wsExp, `Expenses ${year}`);
+
+    const wsMon = XLSX.utils.aoa_to_sheet(monthRows);
+    wsMon["!cols"] = [{ wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+    // Occupancy is a fraction, so it is formatted as a percentage rather than
+    // written as text — the cell stays a number the spreadsheet can work with.
+    mon.months.forEach((m, i) => {
+      const c = wsMon[XLSX.utils.encode_cell({ r: 4 + i, c: 1 })];
+      if (c) c.z = "0%";
+    });
+    [mon.months.length + 6, mon.months.length + 7].forEach(r => {
+      const c = wsMon[XLSX.utils.encode_cell({ r, c: 1 })];
+      if (c) c.z = "0%";
+    });
+    XLSX.utils.book_append_sheet(wb, wsMon, `Month by month ${year}`);
+
     const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const name = (companyName() || "company").replace(/[^a-z0-9]+/gi, "-").toLowerCase().replace(/^-|-$/g, "");
-    downloadBlob(`revenue-by-car-${name}-${data.year}.xlsx`,
+    const name = co.replace(/[^a-z0-9]+/gi, "-").toLowerCase().replace(/^-|-$/g, "");
+    downloadBlob(`reports-${name}-${year}.xlsx`,
       new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
   } catch (e) {
     alert("Couldn't build the spreadsheet (" + (e.message || e) + "). Try again.");
