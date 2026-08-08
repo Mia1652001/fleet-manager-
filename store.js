@@ -1067,9 +1067,16 @@ export function monthlySummary(year) {
   });
 
   const sum = f => months.reduce((s, m) => s + f(m), 0);
-  const active = months.filter(m => m.active).length;
-  const rentedDays = sum(m => m.rentedDays);
-  const availableDays = sum(m => m.availableDays);
+  const activeMonths = months.filter(m => m.active);
+  const active = activeMonths.length;
+  // Occupancy for the year is weighted across the months that actually traded,
+  // not across all twelve. Dividing a part-finished year by a whole year of
+  // available days is arithmetically true and practically a lie: five busy
+  // months at 15% came out as 6% for the year, sitting under a column of
+  // fifteens. A full year of trading has twelve active months, so a completed
+  // year is unaffected.
+  const rentedDays = activeMonths.reduce((s, m) => s + m.rentedDays, 0);
+  const availableDays = activeMonths.reduce((s, m) => s + m.availableDays, 0);
 
   return {
     year: y,

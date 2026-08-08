@@ -41,16 +41,20 @@ function percent(x) {
 // arrow, same feel as the Summary panels everywhere else.
 const sections = [];
 
-function initSection(name, toggleName, label, defaultOpen) {
+function initSection(name, toggleName) {
   const box = el(root, name);
   const btn = el(root, toggleName);
   if (!box || !btn) return () => true;
 
   const prefKey = `reports:${name}`;
-  let open = loadPref(prefKey, defaultOpen);
+  // Open to begin with: this is the reports page, and a page that opens empty
+  // makes someone hunt for what they came to read. Folding is for the reports
+  // a given person never looks at.
+  let open = loadPref(prefKey, true);
+  const chev = btn.querySelector(".rep-head-chev");
   const paint = () => {
     box.classList.toggle("collapsed", !open);
-    btn.textContent = `${open ? "▾" : "▸"} ${label}`;
+    if (chev) chev.textContent = open ? "▾" : "▸";
   };
   btn.addEventListener("click", () => {
     open = !open;
@@ -64,6 +68,14 @@ function initSection(name, toggleName, label, defaultOpen) {
   return isOpen;
 }
 
+// The figure that rides on the heading row. A folded section should still be
+// worth its line on the page — the name alone tells you nothing you did not
+// already know.
+function setHeadline(name, text) {
+  const e = el(root, name);
+  if (e) e.textContent = text;
+}
+
 let revenueOpen = () => true;
 let expensesOpen = () => true;
 let monthlyOpen = () => true;
@@ -73,12 +85,9 @@ export function mount(container) {
 
   summaryOpen = initPanelToggle(root, "reportsShowSummary", "toggle-summary", "hide-summary", "Summary");
 
-  // All three open to begin with: this is the reports page, and a page that
-  // opens empty makes someone hunt for what they came to read. Folding is
-  // there for the ones a given person never looks at.
-  revenueOpen = initSection("sec-revenue", "tog-revenue", "Revenue by car", true);
-  expensesOpen = initSection("sec-expenses", "tog-expenses", "Expenses by car", true);
-  monthlyOpen = initSection("sec-monthly", "tog-monthly", "Month by month", true);
+  revenueOpen = initSection("sec-revenue", "tog-revenue");
+  expensesOpen = initSection("sec-expenses", "tog-expenses");
+  monthlyOpen = initSection("sec-monthly", "tog-monthly");
 
   el(root, "rep-year").addEventListener("change", () => {
     year = el(root, "rep-year").value;
@@ -111,6 +120,13 @@ export function render() {
   const rev = revenueByCarMonth(year);
   const exp = expensesByCarMonth(year);
   const mon = monthlySummary(year);
+
+  // Headline figures are set whether the section is open or shut — folded is
+  // exactly when they matter.
+  setHeadline("sub-revenue", `${formatAmount(rev.grandTotal)} invoiced`);
+  setHeadline("sub-expenses", `${formatAmount(exp.grandTotal)} spent`);
+  setHeadline("sub-monthly",
+    `${formatAmount(mon.total.net)} net · ${percent(mon.total.occupancy)} occupancy`);
 
   renderSummary(rev, exp, mon);
   if (revenueOpen()) renderCarGrid("rev", rev, "earned");
