@@ -2458,74 +2458,30 @@ input[type="number"] {
   .rep-title { font-size: 1rem; }
 }
 
-/* ---------- Reports: one collapsible block per report ----------
-   Three tables on one page is a lot to scroll past, so each folds away. The
-   state is kept per person per device: the office manager and the accountant
-   want different things open.
-
-   These are headings, not buttons. The first attempt reused the small pill the
-   Summary panels use — right for one quiet toggle on a page, wrong repeated
-   four times, where it read as a stack of loose buttons with the page's own
-   controls stranded among them. A heading row spans the width, states its
-   name, and carries its headline figure so a folded section still tells you
-   something. The whole row is the target, which is also a much easier tap. */
-.rep-section { margin-bottom: 1.5rem; }
-.rep-section.collapsed { margin-bottom: 0.55rem; }
-.rep-section.collapsed > .rep-body { display: none; }
-
-.rep-head {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  width: 100%;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  padding: 4px 2px 8px;
-  margin-bottom: 0.9rem;
-  cursor: pointer;
-  text-align: left;
-  color: var(--text);
-}
-.rep-head:hover { border-bottom-color: var(--text); }
-.rep-head:hover .rep-head-title { color: var(--text); }
-
-.rep-head-chev {
-  font-size: 11px;
-  color: var(--muted);
-  width: 12px;
-  flex-shrink: 0;
-}
-.rep-head-title {
+/* ---------- Reports ----------
+   One report at a time behind a tab row, so each one gets the whole width.
+   The first attempt stacked all three as collapsible panels — what Arshad
+   asked for — but with three headings on screen and a single open table, no
+   heading obviously owned what you were looking at, and nothing got the width
+   a fifteen-column grid needs. */
+.rep-headline {
   font-family: 'Fraunces', serif;
-  font-size: 1.08rem;
+  font-size: 1.25rem;
   font-weight: 400;
+  margin: 0.2rem 0 0.9rem;
 }
-/* The headline figure, pushed to the far end: when the section is folded this
-   is the only thing left, so it has to be the number worth keeping. */
-.rep-head-sub {
-  margin-left: auto;
-  font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  color: var(--muted);
-  text-align: right;
-}
-
-.rep-section.collapsed > .rep-head { margin-bottom: 0; }
 
 @media (max-width: 640px) {
-  .rep-head { flex-wrap: wrap; gap: 4px 8px; }
-  .rep-head-title { font-size: 1rem; }
-  .rep-head-sub { margin-left: 22px; width: 100%; text-align: left; }
-
-  /* Four controls on one line squeezed the year box down to a single digit.
-     It needs room for a four-digit year whatever else is on the row. */
+  .rep-headline { font-size: 1.1rem; }
+  /* Three controls on one line squeezed the year box to a single digit. It
+     needs room for a four-digit year whatever else is on the row. */
   #view-reports [data-el="rep-year"] { min-width: 84px; }
 }
 
-/* Month by month is five columns, not fifteen — it should not stretch a
-   narrow table across a wide screen. */
-.rep-months { width: auto; min-width: 460px; }
+/* Month by month has fewer columns than the car grids, so it carries the
+   working behind the occupancy figure — days rented out of days available —
+   rather than leaving most of the row empty. It fills the width like the rest. */
+.rep-months { width: 100%; min-width: 620px; }
 .rep-neg { color: var(--red-text); }
 
 /* ---------- Reports get the window ----------
@@ -2543,23 +2499,3 @@ input[type="number"] {
   }
 }
 
-/* Month by month has five columns and cannot use that width, so on a wide
-   screen its explanation sits beside it rather than under it. The note has to
-   be read to trust the occupancy figure, and putting it in the gap is better
-   than leaving the gap empty and the note below the fold. */
-@media (min-width: 1000px) {
-  .rep-section[data-el="sec-monthly"] .rep-body {
-    display: flex;
-    align-items: flex-start;
-    gap: 32px;
-  }
-  .rep-section[data-el="sec-monthly"] .rep-note {
-    flex: 1;
-    margin-top: 0;
-    max-width: 52ch;
-  }
-}
-
-/* Month by month is five columns. Left to fill the page it draws a bordered
-   box two-thirds empty, which reads as a table that failed to load. */
-.rep-narrow { width: fit-content; max-width: 100%; }

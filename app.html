@@ -519,11 +519,12 @@
          The grid itself scrolls sideways rather than shrinking to fit — twelve
          money columns squeezed into a phone are unreadable, and finance opens
          this on a desktop anyway. -->
-    <!-- One control line for the whole page — year, download, and the Summary
-         toggle at the far right where every other page keeps it. Then one
-         report per section, each with a proper heading row rather than a loose
-         button: the title, its headline figure, and the fold arrow. The figure
-         is what makes a folded section still worth having on screen. -->
+    <!-- One report at a time, chosen from the same tab row Billing and Tasks
+         use. The first attempt stacked all three as collapsible blocks, which
+         Arshad had asked for — but three headings and one open table left it
+         ambiguous which heading owned the table on screen, and no single report
+         got the width it needed. A tab answers both: one report, full screen,
+         and the others are one click away rather than folded somewhere below. -->
     <section class="view" id="view-reports">
       <div class="toolbar one-line-tools">
         <span class="inline-label">Year</span>
@@ -533,41 +534,15 @@
       </div>
       <div class="stats" data-el="stats"></div>
 
-      <div class="rep-section" data-el="sec-revenue">
-        <button type="button" class="rep-head" data-el="tog-revenue">
-          <span class="rep-head-chev">▾</span>
-          <span class="rep-head-title">Revenue by car</span>
-          <span class="rep-head-sub" data-el="sub-revenue"></span>
-        </button>
-        <div class="rep-body">
-          <div class="rep-wrap" data-el="rev-table"></div>
-          <p class="rep-note" data-el="rev-note"></p>
-        </div>
+      <div class="filter-row" data-el="rep-tabs">
+        <button class="tab active" data-rep="revenue">Revenue by car</button>
+        <button class="tab" data-rep="expenses">Expenses by car</button>
+        <button class="tab" data-rep="monthly">Month by month</button>
       </div>
 
-      <div class="rep-section" data-el="sec-expenses">
-        <button type="button" class="rep-head" data-el="tog-expenses">
-          <span class="rep-head-chev">▾</span>
-          <span class="rep-head-title">Expenses by car</span>
-          <span class="rep-head-sub" data-el="sub-expenses"></span>
-        </button>
-        <div class="rep-body">
-          <div class="rep-wrap" data-el="exp-table"></div>
-          <p class="rep-note" data-el="exp-note"></p>
-        </div>
-      </div>
-
-      <div class="rep-section" data-el="sec-monthly">
-        <button type="button" class="rep-head" data-el="tog-monthly">
-          <span class="rep-head-chev">▾</span>
-          <span class="rep-head-title">Month by month</span>
-          <span class="rep-head-sub" data-el="sub-monthly"></span>
-        </button>
-        <div class="rep-body">
-          <div class="rep-wrap rep-narrow" data-el="mon-table"></div>
-          <p class="rep-note" data-el="mon-note"></p>
-        </div>
-      </div>
+      <div class="rep-headline" data-el="rep-headline"></div>
+      <div class="rep-wrap" data-el="rep-table"></div>
+      <p class="rep-note" data-el="rep-note"></p>
     </section>
 
     <section class="view" id="view-maintenance">
