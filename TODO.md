@@ -23,6 +23,16 @@ testing period. New features wait; fixes to existing behaviour go out as found.
       total and both deposits, per-booking, with a confirmation on paid
       bookings.
 
+- [x] **Consecutive receipt numbers (MRA)** — done (v101). A receipt now carries
+      its own serial, separate from the scrambled booking reference: optional
+      company prefix, the year, then a four-digit counter that restarts each
+      January (OCR-2026-0001). The number is allocated by a Firestore
+      transaction on the settings document, so two people pressing Receipt at
+      the same moment cannot be given the same one, and issuing is blocked
+      offline for the same reason. The suggested number can be overwritten to
+      continue a paper book — a number already used on another receipt is
+      refused. Once issued the number is fixed and reprints identically.
+
 ## Planner & bookings
 - [x] **Dates shown while dragging** — a floating tag follows the cursor:
       moving a bar shows the projected dates (and target car on a diagonal

@@ -6,12 +6,13 @@
 
 import { db, setSync } from "./firebase-init.js";
 import { openAgreement, openConfirmation, openReceipt, emailBooking, whatsappBooking, CAR_OUTLINE } from "./agreement.js";
-import { collection, addDoc, updateDoc, deleteDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, updateDoc, deleteDoc, doc, arrayUnion, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
   makeBookingRef, bookingRef, showToast,
   staffNames, locationNames, brokerNames, FX_CURRENCIES, fxRate, deleteBookingWarning,
   rentalDays, formatAmount, defaultBankChargePct,
+  receiptPrefix, formatReceiptNo, receiptNo, hasReceiptNo, receiptNoTaken,
   startTime, endTime,
   fillTimeOptions, getTime, setTime, onTimeChange,
   getSwatch, setSwatch,
@@ -45,11 +46,9 @@ export function mountBookingForm() {
   });
   wireDamageAndSignature();
   const rcptBtn = el(root, "print-receipt");
-  if (rcptBtn) rcptBtn.addEventListener("click", () => {
-    if (!editingBookingId) return;
-    const r = openReceipt(editingBookingId);
-    if (!r.ok) showError(root, "booking-error", r.reason);
-  });
+  if (rcptBtn) rcptBtn.addEventListener("click", onReceiptClicked);
+  const rcptGo = el(root, "receipt-go");
+  if (rcptGo) rcptGo.addEventListener("click", issueReceipt);
   const confBtn = el(root, "print-confirmation");
   if (confBtn) confBtn.addEventListener("click", () => {
     if (!editingBookingId) return;
@@ -354,6 +353,153 @@ function syncExtrasHint() {
   hint.textContent = parts.length
     ? `Recorded in the books as: ${parts.join(" · ")} (at ${Math.round(fx.rate * 100) / 100}/${fx.sym})`
     : `Typed in ${fx.sym}; the ${home} equivalent records automatically.`;
+}
+
+// ---------- Receipt numbers ----------
+// The MRA wants a serial number on a receipt, which means consecutive. The
+// booking reference cannot do that job — it is scrambled on purpose — so the
+// receipt gets its own number, allocated once and then fixed on the booking.
+//
+// Allocation runs as a Firestore transaction against the company's settings
+// document, which is what makes it safe when two people at two desks press
+// Receipt in the same second: the second transaction sees the first one's
+// write and takes the next number instead of the same one.
+//
+// That also means it needs the server. The app otherwise works offline by
+// design, but a number that might duplicate is worse than no receipt for five
+// minutes, so issuing is blocked rather than guessed at.
+
+function receiptYear() { return todayStr().slice(0, 4); }
+
+function onReceiptClicked() {
+  if (!editingBookingId) return;
+  const b = state.bookings.find(x => x.id === editingBookingId);
+  if (!b) return;
+
+  // Already issued: print exactly what the customer was given, no questions.
+  if (hasReceiptNo(b)) {
+    const r = openReceipt(editingBookingId);
+    if (!r.ok) showError(root, "booking-error", r.reason);
+    return;
+  }
+
+  // Nothing received yet is the same refusal as before, and worth making before
+  // a number is burned on a receipt that should not exist.
+  if (!b.paid && !(Number(b.advancePaid) > 0)) {
+    showError(root, "booking-error",
+      "Nothing has been received on this booking yet — mark the balance paid, or record an advance, first.");
+    return;
+  }
+
+  showError(root, "receipt-error", null);
+  const year = receiptYear();
+  const next = (Number(state.settings?.receiptSeq?.[year]) || 0) + 1;
+  setVal(root, "receipt-no", formatReceiptNo(next, year));
+  const hint = el(root, "receipt-hint");
+  if (hint) {
+    hint.textContent =
+      `Suggested next number. Change it if you are continuing a numbering you already use — ` +
+      `a number already on another receipt will be refused. Once issued it cannot be edited.`;
+  }
+  openModal(root, "receipt-modal");
+  const box = el(root, "receipt-no");
+  if (box) setTimeout(() => { box.focus(); box.select(); }, 30);
+}
+
+async function issueReceipt() {
+  const id = editingBookingId;
+  if (!id) return;
+  const btn = el(root, "receipt-go");
+  const typed = val(root, "receipt-no").trim();
+
+  if (!typed) { showError(root, "receipt-error", "Enter a receipt number, or cancel."); return; }
+  if (receiptNoTaken(typed, id)) {
+    showError(root, "receipt-error",
+      `Receipt ${typed} has already been issued on another booking. Use a different number.`);
+    return;
+  }
+  if (navigator.onLine === false) {
+    showError(root, "receipt-error",
+      "No connection. A receipt number has to be issued online so two people cannot be given the same one. Reconnect and try again.");
+    return;
+  }
+
+  showError(root, "receipt-error", null);
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = "Issuing...";
+  setSync("saving");
+
+  const year = receiptYear();
+  const auto = formatReceiptNo((Number(state.settings?.receiptSeq?.[year]) || 0) + 1, year);
+
+  try {
+    const settingsRef = doc(db, "settings", state.ctx.companyId);
+    const bookingRefDoc = doc(db, "bookings", id);
+
+    const issued = await withTimeout(runTransaction(db, async (tx) => {
+      // Both reads happen before any write — Firestore requires that order.
+      const snap = await tx.get(settingsRef);
+      const bSnap = await tx.get(bookingRefDoc);
+
+      // Someone at another desk may have issued this receipt while this dialog
+      // was open. If so, keep their number rather than issuing a second one.
+      const already = bSnap.exists() ? String(bSnap.data().receiptNo || "") : "";
+      if (already) return already;
+
+      const data = snap.exists() ? snap.data() : {};
+      const seqMap = (data.receiptSeq && typeof data.receiptSeq === "object") ? { ...data.receiptSeq } : {};
+      const used = Number(seqMap[year]) || 0;
+      const prefix = String(data.receiptPrefix || "")
+        .toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
+
+      // Taking the suggested number is what advances the counter. A number
+      // typed by hand does not: it usually continues a paper book, and moving
+      // the counter to match would leave a gap in the app's own run.
+      let number = typed;
+      if (typed === auto) {
+        const next = used + 1;
+        seqMap[year] = next;
+        number = formatReceiptNo(next, year, prefix);
+        tx.set(settingsRef, { companyId: state.ctx.companyId, receiptSeq: seqMap }, { merge: true });
+      }
+
+      tx.update(bookingRefDoc, {
+        receiptNo: number,
+        receiptIssuedAt: new Date().toISOString(),
+        receiptIssuedBy: state.ctx?.user?.email || ""
+      });
+      return number;
+    }), 12000);
+
+    closeModal(root, "receipt-modal");
+    setSync("live");
+    showToast(`Receipt ${issued} issued`);
+
+    // The local copy may not have caught up with the write yet, so the number
+    // is handed to the printable directly rather than read back from state.
+    const r = openReceipt(id, issued);
+    if (!r.ok) showError(root, "booking-error", r.reason);
+    announce();
+  } catch (err) {
+    setSync("error");
+    const code = err && (err.code || err.message) || "";
+    showError(root, "receipt-error",
+      /timeout|unavailable|offline|network/i.test(String(code))
+        ? "Could not reach the server, so no number was issued. Check the connection and try again."
+        : `Could not issue a receipt number (${code}). Nothing was saved — try again.`);
+  }
+  btn.disabled = false;
+  btn.textContent = label;
+}
+
+// Firestore retries a transaction rather than failing fast on a poor
+// connection, which would leave the button saying "Issuing..." indefinitely.
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))
+  ]);
 }
 
 // ---------- Bank charge on card payments ----------
@@ -730,7 +876,13 @@ export function openBookingModal(bookingId, preset) {
     const cb = el(root, "print-confirmation");
     if (cb) cb.style.display = editing ? "inline-block" : "none";
     const rb = el(root, "print-receipt");
-    if (rb) rb.style.display = editing ? "inline-block" : "none";
+    if (rb) {
+      rb.style.display = editing ? "inline-block" : "none";
+      // Once a receipt has a number, the button carries it — staff can see at a
+      // glance that this booking has already been receipted, and which one.
+      rb.textContent = editing && hasReceiptNo(editing)
+        ? `Receipt ${receiptNo(editing)}` : "Receipt";
+    }
     const db2 = el(root, "damage-btn");
     if (db2) db2.style.display = editing ? "inline-block" : "none";
     const sb = el(root, "sign-btn");

@@ -579,6 +579,51 @@ export function bookingRef(b) {
   return `${refPrefix(b.createdAt || b.startDate)}-${body}`;
 }
 
+// ---------- Receipt numbers ----------
+// The Mauritius Revenue Authority wants a serial number on a receipt, and a
+// serial number means consecutive. The booking reference cannot serve: it is
+// deliberately scrambled from the record id so it is unique and hard to
+// mistype, which is the opposite of what a serial number is for. So a receipt
+// carries its own number, allocated the first time one is issued and then
+// fixed on the booking for good — reprint a receipt years later and it shows
+// the number the customer was given.
+//
+// Numbering restarts each year, which is ordinary practice and puts the year on
+// the face of the document.
+
+// The company's own prefix, e.g. "OCR". Letters, digits and dashes only, so a
+// stray space or slash cannot make a number that reads as two.
+export function receiptPrefix() {
+  return String(state.settings?.receiptPrefix || "")
+    .toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
+}
+
+// "OCR-2026-0001", or "2026-0001" for a company that has set no prefix.
+export function formatReceiptNo(seq, year, prefix) {
+  const p = prefix === undefined ? receiptPrefix() : String(prefix || "");
+  const body = `${year}-${String(seq).padStart(4, "0")}`;
+  return p ? `${p}-${body}` : body;
+}
+
+// The number on a booking's receipt, or "" if none has been issued yet.
+export function receiptNo(b) { return String(b?.receiptNo || ""); }
+export function hasReceiptNo(b) { return !!receiptNo(b); }
+
+// Every receipt number already handed out, so a manual entry cannot repeat one.
+// Compared on letters and digits only, so spelling differences do not let the
+// same number through twice: "ocr 2026 0001", "OCR-2026-0001" and
+// "OCR/2026/0001" are one number to everyone except a computer.
+function normaliseReceiptNo(v) {
+  return String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+export function receiptNoTaken(candidate, exceptBookingId) {
+  const want = normaliseReceiptNo(candidate);
+  if (!want) return false;
+  return state.bookings.some(b =>
+    b.id !== exceptBookingId && normaliseReceiptNo(b.receiptNo) === want);
+}
+
 // Has the rental actually begun? Only started rentals count towards money owed.
 export function hasStarted(b) {
   return b.startDate <= todayStr() || b.status === "completed";

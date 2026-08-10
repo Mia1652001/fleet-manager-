@@ -116,6 +116,7 @@ export function render() {
   setVal(root, "s-website", s.website || "");
   setVal(root, "s-address", s.address || "");
   setVal(root, "s-currency", s.currency || "");
+  setVal(root, "s-receiptprefix", s.receiptPrefix || "");
   setVal(root, "s-bankcharge",
     (typeof s.bankChargePct === "number" && s.bankChargePct > 0) ? s.bankChargePct : "");
   // Show the matching preset rather than "Choose a currency…" next to a symbol
@@ -330,6 +331,9 @@ async function saveSettings() {
     website: val(root, "s-website"),
     address: val(root, "s-address"),
     currency: val(root, "s-currency"),
+    // Uppercased and stripped here as well as on the way out, so what is
+    // stored is exactly what a receipt will print.
+    receiptPrefix: val(root, "s-receiptprefix").toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8),
     // Blank means "we never take cards" and must stay distinguishable
     // from a rate of zero, so it is stored as null rather than 0.
     bankChargePct: (function () {

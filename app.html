@@ -478,6 +478,26 @@
       <div class="list-total" data-el="list-total"></div>
       <div class="card-list" data-el="list"><div class="loading-screen">Loading invoices...</div></div>
 
+      <!-- Asked once, the first time a receipt is issued for a booking. After
+           that the number is fixed on the booking and reprints show the same
+           one — a receipt whose number changed between printings would be
+           worse than no number at all. -->
+      <div class="overlay" data-el="receipt-modal">
+        <div class="modal">
+          <h2>Receipt number</h2>
+          <div class="form-error" data-el="receipt-error"></div>
+          <div class="field">
+            <label for="receipt-no">Number on this receipt</label>
+            <input id="receipt-no" data-el="receipt-no" placeholder="loading...">
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin:-4px 0 10px;" data-el="receipt-hint"></div>
+          <div class="modal-actions">
+            <button class="btn" data-close="receipt-modal">Cancel</button>
+            <button class="btn-primary" data-el="receipt-go">Issue receipt</button>
+          </div>
+        </div>
+      </div>
+
       <div class="overlay" data-el="deposit-modal">
         <div class="modal">
           <h2>Deposits</h2>
@@ -714,6 +734,19 @@
               converted amount automatically (still editable). Leave a currency
               blank to type conversions by hand. Update these when the market
               moves enough to matter.</p>
+          </div>
+
+          <div class="field">
+            <label for="s-receiptprefix">Receipt number prefix</label>
+            <input type="text" id="s-receiptprefix" data-el="s-receiptprefix"
+                   maxlength="8" placeholder="e.g. OCR" style="max-width:160px;text-transform:uppercase;">
+            <p class="settings-note">Receipts carry a consecutive number, which is
+              what the MRA expects on a receipt. This is the letters in front of
+              it: with "OCR" the numbers read OCR-2026-0001, OCR-2026-0002 and so
+              on, restarting each January. Leave it blank for plain 2026-0001.
+              Letters and digits only. Changing it later affects new receipts
+              only — a receipt already issued keeps the number the customer
+              was given.</p>
           </div>
 
           <div class="field">

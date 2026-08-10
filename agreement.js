@@ -19,7 +19,7 @@ import {
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor,
   startTime, endTime, customerForBooking, companyName, companyTerms, todayStr,
   deliveryCost, insuranceCost, otherCost, invoiceTotal, extrasTotal, fxPair,
-  bankCharge, bankChargePct, amountDue
+  bankCharge, bankChargePct, amountDue, receiptNo
 } from "./store.js";
 
 function line(label, value) {
@@ -542,17 +542,25 @@ export function openConfirmation(bookingId) {
 // A receipt is proof that money was received — the third printed document,
 // built from the same blocks so all three are visibly the same family. It
 // states what was paid, when, and what (if anything) remains.
-export function openReceipt(bookingId) {
+export function openReceipt(bookingId, justIssuedNo) {
   const b = state.bookings.find(x => x.id === bookingId);
   if (!b) return { ok: false, reason: "That booking could not be found." };
   if (!b.paid && !(Number(b.advancePaid) > 0)) {
     return { ok: false, reason: "Nothing has been received on this booking yet — mark the balance paid, or record an advance, first." };
   }
-  return openPrintable(receiptHtml(b));
+  // The number is passed in when it has only just been allocated: the write is
+  // on its way to the server but this device's copy of the booking may not
+  // carry it yet, and a receipt printing without its number would be the one
+  // failure this whole feature exists to prevent.
+  return openPrintable(receiptHtml(b, justIssuedNo));
 }
 
-function receiptHtml(b) {
+function receiptHtml(b, justIssuedNo) {
   const ref = bookingRef(b);
+  // The serial number the MRA expects. Old receipts issued before numbering
+  // existed have none, and fall back to the booking reference so a reprint of
+  // an old one still identifies itself.
+  const serial = String(justIssuedNo || receiptNo(b) || "");
   const customer = customerForBooking(b);
   // What the client actually handed over includes the card fee, so a receipt
   // that showed only the rental would not match their statement.
@@ -564,7 +572,7 @@ function receiptHtml(b) {
 
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
-<title>Receipt ${esc(ref)}</title>
+<title>Receipt ${esc(serial || ref)}</title>
 ${DOC_STYLES}
 </head><body>
 
@@ -574,7 +582,8 @@ ${DOC_ACTIONS}
     ${companyBlock()}
     <div class="ag-title">
       <h1>Receipt</h1>
-      <div class="ag-ref">${esc(ref)}</div>
+      <div class="ag-ref">${esc(serial || ref)}</div>
+      ${serial ? `<div class="ag-issued">Booking ${esc(ref)}</div>` : ""}
       <div class="ag-issued">Issued ${esc(formatDate(todayStr()))}</div>
     </div>
   </div>
@@ -622,7 +631,7 @@ ${DOC_ACTIONS}
     <div></div>
   </div>
 
-  ${docFoot(`Receipt ${ref}`)}
+  ${docFoot(`Receipt ${serial || ref}${serial ? ` · booking ${ref}` : ""}`)}
 
   ${SELF_PRINT}
 
