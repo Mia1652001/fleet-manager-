@@ -2,7 +2,7 @@
 // Signs the user in, loads all company data once, keeps it live, and switches
 // between views without ever reloading the page.
 
-import { db, auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setSync } from "./firebase-init.js";
+import { db, auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setSync, sendPasswordResetEmail } from "./firebase-init.js";
 import { collection, query, where, onSnapshot, doc, getDoc, getDocFromServer, terminate, clearIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, bookingRef, loadPref, savePref, bankCharge, bankChargePct, amountDue } from "./store.js";
 
@@ -159,6 +159,56 @@ document.getElementById("login-btn").addEventListener("click", doLogin);
 // Enter works from either field — half of sign-ins stop at the email box.
 document.getElementById("login-email").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
 document.getElementById("login-password").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+
+// ---------- Forgotten password ----------
+// Firebase sends the reset email and hosts the page the link opens, so this
+// works on the free plan with no server. The one deliberate subtlety: whether
+// or not the address has an account, the same message is shown — anything else
+// would let a stranger test which emails are registered.
+async function doForgotPassword() {
+  const email = document.getElementById("login-email").value.trim();
+  const err = document.getElementById("login-error");
+  const note = document.getElementById("login-note");
+  const link = document.getElementById("login-forgot");
+  err.classList.remove("show");
+  note.classList.remove("show");
+
+  if (!email) {
+    err.textContent = "Type your email in the box above first, then press \u201CForgot your password?\u201D again.";
+    err.classList.add("show");
+    return;
+  }
+
+  link.disabled = true;
+  const label = link.textContent;
+  link.textContent = "Sending...";
+  try {
+    await sendPasswordResetEmail(auth, email);
+  } catch (e) {
+    const code = e.code || "";
+    if (/invalid-email/.test(code)) {
+      err.textContent = "That doesn't look like an email address — check it and try again.";
+      err.classList.add("show");
+      link.disabled = false; link.textContent = label;
+      return;
+    }
+    if (/network|unavailable|timeout/i.test(code + e.message)) {
+      err.textContent = "Couldn't reach the server. Check the connection and try again.";
+      err.classList.add("show");
+      link.disabled = false; link.textContent = label;
+      return;
+    }
+    // user-not-found and anything else fall through to the same neutral
+    // message below, on purpose.
+  }
+  note.textContent =
+    `If an account exists for ${email}, a reset link is on its way. ` +
+    `It can take a few minutes and may land in spam — the sender ends in firebaseapp.com. ` +
+    `Open the link, choose a new password, then sign in here with it.`;
+  note.classList.add("show");
+  link.disabled = false; link.textContent = label;
+}
+document.getElementById("login-forgot").addEventListener("click", doForgotPassword);
 
 // ---------- App start ----------
 function startApp() {

@@ -32,6 +32,10 @@
     <div class="field"><label>Email</label><input id="login-email" type="email" placeholder="you@company.com" autocomplete="username"></div>
     <div class="field"><label>Password</label><input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password"></div>
     <button class="btn-primary" id="login-btn">Sign in</button>
+    <!-- Password reset, so a forgotten password never again means asking the
+         administrator — or a password travelling through a WhatsApp thread. -->
+    <button type="button" class="login-forgot" id="login-forgot">Forgot your password?</button>
+    <div class="login-note" id="login-note"></div>
   </div>
 </div>
 
@@ -850,6 +854,38 @@
             <button class="btn" data-el="s-forget-folder" type="button">Forget folder</button>
           </div>
           <p class="settings-note" data-el="backup-result"></p>
+        </div>
+
+        <div class="settings-card">
+          <h3>Your password</h3>
+          <p class="settings-note">Changes the password for your own sign-in
+            (<strong data-el="pw-email">—</strong>) only — colleagues change their
+            own here too. Forgotten it entirely? Sign out and use
+            "Forgot your password?" on the sign-in screen instead.</p>
+
+          <div class="field">
+            <label for="pw-current">Current password</label>
+            <input type="password" id="pw-current" data-el="pw-current"
+              autocomplete="current-password" placeholder="••••••••">
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="pw-new">New password</label>
+              <input type="password" id="pw-new" data-el="pw-new"
+                autocomplete="new-password" placeholder="At least 8 characters">
+            </div>
+            <div class="field">
+              <label for="pw-new2">New password again</label>
+              <input type="password" id="pw-new2" data-el="pw-new2"
+                autocomplete="new-password" placeholder="Same again">
+            </div>
+          </div>
+
+          <div class="error" data-el="pw-error"></div>
+          <div class="settings-actions">
+            <button class="btn-primary" data-el="pw-change">Change password</button>
+            <span class="saved-note" data-el="pw-saved"></span>
+          </div>
         </div>
 
       </div>

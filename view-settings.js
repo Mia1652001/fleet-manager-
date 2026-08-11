@@ -6,9 +6,9 @@
 // number. Backup preferences deliberately stay on the device instead: the folder
 // a backup writes into belongs to one computer and means nothing on another.
 
-import { db, setSync } from "./firebase-init.js";
+import { db, setSync, auth, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "./firebase-init.js";
 import { doc, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, onDataChange, esc, el, val, setVal, showError, FX_CURRENCIES } from "./store.js";
+import { state, onDataChange, esc, el, val, setVal, showError, showToast, FX_CURRENCIES } from "./store.js";
 import {
   CATEGORIES, INTERVALS, backupPrefs, saveBackupPrefs, daysSinceBackup,
   runBackup, folderSupported, folderStatus, chooseFolder, forgetFolder
@@ -66,6 +66,8 @@ export function mount(container) {
       placeholder="e.g. 48">`).join("");
 
   el(root, "save-settings").addEventListener("click", saveSettings);
+  const pwBtn = el(root, "pw-change");
+  if (pwBtn) pwBtn.addEventListener("click", changePassword);
   el(root, "s-logo-file").addEventListener("change", onLogoPicked);
   el(root, "s-logo-clear").addEventListener("click", () => {
     logoData = null; logoTouched = true; paintLogo();
@@ -102,6 +104,13 @@ export function mount(container) {
 export function render() {
   if (!root) return;
   const s = state.settings || {};
+
+  // Whose password the card changes — filled before the focus check below, so
+  // it is right even when the rest of the form is skipped mid-edit.
+  {
+    const who = el(root, "pw-email");
+    if (who) who.textContent = state.ctx?.user?.email || "\u2014";
+  }
 
   // Only refill the form when the user is not part-way through editing it, so a
   // colleague's save elsewhere does not overwrite what is being typed.
@@ -317,6 +326,70 @@ export async function doBackup() {
   }
   btn.disabled = false; btn.textContent = "Back up now";
   await renderBackup();
+}
+
+// ---------- Changing your own password ----------
+// Firebase requires a recent sign-in before it will change a password, so the
+// current password is asked for and checked first (reauthentication) — which
+// is also what stops anyone at an unlocked screen quietly changing it.
+//
+// Passwords are read raw, never through val(): val() trims whitespace, and a
+// password that genuinely starts or ends with a space must survive intact.
+async function changePassword() {
+  showError(root, "pw-error", null);
+  const saved = el(root, "pw-saved");
+  if (saved) saved.textContent = "";
+
+  const user = auth.currentUser;
+  if (!user || !user.email) {
+    showError(root, "pw-error", "Not signed in — reload the page and sign in again.");
+    return;
+  }
+
+  const current = el(root, "pw-current").value;
+  const next = el(root, "pw-new").value;
+  const again = el(root, "pw-new2").value;
+
+  if (!current) { showError(root, "pw-error", "Enter your current password first."); return; }
+  if (next.length < 8) {
+    // Firebase's own floor is 6; 8 costs nothing to type and rules out the
+    // very shortest passwords without inventing complexity rules nobody keeps.
+    showError(root, "pw-error", "The new password needs at least 8 characters.");
+    return;
+  }
+  if (next !== again) { showError(root, "pw-error", "The two new passwords don't match."); return; }
+  if (next === current) { showError(root, "pw-error", "The new password is the same as the current one."); return; }
+
+  const btn = el(root, "pw-change");
+  btn.disabled = true; btn.textContent = "Changing...";
+  setSync("saving");
+  try {
+    await reauthenticateWithCredential(user,
+      EmailAuthProvider.credential(user.email, current));
+    await updatePassword(user, next);
+
+    ["pw-current", "pw-new", "pw-new2"].forEach(n => { el(root, n).value = ""; });
+    setSync("live");
+    if (saved) saved.textContent = "Password changed.";
+    // Firebase signs this user out everywhere else when the password changes;
+    // this device stays signed in. Said out loud, or a colleague's phone
+    // suddenly showing the login screen looks like a fault.
+    showToast("Password changed — any other device signed in as you will need the new one");
+  } catch (e) {
+    setSync("error");
+    const code = e.code || "";
+    showError(root, "pw-error",
+      /wrong-password|invalid-credential|invalid-login-credentials/.test(code)
+        ? "The current password is wrong."
+        : /weak-password/.test(code)
+        ? "That new password is too weak — choose a longer one."
+        : /too-many-requests/.test(code)
+        ? "Too many attempts — wait a few minutes and try again."
+        : /network|unavailable|timeout/i.test(code + (e.message || ""))
+        ? "Couldn't reach the server. Check the connection and try again."
+        : "Couldn't change the password (" + (code || e.message) + "). Try again.");
+  }
+  btn.disabled = false; btn.textContent = "Change password";
 }
 
 // ---------- Saving company details ----------
