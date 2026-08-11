@@ -2169,9 +2169,10 @@ input[type="number"] {
 .damage-row input { flex: 1; }
 .sign-pad { width: 100%; height: auto; border: 1px solid var(--border); border-radius: 4px; background: #fff; touch-action: none; display: block; }
 
-/* The damage and signature dialogs open from inside the booking form, so they
-   must paint above it — explicit stacking, immune to DOM order. */
+/* The damage, signature and receipt-number dialogs open from inside the booking
+   form, so they must paint above it — explicit stacking, immune to DOM order. */
 .overlay[data-el="damage-modal"],
+.overlay[data-el="receipt-modal"],
 .overlay[data-el="sign-modal"] { z-index: 110; }
 
 /* Per-category totals on the Expenses page: a strip of small cards that

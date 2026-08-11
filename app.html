@@ -478,26 +478,6 @@
       <div class="list-total" data-el="list-total"></div>
       <div class="card-list" data-el="list"><div class="loading-screen">Loading invoices...</div></div>
 
-      <!-- Asked once, the first time a receipt is issued for a booking. After
-           that the number is fixed on the booking and reprints show the same
-           one — a receipt whose number changed between printings would be
-           worse than no number at all. -->
-      <div class="overlay" data-el="receipt-modal">
-        <div class="modal">
-          <h2>Receipt number</h2>
-          <div class="form-error" data-el="receipt-error"></div>
-          <div class="field">
-            <label for="receipt-no">Number on this receipt</label>
-            <input id="receipt-no" data-el="receipt-no" placeholder="loading...">
-          </div>
-          <div style="font-size:11px;color:var(--muted);margin:-4px 0 10px;" data-el="receipt-hint"></div>
-          <div class="modal-actions">
-            <button class="btn" data-close="receipt-modal">Cancel</button>
-            <button class="btn-primary" data-el="receipt-go">Issue receipt</button>
-          </div>
-        </div>
-      </div>
-
       <div class="overlay" data-el="deposit-modal">
         <div class="modal">
           <h2>Deposits</h2>
@@ -1010,6 +990,26 @@
   <datalist id="dl-expense-categories"></datalist>
 
 <div id="booking-form-root">
+  <!-- Asked once, the first time a receipt is issued for a booking. After
+       that the number is fixed on the booking and reprints show the same
+       one — a receipt whose number changed between printings would be
+       worse than no number at all. -->
+  <div class="overlay" data-el="receipt-modal">
+    <div class="modal">
+      <h2>Receipt number</h2>
+      <div class="form-error" data-el="receipt-error"></div>
+      <div class="field">
+        <label for="receipt-no">Number on this receipt</label>
+        <input id="receipt-no" data-el="receipt-no" placeholder="loading...">
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin:-4px 0 10px;" data-el="receipt-hint"></div>
+      <div class="modal-actions">
+        <button class="btn" data-close="receipt-modal">Cancel</button>
+        <button class="btn-primary" data-el="receipt-go">Issue receipt</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Damage marks: tap the company's own car drawing where the damage is;
        each mark gets a number and a note, and prints on the agreement. -->
   <div class="overlay" data-el="damage-modal" id="damage-modal-root">

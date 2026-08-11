@@ -1201,7 +1201,11 @@ export function setChecked(root, name, v) {
 
 export function openModal(root, name) {
   const m = el(root, name);
-  if (!m) return;
+  // A dialog that is not inside the root asking for it can never open, and
+  // returning quietly makes that look like a dead button. It cost a released
+  // version once: the receipt dialog was written into the billing page while
+  // the booking form was the one opening it, so the button did nothing at all.
+  if (!m) { console.warn(`openModal: no dialog "${name}" inside`, root); return; }
   m.classList.add("open");
   // A dialog is a scrolling box that keeps the position it was left at, so
   // reopening one landed wherever the last person stopped reading. On the
