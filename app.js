@@ -489,12 +489,19 @@ function safeName() {
 }
 
 function exportJson() {
+  // Everything, not just the big three. This file is named "fleet-backup" and
+  // someone will keep it believing it is one — a backup missing the tasks,
+  // the expense ledger and the company settings would betray that belief the
+  // day it was needed. (Service history rides along inside each car.)
   const data = {
     exportedAt: new Date().toISOString(),
     company: { id: state.ctx.companyId, name: state.ctx.companyName },
+    settings: state.settings,
     cars: state.cars,
     bookings: state.bookings,
-    customers: state.customers
+    customers: state.customers,
+    tasks: state.tasks,
+    expenses: state.expenses
   };
   download(`fleet-backup-${safeName()}-${stamp()}.json`, JSON.stringify(data, null, 2), "application/json");
 }
@@ -512,7 +519,9 @@ function exportBookingsCsv() {
   const headers = ["Reference","Customer","Phone","Car","Pick-up","Return","Days","Daily rate","Rental total","Bank charge %","Bank charge","Total due","Advance paid","Balance","Security deposit","Deposit status","Paid","Paid on","Status","Broker","Currency","Total (foreign)","Advance (foreign)","Security (foreign)","Delivery (foreign)","Insurance (foreign)","Other (foreign)"];
   const rows = state.bookings
     .slice()
-    .sort((a,b) => b.startDate.localeCompare(a.startDate))
+    // Guarded like the same sort in backup.js: one corrupt booking without a
+    // start date must not crash the whole export.
+    .sort((a,b) => (b.startDate || "").localeCompare(a.startDate || ""))
     .map(b => [
       bookingRef(b), b.renter || "", b.phone || "", bookingCarLabel(b),
       b.startDate || "", b.endDate || "",

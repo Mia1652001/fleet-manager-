@@ -525,12 +525,23 @@ function cardChargeBase() {
     rental = Math.max(0, parseFloat(typed) || 0);
   } else {
     // Blank means "calculate from the daily rate", which is what saving will do.
-    const car = state.cars.find(c => c.id === el(root, "b-car").value);
+    // Same rate rule as saving: an existing booking keeps its snapshotted rate
+    // unless the car has been changed, so the preview and the saved figure can
+    // never disagree.
+    const selectedCarId = el(root, "b-car").value;
+    const car = state.cars.find(c => c.id === selectedCarId);
+    const editingB = editingBookingId
+      ? state.bookings.find(x => x.id === editingBookingId)
+      : null;
+    const rate = (editingB && editingB.carId === selectedCarId &&
+                  typeof editingB.dailyRate === "number")
+      ? editingB.dailyRate
+      : (car?.dailyRate || 0);
     const days = rentalDays({
       startDate: val(root, "b-start"), endDate: val(root, "b-end"),
       startTime: getTime(root, "b-start-time"), endTime: getTime(root, "b-end-time")
     });
-    rental = Math.max(0, days * (car?.dailyRate || 0));
+    rental = Math.max(0, days * rate);
   }
   return rental + extras;
 }
@@ -946,7 +957,10 @@ async function saveBooking() {
   } else {
     const c = state.customers.find(x => x.id === choice);
     if (!c) { showError(root, "booking-error", "Pick a customer."); return; }
-    customerId = c.id; renter = c.name; phone = c.phone || "";
+    // Email is copied the same way the phone is. Leaving it out meant saving
+    // an edit wrote email: "" onto the booking — harmless for sending (which
+    // falls back to the customer record) but needlessly asymmetric.
+    customerId = c.id; renter = c.name; phone = c.phone || ""; email = c.email || "";
   }
 
   if (!carId || !startDate || !endDate) {
@@ -991,7 +1005,18 @@ async function saveBooking() {
     }
 
     const car = state.cars.find(x => x.id === carId);
-    const dailyRate = car?.dailyRate || 0;
+    // The daily rate is snapshotted when the booking is created and then kept
+    // through every edit — that is the promise the whole billing model makes.
+    // This used to re-copy the car's *current* rate on every save, so opening
+    // an old booking just to fix a note silently repriced it if the car's rate
+    // had changed since. The snapshot moves only when the booking is put on a
+    // different car, which is the same rule the drag-to-move dialog applies.
+    const prevSnapshot = editingBookingId
+      ? state.bookings.find(x => x.id === editingBookingId)
+      : null;
+    const keepRate = prevSnapshot && prevSnapshot.carId === carId &&
+      typeof prevSnapshot.dailyRate === "number";
+    const dailyRate = keepRate ? prevSnapshot.dailyRate : (car?.dailyRate || 0);
     const carName = car ? `${car.year || ""} ${car.make} ${car.model} (${car.plate || "no plate"})`.trim() : "";
 
     const totalRaw = val(root, "b-total");

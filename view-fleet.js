@@ -382,25 +382,36 @@ async function doImport() {
   const btn = el(root, "import-go");
   btn.disabled = true; btn.textContent = "Importing...";
   setSync("saving");
+  // Firestore caps a batch at 500 writes, so a big file goes in chunks. A
+  // normal import fits one chunk and stays all-or-nothing exactly as before;
+  // a huge one commits chunk by chunk, and if a later chunk fails the message
+  // says how many cars did arrive rather than pretending nothing happened.
+  const CHUNK = 450;
+  let written = 0;
   try {
-    // One batch: either the whole list arrives, or none of it does.
-    const batch = writeBatch(db);
-    importReady.forEach(c => {
-      batch.set(doc(collection(db, "cars")), {
-        companyId: state.ctx.companyId,
-        automatic: false, rowColour: "",
-        ...c,
-        // Rates after the spread: an empty Weekly/Monthly column in the file
-        // must not zero out the 7x/30x defaults computed from the daily rate.
-        weeklyRate: c.weeklyRate || (c.dailyRate ? c.dailyRate * 7 : 0),
-        monthlyRate: c.monthlyRate || (c.dailyRate ? c.dailyRate * 30 : 0)
+    for (let i = 0; i < importReady.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      importReady.slice(i, i + CHUNK).forEach(c => {
+        batch.set(doc(collection(db, "cars")), {
+          companyId: state.ctx.companyId,
+          automatic: false, rowColour: "",
+          ...c,
+          // Rates after the spread: an empty Weekly/Monthly column in the file
+          // must not zero out the 7x/30x defaults computed from the daily rate.
+          weeklyRate: c.weeklyRate || (c.dailyRate ? c.dailyRate * 7 : 0),
+          monthlyRate: c.monthlyRate || (c.dailyRate ? c.dailyRate * 30 : 0)
+        });
       });
-    });
-    await batch.commit();
+      await batch.commit();
+      written += Math.min(CHUNK, importReady.length - i);
+    }
     closeModal(root, "import-modal");
     importReady = [];
   } catch (e) {
-    showError(root, "import-error", "Import failed (" + (e.code || e.message) + "). Nothing was added — try again.");
+    showError(root, "import-error",
+      written === 0
+        ? "Import failed (" + (e.code || e.message) + "). Nothing was added — try again."
+        : `Import stopped partway (${e.code || e.message}). ${written} of ${importReady.length} cars were added — remove those rows from the file and import the rest.`);
     setSync("error");
   }
   btn.disabled = false; btn.textContent = "Import";

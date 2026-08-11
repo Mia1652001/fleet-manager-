@@ -7,7 +7,7 @@
 // a backup writes into belongs to one computer and means nothing on another.
 
 import { db, setSync } from "./firebase-init.js";
-import { doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { state, onDataChange, esc, el, val, setVal, showError, FX_CURRENCIES } from "./store.js";
 import {
   CATEGORIES, INTERVALS, backupPrefs, saveBackupPrefs, daysSinceBackup,
@@ -152,13 +152,16 @@ function linesFrom(arr) {
   return Array.isArray(arr) ? arr.join("\n") : "";
 }
 
-// The house rates as an object keyed by symbol; only positive numbers are
-// kept, so a cleared field simply removes that currency's rate.
+// The house rates as an object keyed by symbol. A cleared field must actually
+// remove that currency's rate from the database: the save uses merge:true,
+// which deep-merges maps, so simply leaving the key out kept the old rate
+// alive — clearing a rate on screen did nothing and it came straight back.
+// deleteField() is Firestore's way of saying "remove this key" inside a merge.
 function collectFxRates() {
   const out = {};
   root.querySelectorAll("[data-fxrate]").forEach(inp => {
     const n = parseFloat(inp.value);
-    if (Number.isFinite(n) && n > 0) out[inp.dataset.fxrate] = n;
+    out[inp.dataset.fxrate] = (Number.isFinite(n) && n > 0) ? n : deleteField();
   });
   return out;
 }

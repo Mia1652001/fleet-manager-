@@ -518,6 +518,15 @@ async function saveDeposits() {
 
   const b = state.bookings.find(x => x.id === depositBookingId);
 
+  // An advance larger than the whole invoice clamps the balance to zero and
+  // the overpayment becomes invisible — usually it is a typo (an extra digit,
+  // or the security deposit typed into the wrong box). Named and confirmed
+  // rather than refused, because a genuine overpayment does happen.
+  const due = amountDue(b);
+  if (advance > due && !confirm(
+    `The advance (${formatAmount(advance)}) is more than the whole amount due on this booking (${formatAmount(due)}).\n\n` +
+    `Check it is not a typo — or the security deposit in the wrong box.\n\nSave it anyway?`)) return;
+
   // Foreign amounts need their Rs twin: a €100 advance with no Rs value gives
   // the books nothing to record.
   const sym = b?.fxCurrency || "";
