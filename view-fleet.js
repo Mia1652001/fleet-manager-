@@ -408,10 +408,21 @@ async function doImport() {
     closeModal(root, "import-modal");
     importReady = [];
   } catch (e) {
-    showError(root, "import-error",
-      written === 0
-        ? "Import failed (" + (e.code || e.message) + "). Nothing was added — try again."
-        : `Import stopped partway (${e.code || e.message}). ${written} of ${importReady.length} cars were added — remove those rows from the file and import the rest.`);
+    if (written === 0) {
+      showError(root, "import-error",
+        "Import failed (" + (e.code || e.message) + "). Nothing was added — try again.");
+    } else {
+      // Some chunks landed. Leaving the list armed meant pressing Import again
+      // would write the successful chunk a second time, so the list is cleared
+      // (doImport refuses an empty list) and the file has to be picked again —
+      // its preview then skips the plates that already arrived, so only the
+      // missing cars import.
+      const total = importReady.length;
+      importReady = [];
+      showError(root, "import-error",
+        `Import stopped partway (${e.code || e.message}). ${written} of ${total} cars were added. ` +
+        `Choose the file again — the preview will skip the ones already in your fleet and import the rest.`);
+    }
     setSync("error");
   }
   btn.disabled = false; btn.textContent = "Import";

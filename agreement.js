@@ -243,7 +243,7 @@ ${DOC_ACTIONS}
       <table class="ag-table">
         ${line("Name", b.renter)}
         ${line("Phone", b.phone || customer?.phone)}
-        ${line("Email", customer?.email)}
+        ${line("Email", b.email || customer?.email)}
         ${line("Passport number", b.passport || customer?.passport)}
         ${line("Licence number", b.licence || customer?.license)}
         ${line("Broker", b.broker)}

@@ -156,6 +156,8 @@ async function doLogin() {
 }
 
 document.getElementById("login-btn").addEventListener("click", doLogin);
+// Enter works from either field — half of sign-ins stop at the email box.
+document.getElementById("login-email").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
 document.getElementById("login-password").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
 
 // ---------- App start ----------

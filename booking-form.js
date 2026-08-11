@@ -119,6 +119,11 @@ export function mountBookingForm() {
     if (rate && Number.isFinite(amount) && amount >= 0) {
       setVal(root, "b-total", Math.round(amount * rate));
     }
+    // setVal fires no input event, so the hints that watch b-total never heard
+    // about the change and kept showing the old figures until some other field
+    // was touched. Refresh them here directly.
+    syncExtrasHint();
+    syncCardCharge();
   });
 
   el(root, "b-contact-toggle").addEventListener("click", () => {
@@ -136,10 +141,15 @@ export function mountBookingForm() {
     location.hash = "#customers";
   });
 
-  ["b-start", "b-end"].forEach(n =>
+  [["b-start", "b-end"]].flat().forEach(n =>
     el(root, n).addEventListener("change", keepReturnAfterPickup));
   onTimeChange(root, "b-start-time", keepReturnAfterPickup);
   onTimeChange(root, "b-end-time", keepReturnAfterPickup);
+  // A time change can add or remove a chargeable day (rentalDays counts real
+  // hours), so the card-charge arithmetic has to follow the times as well as
+  // the dates it already followed.
+  onTimeChange(root, "b-start-time", syncCardCharge);
+  onTimeChange(root, "b-end-time", syncCardCharge);
 
   el(root, "b-colour").addEventListener("click", (e) => {
     const sw = e.target.closest(".swatch");
@@ -167,18 +177,22 @@ export function mountBookingForm() {
 function keepReturnAfterPickup() {
   const sd = val(root, "b-start"), st = getTime(root, "b-start-time");
   let ed = val(root, "b-end"), et = getTime(root, "b-end-time");
-  if (!sd || !st) return;
+  if (sd && st && ed) {
+    // Return date before pick-up: pull it up to the pick-up day
+    if (ed < sd) { setVal(root, "b-end", sd); ed = sd; }
 
-  // Return date before pick-up: pull it up to the pick-up day
-  if (ed && ed < sd) { setVal(root, "b-end", sd); ed = sd; }
-  if (!ed) return;
-
-  // Same day but the return time is not after the pick-up: push it later
-  if (ed === sd && et && et <= st) {
-    const [h, m] = st.split(":").map(Number);
-    const later = h + 2 <= 23 ? `${String(h + 2).padStart(2, "0")}:${String(m).padStart(2, "0")}` : "23:59";
-    setTime(root, "b-end-time", later);
+    // Same day but the return time is not after the pick-up: push it later
+    if (ed === sd && et && et <= st) {
+      const [h, m] = st.split(":").map(Number);
+      const later = h + 2 <= 23 ? `${String(h + 2).padStart(2, "0")}:${String(m).padStart(2, "0")}` : "23:59";
+      setTime(root, "b-end-time", later);
+    }
   }
+  // Times change the day count as surely as dates do, and this function also
+  // moves dates and times itself — programmatically, firing no events. Ending
+  // with the recalculation means the card-charge line can never show a figure
+  // built on a day count that just changed.
+  syncCardCharge();
 }
 
 function toggleNewCustomer() {
@@ -534,7 +548,7 @@ function cardChargeBase() {
       ? state.bookings.find(x => x.id === editingBookingId)
       : null;
     const rate = (editingB && editingB.carId === selectedCarId &&
-                  typeof editingB.dailyRate === "number")
+                  typeof editingB.dailyRate === "number" && editingB.dailyRate > 0)
       ? editingB.dailyRate
       : (car?.dailyRate || 0);
     const days = rentalDays({
@@ -844,9 +858,28 @@ export function openBookingModal(bookingId, preset) {
     syncCurrencyFields();
     setVal(root, "b-passport", editing.passport || "");
     setVal(root, "b-licence", editing.licence || "");
-    setVal(root, "b-delivery", editing.fxDelivery ?? editing.deliveryCost ?? "");
-    setVal(root, "b-insurance", editing.fxInsurance ?? editing.insuranceCost ?? "");
-    setVal(root, "b-other", editing.fxOther ?? editing.otherCost ?? "");
+    // The foreign figure when one is stored. When there is none but a currency
+    // is set — a booking whose extras were recorded in Rs before extras could
+    // be typed in the currency — the Rs amount is converted INTO the currency
+    // at this booking's own rate for display. Without that, the raw Rs figure
+    // sat in a field labelled "in €", and saving multiplied it by the rate:
+    // Rs 500 of delivery became Rs 24,000 on an edit that never touched it.
+    // With no usable rate the Rs figure stays as it is, which is also safe:
+    // saving without a rate records extras in Rs unconverted.
+    {
+      const loadExtra = (fxVal, costVal) => {
+        if (typeof fxVal === "number") return fxVal;
+        if (typeof costVal !== "number") return "";
+        if (!editing.fxCurrency) return costVal;
+        const r = bookingRate(editing.fxCurrency,
+          Number(editing.fxTotal) || 0, Number(editing.totalPrice) || 0);
+        if (!r) return costVal;
+        return Math.round((costVal / r) * 100) / 100;
+      };
+      setVal(root, "b-delivery", loadExtra(editing.fxDelivery, editing.deliveryCost));
+      setVal(root, "b-insurance", loadExtra(editing.fxInsurance, editing.insuranceCost));
+      setVal(root, "b-other", loadExtra(editing.fxOther, editing.otherCost));
+    }
     setVal(root, "b-notes", editing.notes || "");
     setChecked(root, "b-paid", editing.paid === true);
     // The rate the booking was agreed at, not today's company default — the
