@@ -3,7 +3,7 @@ import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { loadXlsx } from "./backup.js";
 import {
-  state, onDataChange, esc, formatDate, todayStr, findClash, describeInterval,
+  state, onDataChange, esc, formatDate, formatAmount, todayStr, findClash, describeInterval,
   fillTimeOptions, getTime, setTime, onTimeChange,
   currentBooking, nextUpcoming, carStatus, serviceDue, openBookingsForCar,
   orderedCars, getSwatch, setSwatch,
@@ -14,7 +14,6 @@ import {
 
 let root = null;
 let summaryOpen = () => true;   // set on mount; see initPanelToggle
-let filter = "all";
 let editingCarId = null;
 let rentingCarId = null;
 
@@ -58,31 +57,10 @@ export function mount(container) {
   onTimeChange(root, "r-start-time", keepRentReturnAfterPickup);
   onTimeChange(root, "r-end-time", keepRentReturnAfterPickup);
 
-  // Rate auto-calculation
-  const rd = el(root, "c-rate"), rw = el(root, "c-rate-week"), rm = el(root, "c-rate-month");
-  const r2 = x => Math.round(x * 100) / 100;
-
-  // Typing directly into the weekly or monthly box marks it as deliberate, so
-  // later edits to the daily rate leave that figure alone. Clearing it hands
-  // control back to the automatic calculation.
-  rw.addEventListener("input", () => { rw.dataset.manual = rw.value.trim() ? "1" : ""; });
-  rm.addEventListener("input", () => { rm.dataset.manual = rm.value.trim() ? "1" : ""; });
-
-  rd.addEventListener("input", () => {
-    const v = parseFloat(rd.value);
-    if (isNaN(v)) return;
-    if (!rw.dataset.manual) rw.value = r2(v * 7);
-    if (!rm.dataset.manual) rm.value = r2(v * 30);
-  });
-
-  el(root, "filters").addEventListener("click", (e) => {
-    const t = e.target.closest(".tab");
-    if (!t) return;
-    filter = t.dataset.f;
-    el(root, "filters").querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
-    t.classList.add("active");
-    render();
-  });
+  // Rate auto-calculation removed at the pilot's request (Aug 2026): typing a
+  // daily rate used to fill weekly and monthly in automatically, and saving a
+  // car with only a daily rate silently stored all three. All three rates are
+  // now exactly what was typed — a blank stays blank.
 
   root.querySelectorAll("[data-close]").forEach(b =>
     b.addEventListener("click", () => closeModal(root, b.dataset.close)));
@@ -94,7 +72,6 @@ export function mount(container) {
     if (!btn) return;
     const id = btn.dataset.id;
     if (btn.dataset.act === "rent") openRentModal(id);
-    else if (btn.dataset.act === "return") markReturned(id);
     else if (btn.dataset.act === "editcar") openCarModal(id);
     else if (btn.dataset.act === "remove") removeCar(id);
   });
@@ -105,43 +82,28 @@ export function mount(container) {
 export function render() {
   if (!root) return;
 
-  // Arriving from a planner: clear whatever was filtered or searched, or the car
-  // being jumped to might not be in the list at all and the jump would silently
-  // do nothing.
+  // Arriving from a planner: clear the search, or the car being jumped to
+  // might not be in the list at all and the jump would silently do nothing.
   const focusId = takeFocus("fleet");
-  if (focusId) {
-    setVal(root, "search", "");
-    filter = "all";
-    el(root, "filters").querySelectorAll(".tab").forEach(x =>
-      x.classList.toggle("active", x.dataset.f === "all"));
-  }
+  if (focusId) setVal(root, "search", "");
 
   const search = el(root, "search").value.toLowerCase();
   const sort = el(root, "sort").value;
 
-  const withStatus = orderedCars().map(c => ({ ...c, _status: carStatus(c), _booking: currentBooking(c.id) }));
-  const available = withStatus.filter(c => c._status === "available").length;
-  const service = withStatus.filter(c => c._status === "service").length;
-  const rented = withStatus.filter(c => c._status === "rented" || c._status === "overdue").length;
-
   if (summaryOpen()) el(root, "stats").innerHTML = `
     <div class="stat"><div class="stat-label">Total cars</div><div class="stat-val">${state.cars.length}${carLimit() ? `<span style="font-size:0.45em;color:${state.cars.length >= carLimit() ? "var(--red-text)" : "var(--muted)"};"> of ${carLimit()} on plan</span>` : ""}</div></div>
-    <div class="stat"><div class="stat-label">Available</div><div class="stat-val green">${available}</div></div>
-    <div class="stat"><div class="stat-label">Rented out</div><div class="stat-val amber">${rented}</div></div>
-    <div class="stat"><div class="stat-label">Out of service</div><div class="stat-val red">${service}</div></div>
+    <div class="stat"><div class="stat-label">Out of service</div><div class="stat-val red">${state.cars.filter(c => c.outOfService).length}</div></div>
   `;
 
-  let list = withStatus.filter(c => {
-    const status = c._status === "overdue" ? "rented" : c._status;
-    const mf = filter === "all" || status === filter;
-    const renterName = c._booking ? c._booking.renter : "";
-    const ms = `${c.make} ${c.model} ${c.plate} ${c.category || ""} ${c.colour || ""} ${renterName}`.toLowerCase().includes(search);
-    return mf && ms;
-  });
+  // The fleet page is the vehicle register now — what each car is, what it
+  // costs, which papers expire when. Who is in a car today, and until when,
+  // lives on the planner and nowhere else (pilot request, Aug 2026): the same
+  // fact kept on two screens is the fact that ends up contradicting itself.
+  let list = orderedCars().filter(c =>
+    `${c.make} ${c.model} ${c.plate} ${c.category || ""} ${c.colour || ""}`.toLowerCase().includes(search));
 
   // "custom" keeps the planner order that orderedCars() already applied
   if (sort === "name") list.sort((a, b) => (a.make + a.model).localeCompare(b.make + b.model));
-  else if (sort === "status") list.sort((a, b) => a._status.localeCompare(b._status));
 
   const listEl = el(root, "list");
   if (list.length === 0) {
@@ -149,51 +111,49 @@ export function render() {
     return;
   }
 
-  listEl.innerHTML = list.map(c => {
-    const s = c._status;
-    const b = c._booking;
-    const up = s === "available" ? nextUpcoming(c.id) : null;
-    const cls = s === "service" ? "overdue" : s;
-    return `
-    <div class="item-card ${cls}" data-car-id="${c.id}">
+  const t = todayStr();
+  const soonD = new Date(t + "T12:00");
+  soonD.setDate(soonD.getDate() + 30);
+  const soon = `${soonD.getFullYear()}-${String(soonD.getMonth() + 1).padStart(2, "0")}-${String(soonD.getDate()).padStart(2, "0")}`;
+
+  // One labelled row of the card's column. A date that has passed is red, one
+  // inside 30 days amber — the warning lives on the fact itself rather than in
+  // a separate line above the card.
+  const dateRow = (label, v) => {
+    const cls = !v ? "" : v < t ? " car-row-red" : v <= soon ? " car-row-amber" : "";
+    return `<div class="car-row${cls}"><span class="car-row-l">${label}</span><span class="car-row-v">${v ? formatDate(v) : "—"}</span></div>`;
+  };
+  const moneyRow = (label, v) =>
+    `<div class="car-row"><span class="car-row-l">${label}</span><span class="car-row-v">${typeof v === "number" ? esc(formatAmount(v)) : "—"}</span></div>`;
+
+  listEl.innerHTML = list.map(c => `
+    <div class="item-card ${c.outOfService ? "overdue" : ""}" data-car-id="${c.id}">
       <div class="card-top">
         <div>
-          <div class="card-title">${esc(c.year)} ${esc(c.make)} ${esc(c.model)}</div>
-          <div class="card-sub">${esc(c.plate)}${c.category ? " · " + esc(c.category) : ""}${c.colour ? " · " + esc(c.colour) : ""}${c.automatic ? " · auto" : ""}${c.dailyRate ? " · " + esc(c.dailyRate) + "/day" : ""}</div>
+          <div class="card-title">${esc(c.make)} ${esc(c.model)}</div>
+          <div class="card-sub">${esc(c.plate) || "no plate"}${c.category ? " · " + esc(c.category) : ""}${c.colour ? " · " + esc(c.colour) : ""}${c.automatic ? " · auto" : ""}</div>
         </div>
-        <span class="badge ${cls}">${s === "available" ? "Available" : s === "overdue" ? "Overdue" : s === "service" ? "Out of service" : "Rented"}</span>
+        ${c.outOfService ? `<span class="badge overdue">Out of service</span>` : ""}
       </div>
-      ${serviceDue(c) && s !== "service" ? `<div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;"><span style="color:var(--amber-text);">⚠ Service due ${formatDate(c.nextServiceDate)}</span></div>` : ""}
-      ${(() => {
-        const due = carDocsDue(c);
-        if (!due.length) return "";
-        return `<div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;">` +
-          due.map(d => `<span style="color:${d.expired ? "var(--red-text)" : "var(--amber-text)"};">⚠ ${esc(d.label)} ${d.expired ? "expired" : "expires"} ${formatDate(d.date)}</span>`).join(" ") +
-          `</div>`;
-      })()}
-      ${(c.weeklyRate || c.monthlyRate) ? `
-      <div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;">
-        <span>Rates: <strong>${esc(c.dailyRate || 0)}</strong>/day · <strong>${esc(c.weeklyRate || 0)}</strong>/week · <strong>${esc(c.monthlyRate || 0)}</strong>/month</span>
-      </div>` : ""}
-      ${b ? `
-      <div class="card-details">
-        <span>Renter: <strong>${esc(b.renter) || "—"}</strong></span>
-        <span>Phone: <strong>${esc(b.phone) || "—"}</strong></span>
-        <span>Return: <strong>${formatDate(b.endDate)}</strong></span>
-      </div>` : up ? `
-      <div class="card-details">
-        <span>Next booking: <strong>${formatDate(up.startDate)}</strong> (${esc(up.renter)})</span>
-      </div>` : ""}
+      ${serviceDue(c) ? `<div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;"><span style="color:var(--amber-text);">⚠ Service due ${formatDate(c.nextServiceDate)}</span></div>` : ""}
+      <div class="car-rows">
+        <div class="car-row"><span class="car-row-l">Rates</span><span class="car-row-v">${c.dailyRate ? `<strong>${esc(c.dailyRate)}</strong>/day` : "—"}${c.weeklyRate ? ` · <strong>${esc(c.weeklyRate)}</strong>/week` : ""}${c.monthlyRate ? ` · <strong>${esc(c.monthlyRate)}</strong>/month` : ""}</span></div>
+        ${dateRow("Registration date", c.regDate)}
+        ${dateRow("Licence expiry", c.licenceExpiry)}
+        ${dateRow("Road tax expiry", c.roadTaxExpiry)}
+        ${dateRow("Insurance expiry", c.insuranceExpiry)}
+        ${dateRow("Fitness expiry", c.fitnessExpiry)}
+        ${dateRow("Lease expiry", c.leaseExpiry)}
+        ${moneyRow("Lease amount", c.leaseAmount)}
+        ${moneyRow("Purchase amount", c.purchaseAmount)}
+        ${moneyRow("Total lease paid", c.totalLeasePaid)}
+      </div>
       <div class="card-actions">
-        ${s === "available"
-          ? `<button class="btn" data-act="rent" data-id="${c.id}">Rent out now</button>`
-          : s === "service" ? ""
-          : `<button class="btn" data-act="return" data-id="${c.id}">Mark as returned</button>`}
+        <button class="btn" data-act="rent" data-id="${c.id}">Rent out now</button>
         <button class="btn" data-act="editcar" data-id="${c.id}">Edit</button>
         <button class="btn danger" data-act="remove" data-id="${c.id}">Remove</button>
       </div>
-    </div>`;
-  }).join("");
+    </div>`).join("");
 
   if (focusId) revealCar(focusId);
 }
@@ -398,8 +358,10 @@ async function doImport() {
           ...c,
           // Rates after the spread: an empty Weekly/Monthly column in the file
           // must not zero out the 7x/30x defaults computed from the daily rate.
-          weeklyRate: c.weeklyRate || (c.dailyRate ? c.dailyRate * 7 : 0),
-          monthlyRate: c.monthlyRate || (c.dailyRate ? c.dailyRate * 30 : 0)
+          // Exactly what the file says — the 7x/30x defaults are gone with
+          // the rest of the rate autofill (Aug 2026).
+          weeklyRate: c.weeklyRate || 0,
+          monthlyRate: c.monthlyRate || 0
         });
       });
       await batch.commit();
@@ -440,6 +402,9 @@ function openCarModal(id) {
   setVal(root, "c-rate", c?.dailyRate);
   setVal(root, "c-rate-week", c?.weeklyRate);
   setVal(root, "c-rate-month", c?.monthlyRate);
+  setVal(root, "c-lease-amount", c?.leaseAmount ?? "");
+  setVal(root, "c-purchase-amount", c?.purchaseAmount ?? "");
+  setVal(root, "c-lease-paid", c?.totalLeasePaid ?? "");
   setVal(root, "c-category", c?.category || "");
   setVal(root, "c-colour", c?.colour || "");
   setVal(root, "c-regdate", c?.regDate || "");
@@ -453,8 +418,6 @@ function openCarModal(id) {
 
   // Treat an existing car's weekly/monthly figures as deliberate, so changing
   // the daily rate later will not silently overwrite them.
-  el(root, "c-rate-week").dataset.manual = c?.weeklyRate ? "1" : "";
-  el(root, "c-rate-month").dataset.manual = c?.monthlyRate ? "1" : "";
   openModal(root, "car-modal");
 }
 
@@ -474,13 +437,18 @@ async function saveCar() {
 
   const year = val(root, "c-year");
   const plate = val(root, "c-plate");
-  let dailyRate = parseFloat(val(root, "c-rate")) || 0;
-  const weeklyIn = parseFloat(val(root, "c-rate-week")) || 0;
-  const monthlyIn = parseFloat(val(root, "c-rate-month")) || 0;
-  if (!dailyRate && weeklyIn) dailyRate = Math.round((weeklyIn / 7) * 100) / 100;
-  if (!dailyRate && monthlyIn) dailyRate = Math.round((monthlyIn / 30) * 100) / 100;
-  const weeklyRate = weeklyIn || Math.round(dailyRate * 7 * 100) / 100;
-  const monthlyRate = monthlyIn || Math.round(dailyRate * 30 * 100) / 100;
+  // Exactly as typed, nothing derived: the autofill that turned one daily rate
+  // into three figures is gone at the pilot's request.
+  const dailyRate = parseFloat(val(root, "c-rate")) || 0;
+  const weeklyRate = parseFloat(val(root, "c-rate-week")) || 0;
+  const monthlyRate = parseFloat(val(root, "c-rate-month")) || 0;
+  // The leasing figures are typed by hand for now — including "total lease
+  // paid", which per the pilot is an amount they carry forward themselves
+  // until a decision is made on recording lease payments inside the app.
+  const moneyOrNull = (n) => { const x = parseFloat(val(root, n)); return Number.isFinite(x) && x >= 0 && val(root, n) !== "" ? x : null; };
+  const leaseAmount = moneyOrNull("c-lease-amount");
+  const purchaseAmount = moneyOrNull("c-purchase-amount");
+  const totalLeasePaid = moneyOrNull("c-lease-paid");
   const category = val(root, "c-category");
   const colour = val(root, "c-colour");
   const docDates = {
@@ -499,11 +467,12 @@ async function saveCar() {
   setSync("saving");
   try {
     if (editingCarId) {
-      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate, weeklyRate, monthlyRate, category, colour, automatic, rowColour, ...docDates });
+      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate, weeklyRate, monthlyRate, leaseAmount, purchaseAmount, totalLeasePaid, category, colour, automatic, rowColour, ...docDates });
     } else {
       await addDoc(collection(db, "cars"), {
         companyId: state.ctx.companyId, make, model, year, plate,
-        dailyRate, weeklyRate, monthlyRate, category, colour, automatic, rowColour, ...docDates
+        dailyRate, weeklyRate, monthlyRate, leaseAmount, purchaseAmount, totalLeasePaid,
+        category, colour, automatic, rowColour, ...docDates
       });
     }
     closeModal(root, "car-modal");
@@ -661,10 +630,3 @@ async function confirmRent() {
   btn.disabled = false; btn.textContent = "Confirm rental";
 }
 
-async function markReturned(carId) {
-  const b = currentBooking(carId);
-  if (!b) return;
-  setSync("saving");
-  try { await updateDoc(doc(db, "bookings", b.id), { status: "completed" }); }
-  catch (e) { alert("Couldn't update (" + (e.code || e.message) + ")."); setSync("error"); }
-}

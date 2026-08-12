@@ -177,21 +177,14 @@
       <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
       <div class="stats" data-el="stats"></div>
       <div class="toolbar">
-        <input type="text" data-el="search" placeholder="Search car, plate, or renter...">
+        <input type="text" data-el="search" placeholder="Search car, plate, category...">
         <select data-el="sort">
           <option value="custom">Sort: Planner order</option>
           <option value="name">Sort: Name</option>
-          <option value="status">Sort: Status</option>
         </select>
         <button class="btn-primary" data-el="add-car">+ Add car</button>
         <button class="btn" data-el="import-cars" title="Add many cars at once from a spreadsheet">Import from Excel</button>
         <input type="file" data-el="import-file" accept=".xlsx,.xls,.csv" style="display:none;">
-      </div>
-      <div class="filter-row" data-el="filters">
-        <button class="tab active" data-f="all">All</button>
-        <button class="tab" data-f="available">Available</button>
-        <button class="tab" data-f="rented">Rented</button>
-        <button class="tab" data-f="service">Out of service</button>
       </div>
       <div class="card-list" data-el="list"><div class="loading-screen">Loading fleet...</div></div>
 
@@ -258,9 +251,17 @@
             </div>
           </div>
           <div class="field"><label>Daily rate</label><input data-el="c-rate" type="number" min="0" placeholder="e.g. 1500"></div>
-          <div class="field"><label>Weekly rate</label><input data-el="c-rate-week" type="number" min="0" placeholder="auto-calculated"></div>
-          <div class="field"><label>Monthly rate</label><input data-el="c-rate-month" type="number" min="0" placeholder="auto-calculated"></div>
-          <div style="font-size:11px;color:var(--muted);margin:-6px 0 14px;">Enter any one rate and the others fill in automatically (week = 7 days, month = 30 days). Type over any of them to set your own price — it will be kept. Billing uses the daily rate.</div>
+          <div class="field"><label>Weekly rate</label><input data-el="c-rate-week" type="number" min="0" placeholder="optional"></div>
+          <div class="field"><label>Monthly rate</label><input data-el="c-rate-month" type="number" min="0" placeholder="optional"></div>
+          <div style="font-size:11px;color:var(--muted);margin:-6px 0 14px;">Each rate is exactly what you type — nothing fills in on its own. Billing uses the daily rate.</div>
+
+          <div class="field-row equal">
+            <div class="field"><label>Lease amount</label><input data-el="c-lease-amount" type="number" min="0" placeholder="per month"></div>
+            <div class="field"><label>Purchase amount</label><input data-el="c-purchase-amount" type="number" min="0" placeholder="optional"></div>
+          </div>
+          <div class="field"><label>Total lease paid</label><input data-el="c-lease-paid" type="number" min="0" placeholder="paid to date, typed by hand"></div>
+          <div style="font-size:11px;color:var(--muted);margin:-6px 0 14px;">Leasing figures, all optional — shown on the car's card.
+            Total lease paid is carried forward by hand for now.</div>
           <div class="modal-actions">
             <button class="btn" data-close="car-modal">Cancel</button>
             <button class="btn-primary" data-el="save-car">Save car</button>
@@ -1081,6 +1082,16 @@
       <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Tap the drawing where the damage is. Number the notes below; everything prints on the agreement.</p>
       <div class="damage-wrap" data-el="damage-svg"></div>
       <div data-el="damage-list" style="margin-top:10px;"></div>
+      <div class="field" style="margin-top:14px;">
+        <label>Fuel at handover</label>
+        <div class="fuel-opts" data-el="fuel-opts">
+          <button type="button" class="btn fuel-opt" data-fuel="25">25%</button>
+          <button type="button" class="btn fuel-opt" data-fuel="50">50%</button>
+          <button type="button" class="btn fuel-opt" data-fuel="75">75%</button>
+          <button type="button" class="btn fuel-opt" data-fuel="100">100%</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Tap one — tap it again to clear. Prints on the agreement with the damage notes.</div>
+      </div>
       <div class="modal-actions">
         <button class="btn" data-close="damage-modal">Cancel</button>
         <button class="btn-primary" data-el="save-damage">Save marks</button>

@@ -609,6 +609,14 @@ export function recalcAtTodayRate(fieldRoot, { fxInputId, homeInputId, sym, isPa
 // numbered mark with a note; saving writes them to the booking. The signature
 // pad saves a small image that lands on the agreement's signature line.
 let damageDraft = [];
+let fuelDraft = null;   // 25 | 50 | 75 | 100 | null — saved with the marks
+
+function paintFuel() {
+  const box = el(root, "fuel-opts");
+  if (!box) return;
+  box.querySelectorAll(".fuel-opt").forEach(b =>
+    b.classList.toggle("selected", Number(b.dataset.fuel) === fuelDraft));
+}
 
 function wireDamageAndSignature() {
   const dmgBtn = el(root, "damage-btn");
@@ -616,9 +624,23 @@ function wireDamageAndSignature() {
     if (!editingBookingId) return;
     const b = state.bookings.find(x => x.id === editingBookingId);
     damageDraft = Array.isArray(b?.damageMarks) ? b.damageMarks.map(m => ({ ...m })) : [];
+    fuelDraft = typeof b?.fuelLevel === "number" ? b.fuelLevel : null;
     el(root, "damage-svg").innerHTML = CAR_OUTLINE;
     paintDamage();
+    paintFuel();
     openModal(root, "damage-modal");
+  });
+
+  // The fuel gauge: one choice, tap again to clear. Recorded alongside the
+  // damage marks because that is the moment both are established — standing at
+  // the car at handover.
+  const fuelBox = el(root, "fuel-opts");
+  if (fuelBox) fuelBox.addEventListener("click", (e) => {
+    const b = e.target.closest(".fuel-opt");
+    if (!b) return;
+    const v = Number(b.dataset.fuel);
+    fuelDraft = fuelDraft === v ? null : v;
+    paintFuel();
   });
 
   const svgBox = el(root, "damage-svg");
@@ -655,7 +677,8 @@ function wireDamageAndSignature() {
     saveDmg.disabled = true; saveDmg.textContent = "Saving...";
     try {
       await updateDoc(doc(db, "bookings", editingBookingId), {
-        damageMarks: damageDraft.map(m => ({ x: m.x, y: m.y, note: m.note || "" }))
+        damageMarks: damageDraft.map(m => ({ x: m.x, y: m.y, note: m.note || "" })),
+        fuelLevel: fuelDraft
       });
       closeModal(root, "damage-modal");
     } catch (err) { alert("Couldn't save (" + (err.code || err.message) + ")."); }

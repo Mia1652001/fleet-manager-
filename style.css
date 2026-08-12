@@ -2594,3 +2594,18 @@ input[type="number"] {
   }
 }
 
+
+/* ---------- Fleet card as a column of facts ----------
+   The vehicle register layout (Aug 2026): every fact on its own labelled row,
+   the way the pilot keeps it on paper. A date that has passed goes red, one
+   inside 30 days amber — the warning is on the fact itself. */
+.car-rows { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.car-row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 12px; }
+.car-row-l { color: var(--muted); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 2px; white-space: nowrap; }
+.car-row-v { text-align: right; }
+.car-row-red .car-row-v { color: var(--red-text); font-weight: 500; }
+.car-row-amber .car-row-v { color: var(--amber-text); font-weight: 500; }
+
+/* ---------- Fuel gauge on the damage diagram ---------- */
+.fuel-opts { display: flex; gap: 8px; flex-wrap: wrap; }
+.fuel-opt.selected { background: var(--text); color: var(--bg); border-color: var(--text); }

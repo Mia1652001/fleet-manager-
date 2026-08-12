@@ -299,7 +299,7 @@ ${DOC_ACTIONS}
         ${b.damageMarks.map((m, i) => `<div><strong>${i + 1}.</strong> ${esc(m.note || "damage marked")}</div>`).join("")}
       </div>` : ""}
       <div class="ag-damage-lines">
-        <div>Fuel level out: ____________ &nbsp;&nbsp; in: ____________</div>
+        <div>Fuel level out: ${typeof b.fuelLevel === "number" ? `<strong>${b.fuelLevel}%</strong>` : "____________"} &nbsp;&nbsp; in: ____________</div>
         <div>Mileage out: ____________ &nbsp;&nbsp; in: ____________</div>
         <div>Notes: _______________________________________________</div>
         <div>_____________________________________________________</div>
