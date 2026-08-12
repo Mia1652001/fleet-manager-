@@ -759,6 +759,33 @@
         </div>
 
         <div class="settings-card">
+          <h3>Company licence</h3>
+          <p class="settings-note">The operating licence the company rents cars
+            under. The Dashboard warns before the end date arrives, and warns
+            separately if the fleet grows past the licensed size.</p>
+          <div class="field-row">
+            <div class="field">
+              <label for="s-licence-number">Licence number</label>
+              <input type="text" id="s-licence-number" data-el="s-licence-number" placeholder="e.g. TL/2024/1234">
+            </div>
+            <div class="field">
+              <label for="s-licence-fleet">Licensed fleet size</label>
+              <input type="number" id="s-licence-fleet" data-el="s-licence-fleet" min="1" step="1" placeholder="e.g. 25">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="s-licence-start">Licence start date</label>
+              <input type="date" id="s-licence-start" data-el="s-licence-start">
+            </div>
+            <div class="field">
+              <label for="s-licence-end">Licence end date</label>
+              <input type="date" id="s-licence-end" data-el="s-licence-end">
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card">
           <h3>Lists</h3>
           <p class="settings-note">The choices offered across the app — one per
             line, in the order you want them shown.</p>

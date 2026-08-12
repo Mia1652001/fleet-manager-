@@ -130,6 +130,34 @@ function renderAlerts(t) {
   const noRate = state.cars.filter(c => !c.dailyRate);
 
   const alerts = [];
+
+  // Company operating licence — set on the Settings page. These come first:
+  // one company-level problem outranks any single car's. The look-ahead is 60
+  // days rather than the cars' 30, because renewing an operating licence
+  // involves an authority, not a counter at the insurer.
+  {
+    const s = state.settings || {};
+    const end = s.licenceEnd || "";
+    if (end && end.length === 10) {
+      const h = new Date(t + "T12:00");
+      h.setDate(h.getDate() + 60);
+      const horizon = `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, "0")}-${String(h.getDate()).padStart(2, "0")}`;
+      if (end < t) alerts.push({
+        tone: "red", goto: "settings",
+        text: `Company licence expired on ${formatDate(end)}`
+      });
+      else if (end <= horizon) alerts.push({
+        tone: "amber", goto: "settings",
+        text: `Company licence expires ${formatDate(end)}`
+      });
+    }
+    if (typeof s.licenceFleet === "number" && s.licenceFleet > 0
+        && state.cars.length > s.licenceFleet) alerts.push({
+      tone: "red", goto: "fleet",
+      text: `Fleet has ${state.cars.length} cars but the licence covers ${s.licenceFleet}`
+    });
+  }
+
   if (overdue.length) alerts.push({
     tone: "red", goto: "bookings",
     text: `${overdue.length} rental${overdue.length === 1 ? "" : "s"} past the return date`

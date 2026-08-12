@@ -249,6 +249,7 @@ function startApp() {
     }
 
     guardNumberFields();
+    injectModalCloseButtons();
     wireBackupBanner();
     applyTabOrder();
     wireTabDragging();
@@ -491,6 +492,26 @@ async function checkBackupDue() {
 // Wheel: blur rather than preventDefault. The field stops stepping because it
 // is no longer focused, and the page keeps scrolling normally, which is what
 // the person was trying to do. Killing the scroll instead would trade a
+// Every popup gets a close button pinned in its top-right corner, so leaving
+// never means scrolling to the bottom for Cancel. Injected once here rather
+// than written twenty times in the HTML — a popup added later gets its ×
+// automatically, and one that already grew its own is left alone. Closing a
+// popup is only ever removing its "open" class (that is all closeModal and
+// the click-outside handlers do), so the × needs no per-view wiring.
+function injectModalCloseButtons() {
+  document.querySelectorAll(".overlay").forEach(o => {
+    const m = o.querySelector(".modal");
+    if (!m || m.querySelector(".modal-x")) return;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "modal-x";
+    b.setAttribute("aria-label", "Close");
+    b.innerHTML = "&times;";
+    b.addEventListener("click", () => o.classList.remove("open"));
+    m.prepend(b);
+  });
+}
+
 // dangerous bug for an infuriating one.
 function guardNumberFields() {
   document.addEventListener("wheel", e => {

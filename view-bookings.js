@@ -121,6 +121,28 @@ let timelineAnchor = null; // Date — first visible day in the timeline
 // middle of reading August is maddening. So the position is put back afterwards,
 // except when the user has actually asked to move the window.
 let reanchored = true;   // the first draw should start at the left
+
+// ---------- The pinned month ----------
+// The corner of the planner — where the car column meets the date strip —
+// names the month on screen, the way a wall planner prints it in its corner.
+// It stays put while the planner scrolls sideways, and the label changes the
+// moment the first visible column crosses into the next month.
+let tlMonthDays = [];   // the rendered window, as Date objects
+let tlMonthHalf = 60;   // half-column width in px at the current zoom
+
+function updateTlMonth() {
+  if (!root || tlMonthDays.length === 0) return;
+  const label = root.querySelector(".tl-month");
+  const wrap = el(root, "timeline-wrap");
+  if (!label || !wrap) return;
+  // Which day sits at the left edge right now. Columns only compress to their
+  // stated width when the grid is wider than its frame — which is the only
+  // time it can scroll — so the arithmetic and the pixels always agree.
+  const idx = Math.min(tlMonthDays.length - 1,
+    Math.max(0, Math.round(wrap.scrollLeft / (tlMonthHalf * 2))));
+  const d = tlMonthDays[idx];
+  label.textContent = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+}
 let legendOpen = () => true;   // set on mount; see initPanelToggle
 
 // Drag across empty days to book a range. Holds the dates of the window
@@ -209,7 +231,10 @@ export function mount(container) {
     const bodyWrap = el(root, "timeline-wrap");
     const headWrap = el(root, "timeline-head-wrap");
     if (bodyWrap && headWrap) {
-      bodyWrap.addEventListener("scroll", () => { headWrap.scrollLeft = bodyWrap.scrollLeft; });
+      bodyWrap.addEventListener("scroll", () => {
+        headWrap.scrollLeft = bodyWrap.scrollLeft;
+        updateTlMonth();
+      });
     }
   }
 
@@ -1088,7 +1113,7 @@ function renderTimeline() {
   // the planner grid itself — that is what keeps it on screen while the page
   // scrolls down a long fleet. Same columns, same widths, so it always lines
   // up with the body beneath it.
-  let headHtml = `<div class="tl-corner" style="grid-row:1;grid-column:1;">Vehicle</div>`;
+  let headHtml = `<div class="tl-corner" style="grid-row:1;grid-column:1;"><span class="tl-month"></span></div>`;
   days.forEach((d, i) => {
     const ds = dstr(d);
     const dow = d.getDay();
@@ -1225,6 +1250,10 @@ function renderTimeline() {
   // Kept for the drag-to-book handler, which needs to turn a day index back into
   // a date after the grid has been built.
   lastRenderedDays = days.map(dstr);
+  // Kept for the pinned month label, which has to turn a scroll position back
+  // into a date whenever the planner moves sideways.
+  tlMonthDays = days;
+  tlMonthHalf = cfg.half;
 
   grid.innerHTML = html;
   if (reanchored) {
@@ -1234,6 +1263,7 @@ function renderTimeline() {
     wrap.scrollLeft = keepLeft;
     wrap.scrollTop = keepTop;
   }
+  updateTlMonth();
 
   // Legend, added once, directly after the timeline
   if (!root.querySelector(".tl-legend")) {

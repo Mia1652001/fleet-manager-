@@ -128,6 +128,11 @@ export function render() {
   setVal(root, "s-receiptprefix", s.receiptPrefix || "");
   setVal(root, "s-bankcharge",
     (typeof s.bankChargePct === "number" && s.bankChargePct > 0) ? s.bankChargePct : "");
+  setVal(root, "s-licence-number", s.licenceNumber || "");
+  setVal(root, "s-licence-fleet",
+    (typeof s.licenceFleet === "number" && s.licenceFleet > 0) ? s.licenceFleet : "");
+  setVal(root, "s-licence-start", s.licenceStart || "");
+  setVal(root, "s-licence-end", s.licenceEnd || "");
   // Show the matching preset rather than "Choose a currency…" next to a symbol
   // that is plainly already set — it reads as though nothing has been chosen.
   const preset = el(root, "s-currency-preset");
@@ -416,6 +421,16 @@ async function saveSettings() {
       const n = parseFloat(val(root, "s-bankcharge"));
       return Number.isFinite(n) && n > 0 ? n : null;
     })(),
+    // Company operating licence — the Dashboard reads these for its warnings.
+    // Blank fleet size means "not tracked" and is stored as null, the same
+    // rule as the bank charge above.
+    licenceNumber: val(root, "s-licence-number"),
+    licenceFleet: (function () {
+      const n = parseFloat(val(root, "s-licence-fleet"));
+      return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+    })(),
+    licenceStart: val(root, "s-licence-start"),
+    licenceEnd: val(root, "s-licence-end"),
     terms: val(root, "s-terms"),
     messageNote: val(root, "s-note"),
     locations: linesTo(val(root, "s-locations")),
