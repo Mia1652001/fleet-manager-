@@ -9,9 +9,10 @@
 // they add up the same records, filed the same way.
 
 import {
-  state, onDataChange, esc, formatAmount, todayStr,
+  state, onDataChange, esc, formatAmount, formatDate, todayStr,
   revenueByCarMonth, expensesByCarMonth, monthlySummary,
-  bookingYears, companyName,
+  bookingYears, companyName, bookingCarLabel, bookingRef,
+  amountDue, vatSplit,
   initPanelToggle, loadPref, savePref, el
 } from "./store.js";
 import { loadXlsx, downloadBlob } from "./backup.js";
@@ -43,8 +44,37 @@ function percent(x) {
 //
 // The choice is remembered per device: whoever opens this page is usually
 // coming back to the same report.
-const REPORTS = ["revenue", "expenses", "monthly"];
+const REPORTS = ["revenue", "expenses", "monthly", "invoices"];
 let current = "revenue";
+
+// ---------- Invoices tab state ----------
+// Filtered by the day the number was issued, because that is the day the
+// document legally exists — and the day the MRA files it under. The default
+// window is the current quarter, which is the period the VAT return covers.
+let invFrom = "";
+let invTo = "";
+
+function quarterStart(t) {
+  const m = Number(t.slice(5, 7));
+  const qm = m <= 3 ? "01" : m <= 6 ? "04" : m <= 9 ? "07" : "10";
+  return `${t.slice(0, 4)}-${qm}-01`;
+}
+
+function issuedInvoices() {
+  return state.bookings
+    .filter(b => b.invoiceNo)
+    .map(b => {
+      const at = String(b.invoiceIssuedAt || "").slice(0, 10);
+      const total = amountDue(b);
+      const isVat = b.invoiceKind === "vat";
+      const pct = typeof b.invoiceVatPct === "number" && b.invoiceVatPct > 0 ? b.invoiceVatPct : 15;
+      const split = isVat ? vatSplit(total, pct) : null;
+      return { b, no: String(b.invoiceNo), at, isVat, pct, total,
+               excl: split ? split.excl : null, vat: split ? split.vat : null };
+    })
+    .filter(r => r.at && (!invFrom || r.at >= invFrom) && (!invTo || r.at <= invTo))
+    .sort((a, c) => a.at.localeCompare(c.at) || a.no.localeCompare(c.no));
+}
 
 function wireTabs() {
   const box = el(root, "rep-tabs");
@@ -84,6 +114,20 @@ export function mount(container) {
 
   el(root, "rep-export").addEventListener("click", exportXlsx);
 
+  // The invoices tab draws its own date filters and export button into the
+  // table area, so their events are picked up here by delegation — the
+  // elements are recreated on every render.
+  el(root, "rep-table").addEventListener("change", (e) => {
+    const inp = e.target.closest("input[data-inv]");
+    if (!inp) return;
+    if (inp.dataset.inv === "from") invFrom = inp.value;
+    else invTo = inp.value;
+    render();
+  });
+  el(root, "rep-table").addEventListener("click", (e) => {
+    if (e.target.closest("[data-inv-export]")) exportInvoicesXlsx();
+  });
+
   onDataChange(() => { if (root.classList.contains("active")) render(); });
 }
 
@@ -116,14 +160,25 @@ export function render() {
   // rather than left to be hunted for in a corner of it.
   const headline = el(root, "rep-headline");
   if (headline) {
-    headline.textContent =
-      current === "revenue" ? `${formatAmount(rev.grandTotal)} invoiced in ${year}` :
-      current === "expenses" ? `${formatAmount(exp.grandTotal)} spent in ${year}` :
-      `${formatAmount(mon.total.net)} net in ${year} · ${percent(mon.total.occupancy)} occupancy`;
+    if (current === "invoices") {
+      if (!invFrom) invFrom = quarterStart(todayStr());
+      if (!invTo) invTo = todayStr();
+      const rows = issuedInvoices();
+      const vatSum = rows.reduce((a, r) => a + (r.vat || 0), 0);
+      headline.textContent =
+        `${rows.length} invoice${rows.length === 1 ? "" : "s"} issued ${formatDate(invFrom)} – ${formatDate(invTo)}` +
+        (vatSum > 0 ? ` · VAT within: ${formatAmount(Math.round(vatSum * 100) / 100)}` : "");
+    } else {
+      headline.textContent =
+        current === "revenue" ? `${formatAmount(rev.grandTotal)} invoiced in ${year}` :
+        current === "expenses" ? `${formatAmount(exp.grandTotal)} spent in ${year}` :
+        `${formatAmount(mon.total.net)} net in ${year} · ${percent(mon.total.occupancy)} occupancy`;
+    }
   }
 
   if (current === "revenue") renderCarGrid(rev, "earned", "revenue");
   else if (current === "expenses") renderCarGrid(exp, "spent", "expenses");
+  else if (current === "invoices") renderInvoices();
   else renderMonthly(mon);
 }
 
@@ -285,6 +340,112 @@ function renderMonthly(mon) {
      month it started in. It uses today's fleet size for every month, because that is the only
      fleet the app can know — through a big change in fleet size it drifts.
      Total and Average both cover the months that had activity, not all twelve.`;
+}
+
+// ---------- The invoices register ----------
+// Every invoice the company has issued, filtered by issue date, with the VAT
+// inside each one stated — because every three months this exact list, for
+// one quarter, goes to the MRA. The export button hands over the filtered
+// list as a spreadsheet for precisely that trip.
+function renderInvoices() {
+  const box = el(root, "rep-table");
+  const note = el(root, "rep-note");
+  const rows = issuedInvoices();
+
+  const controls = `
+    <div class="inv-controls">
+      <label>From <input type="date" data-inv="from" value="${esc(invFrom)}"></label>
+      <label>To <input type="date" data-inv="to" value="${esc(invTo)}"></label>
+      <button class="btn" type="button" data-inv-export ${rows.length ? "" : "disabled"}>Export this list</button>
+    </div>`;
+
+  if (!rows.length) {
+    box.innerHTML = controls + `<div class="empty">No invoices issued between these dates.
+      Invoices are issued from a booking — open one and press Invoice.</div>`;
+    note.textContent = "";
+    return;
+  }
+
+  const totals = rows.reduce((a, r) => ({
+    total: a.total + r.total,
+    excl: a.excl + (r.excl || 0),
+    vat: a.vat + (r.vat || 0)
+  }), { total: 0, excl: 0, vat: 0 });
+  const r2 = x => Math.round(x * 100) / 100;
+
+  box.innerHTML = controls + `
+    <table class="rep-table">
+      <thead>
+        <tr>
+          <th class="rep-car">Invoice</th>
+          <th>Issued</th>
+          <th>Customer</th>
+          <th>Vehicle</th>
+          <th class="rep-num">Excl. VAT</th>
+          <th class="rep-num">VAT</th>
+          <th class="rep-num rep-strong">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr>
+            <th class="rep-car"><span class="rep-plate">${esc(r.no)}</span>
+              <span class="rep-model">${r.isVat ? `VAT invoice · ${esc(String(r.pct))}%` : "Invoice"}</span></th>
+            <td>${esc(formatDate(r.at))}</td>
+            <td>${esc(r.b.renter || "")}</td>
+            <td>${esc(bookingCarLabel(r.b))}</td>
+            <td class="rep-num">${r.excl !== null ? esc(money(r.excl)) : `<span class="rep-zero">—</span>`}</td>
+            <td class="rep-num">${r.vat !== null ? esc(money(r.vat)) : `<span class="rep-zero">—</span>`}</td>
+            <td class="rep-num rep-strong">${esc(money(r.total))}</td>
+          </tr>`).join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th class="rep-car">Total · ${rows.length} invoice${rows.length === 1 ? "" : "s"}</th>
+          <td></td><td></td><td></td>
+          <td class="rep-num">${totals.excl ? esc(money(r2(totals.excl))) : "—"}</td>
+          <td class="rep-num">${totals.vat ? esc(money(r2(totals.vat))) : "—"}</td>
+          <td class="rep-num rep-strong">${esc(money(r2(totals.total)))}</td>
+        </tr>
+      </tfoot>
+    </table>`;
+
+  const cur = esc(state.settings?.currency || "Rs");
+  note.innerHTML = `All amounts in ${cur}, VAT-inclusive — the VAT column states how much of each
+    total is VAT, at the rate fixed when that invoice was issued. Filtered by issue date.
+    Amounts shown are each booking's amount due today; an invoice reprint always
+    carries its own figures.`;
+}
+
+async function exportInvoicesXlsx() {
+  const rows = issuedInvoices();
+  if (!rows.length) return;
+  const r2 = x => Math.round(x * 100) / 100;
+  const co = companyName() || "Company";
+  const aoa = [
+    [`${co} — invoices issued ${invFrom} to ${invTo}`],
+    [],
+    ["Invoice no", "Kind", "VAT %", "Issued", "Booking", "Customer", "Vehicle",
+     "Value excl. VAT", "VAT", "Total"],
+    ...rows.map(r => [r.no, r.isVat ? "VAT invoice" : "Invoice", r.isVat ? r.pct : "",
+      r.at, bookingRef(r.b), r.b.renter || "", bookingCarLabel(r.b),
+      r.excl ?? "", r.vat ?? "", r.total]),
+    [],
+    ["Total", "", "", "", "", "", "",
+      r2(rows.reduce((a, r) => a + (r.excl || 0), 0)),
+      r2(rows.reduce((a, r) => a + (r.vat || 0), 0)),
+      r2(rows.reduce((a, r) => a + r.total, 0))]
+  ];
+  const XLSX = await loadXlsx();
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 7 }, { wch: 12 }, { wch: 12 },
+                 { wch: 22 }, { wch: 26 }, { wch: 15 }, { wch: 12 }, { wch: 13 }];
+  XLSX.utils.book_append_sheet(wb, ws, "Invoices");
+  const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const name = co.replace(/[^a-z0-9]+/gi, "-").toLowerCase().replace(/^-|-$/g, "");
+  downloadBlob(`invoices-${name}-${invFrom}-to-${invTo}.xlsx`,
+    new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
 }
 
 // ---------- Excel ----------

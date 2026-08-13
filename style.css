@@ -2609,3 +2609,7 @@ input[type="number"] {
 /* ---------- Fuel gauge on the damage diagram ---------- */
 .fuel-opts { display: flex; gap: 8px; flex-wrap: wrap; }
 .fuel-opt.selected { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+/* ---------- Invoices tab controls ---------- */
+.inv-controls { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; font-size: 12px; color: var(--muted); }
+.inv-controls label { display: flex; gap: 6px; align-items: center; }

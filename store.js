@@ -617,6 +617,51 @@ function normaliseReceiptNo(v) {
   return String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
+// ---------- Invoice numbers ----------
+// Same discipline as receipts, two independent series: INV for ordinary
+// invoices, VAT for VAT invoices — "different invoice numbers for each so it's
+// easily identifiable" (pilot, Aug 2026). Which series a company issues from
+// is decided by the VAT-registered box on Settings at the moment of issue.
+
+export function invoiceKindFor() {
+  return state.settings?.vatRegistered ? "vat" : "normal";
+}
+
+// The VAT rate from Settings; 15 when unset. Snapshotted onto the booking at
+// issue so a later rate change never rewrites an invoice already sent.
+export function vatRatePct() {
+  const n = Number(state.settings?.vatRate);
+  return Number.isFinite(n) && n > 0 ? n : 15;
+}
+
+// Prices are VAT-inclusive (accountant, Aug 2026): the customer's total never
+// changes; the invoice states how much of it is VAT. The card charge sits
+// inside the base — "VAT on the whole amount after the 3%".
+export function vatSplit(total, pct) {
+  const rate = (typeof pct === "number" && pct > 0 ? pct : vatRatePct()) / 100;
+  const t = Number(total) || 0;
+  const excl = Math.round((t / (1 + rate)) * 100) / 100;
+  return { excl, vat: Math.round((t - excl) * 100) / 100 };
+}
+
+export function formatInvoiceNo(seq, year, kind, prefix) {
+  const p = prefix === undefined ? receiptPrefix() : String(prefix || "");
+  const tag = kind === "vat" ? "VAT" : "INV";
+  const body = `${tag}-${year}-${String(seq).padStart(4, "0")}`;
+  return p ? `${p}-${body}` : body;
+}
+
+export function invoiceNo(b) { return String(b?.invoiceNo || ""); }
+export function hasInvoiceNo(b) { return !!invoiceNo(b); }
+export function invoiceSeqField(kind) { return kind === "vat" ? "vatInvoiceSeq" : "invoiceSeq"; }
+
+export function invoiceNoTaken(candidate, exceptBookingId) {
+  const norm = normaliseReceiptNo(candidate);
+  if (!norm) return false;
+  return state.bookings.some(b =>
+    b.id !== exceptBookingId && normaliseReceiptNo(b.invoiceNo) === norm);
+}
+
 export function receiptNoTaken(candidate, exceptBookingId) {
   const want = normaliseReceiptNo(candidate);
   if (!want) return false;

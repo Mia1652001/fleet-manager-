@@ -19,7 +19,8 @@ import {
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor,
   startTime, endTime, customerForBooking, companyName, companyTerms, todayStr,
   deliveryCost, insuranceCost, otherCost, invoiceTotal, extrasTotal, fxPair,
-  bankCharge, bankChargePct, amountDue, receiptNo
+  bankCharge, bankChargePct, amountDue, receiptNo,
+  invoiceNo, vatRatePct, vatSplit
 } from "./store.js";
 
 function line(label, value) {
@@ -28,15 +29,17 @@ function line(label, value) {
     : "";
 }
 
-function companyBlock() {
+function companyBlock(extraLines = []) {
   const s = state.settings || {};
   const bits = [s.address, s.phone, s.email, s.website].filter(Boolean);
+  const extras = extraLines.filter(Boolean);
   return `
     <div class="ag-company">
       ${s.logo ? `<img class="ag-logo" src="${s.logo}" alt="">` : ""}
       <div>
         <div class="ag-name">${esc(companyName())}</div>
         ${bits.length ? `<div class="ag-contact">${esc(bits.join(" · "))}</div>` : ""}
+        ${extras.map(x => `<div class="ag-contact">${esc(x)}</div>`).join("")}
       </div>
     </div>`;
 }
@@ -542,6 +545,101 @@ export function openConfirmation(bookingId) {
 // A receipt is proof that money was received — the third printed document,
 // built from the same blocks so all three are visibly the same family. It
 // states what was paid, when, and what (if anything) remains.
+// ---------- Invoice ----------
+// The bill itself — issued whether or not anything has been paid yet, which is
+// exactly what makes it a different document from the receipt. Prices are
+// VAT-inclusive: a VAT invoice shows the same total the customer was quoted,
+// split into value and VAT at the rate snapshotted when the number was issued.
+export function openInvoice(bookingId, justIssuedNo, justKind) {
+  const b = state.bookings.find(x => x.id === bookingId);
+  if (!b) return { ok: false, reason: "That booking could not be found." };
+  return openPrintable(invoiceHtml(b, justIssuedNo, justKind));
+}
+
+function invoiceHtml(b, justIssuedNo, justKind) {
+  const s = state.settings || {};
+  const ref = bookingRef(b);
+  const serial = String(justIssuedNo || invoiceNo(b) || "");
+  const kind = String(justKind || b.invoiceKind || (s.vatRegistered ? "vat" : "normal"));
+  const isVat = kind === "vat";
+  const customer = customerForBooking(b);
+  const total = amountDue(b);
+  const pct = typeof b.invoiceVatPct === "number" && b.invoiceVatPct > 0 ? b.invoiceVatPct : vatRatePct();
+  const split = vatSplit(total, pct);
+  const advance = Number(b.advancePaid) || 0;
+  const settled = b.paid ? total : advance;
+  const outstanding = Math.max(0, total - settled);
+  const issuedOn = b.invoiceIssuedAt ? String(b.invoiceIssuedAt).slice(0, 10) : todayStr();
+  const extras = [
+    ["Delivery", deliveryCost(b)],
+    ["Insurance", insuranceCost(b)],
+    ["Other charges", otherCost(b)]
+  ].filter(([, v]) => Number(v) > 0);
+
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>${isVat ? "VAT invoice" : "Invoice"} ${esc(serial || ref)}</title>
+${DOC_STYLES}
+</head><body>
+
+${DOC_ACTIONS}
+
+  <div class="ag-head">
+    ${companyBlock([
+      s.brn ? `BRN ${s.brn}` : "",
+      isVat && s.vatNumber ? `VAT No ${s.vatNumber}` : ""
+    ])}
+    <div class="ag-title">
+      <h1>${isVat ? "VAT invoice" : "Invoice"}</h1>
+      <div class="ag-ref">${esc(serial || ref)}</div>
+      ${serial ? `<div class="ag-issued">Booking ${esc(ref)}</div>` : ""}
+      <div class="ag-issued">Issued ${esc(formatDate(issuedOn))}</div>
+    </div>
+  </div>
+
+  <div class="ag-cols">
+    <div>
+      <h2>Billed to</h2>
+      <table class="ag-table">
+        ${line("Name", b.renter)}
+        ${line("Phone", b.phone || customer?.phone)}
+        ${line("Email", b.email || customer?.email)}
+      </table>
+    </div>
+    <div>
+      <h2>For the rental of</h2>
+      <table class="ag-table">
+        ${line("Vehicle", bookingCarLabel(b))}
+        ${line("From", formatDate(b.startDate))}
+        ${line("To", formatDate(b.endDate))}
+        ${line("Days", String(rentalDays(b)))}
+      </table>
+    </div>
+  </div>
+
+  <h2>Charges</h2>
+  <table class="ag-table">
+    <tr><th>Rental${hasManualTotal(b) ? " (agreed price)" : ` (${rentalDays(b)} × ${esc(formatAmount(rateFor(b)))})`}</th>
+      <td class="ag-num">${esc(formatAmount(rentalTotal(b)))}</td></tr>
+    ${extras.map(([label, v]) => `<tr><th>${label}</th><td class="ag-num">${esc(formatAmount(Number(v)))}</td></tr>`).join("")}
+    ${bankCharge(b) > 0
+      ? `<tr><th>Bank charge (${esc(String(bankChargePct(b)))}% — card payment)</th><td class="ag-num">${esc(formatAmount(bankCharge(b)))}</td></tr>`
+      : ""}
+    ${isVat ? `
+    <tr><th>Value excluding VAT</th><td class="ag-num">${esc(formatAmount(split.excl))}</td></tr>
+    <tr><th>VAT ${esc(String(pct))}% (included)</th><td class="ag-num">${esc(formatAmount(split.vat))}</td></tr>` : ""}
+    <tr class="ag-total"><th>Total${isVat ? " (incl. VAT)" : ""}</th><td class="ag-num">${esc(formatAmount(total))}</td></tr>
+    ${settled > 0 ? `<tr><th>${b.paid ? "Settled in full" : "Advance received"}</th><td class="ag-num">${esc(formatAmount(settled))}</td></tr>` : ""}
+    ${outstanding > 0 ? `<tr><th>Balance due</th><td class="ag-num">${esc(formatAmount(outstanding))}</td></tr>` : ""}
+  </table>
+
+  ${docFoot(`${isVat ? "VAT invoice" : "Invoice"} ${serial || ref}${serial ? ` · booking ${ref}` : ""}`)}
+
+  ${SELF_PRINT}
+
+</body></html>`;
+}
+
 export function openReceipt(bookingId, justIssuedNo) {
   const b = state.bookings.find(x => x.id === bookingId);
   if (!b) return { ok: false, reason: "That booking could not be found." };

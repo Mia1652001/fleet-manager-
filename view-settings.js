@@ -8,7 +8,7 @@
 
 import { db, setSync, auth, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "./firebase-init.js";
 import { doc, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, onDataChange, esc, el, val, setVal, showError, showToast, FX_CURRENCIES } from "./store.js";
+import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES } from "./store.js";
 import {
   CATEGORIES, INTERVALS, backupPrefs, saveBackupPrefs, daysSinceBackup,
   runBackup, folderSupported, folderStatus, chooseFolder, forgetFolder
@@ -133,6 +133,11 @@ export function render() {
     (typeof s.licenceFleet === "number" && s.licenceFleet > 0) ? s.licenceFleet : "");
   setVal(root, "s-licence-start", s.licenceStart || "");
   setVal(root, "s-licence-end", s.licenceEnd || "");
+  setChecked(root, "s-vat-registered", !!s.vatRegistered);
+  setVal(root, "s-vat-number", s.vatNumber || "");
+  setVal(root, "s-vat-rate",
+    (typeof s.vatRate === "number" && s.vatRate > 0) ? s.vatRate : "");
+  setVal(root, "s-brn", s.brn || "");
   // Show the matching preset rather than "Choose a currency…" next to a symbol
   // that is plainly already set — it reads as though nothing has been chosen.
   const preset = el(root, "s-currency-preset");
@@ -431,6 +436,15 @@ async function saveSettings() {
     })(),
     licenceStart: val(root, "s-licence-start"),
     licenceEnd: val(root, "s-licence-end"),
+    // VAT & invoicing. The rate is stored only when it differs from blank —
+    // blank means "the standard 15%", exactly like the bank charge's blank.
+    vatRegistered: checked(root, "s-vat-registered"),
+    vatNumber: val(root, "s-vat-number"),
+    vatRate: (function () {
+      const n = parseFloat(val(root, "s-vat-rate"));
+      return Number.isFinite(n) && n > 0 ? n : null;
+    })(),
+    brn: val(root, "s-brn"),
     terms: val(root, "s-terms"),
     messageNote: val(root, "s-note"),
     locations: linesTo(val(root, "s-locations")),

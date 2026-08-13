@@ -5,7 +5,7 @@
 // element (#booking-form-root) so the shared el()/val() helpers keep working.
 
 import { db, setSync } from "./firebase-init.js";
-import { openAgreement, openConfirmation, openReceipt, emailBooking, whatsappBooking, CAR_OUTLINE } from "./agreement.js";
+import { openAgreement, openConfirmation, openReceipt, openInvoice, emailBooking, whatsappBooking, CAR_OUTLINE } from "./agreement.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc, arrayUnion, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
@@ -13,6 +13,8 @@ import {
   staffNames, locationNames, brokerNames, FX_CURRENCIES, fxRate, deleteBookingWarning,
   rentalDays, formatAmount, defaultBankChargePct,
   receiptPrefix, formatReceiptNo, receiptNo, hasReceiptNo, receiptNoTaken,
+  invoiceKindFor, vatRatePct, formatInvoiceNo, invoiceNo, hasInvoiceNo,
+  invoiceNoTaken, invoiceSeqField,
   startTime, endTime,
   fillTimeOptions, getTime, setTime, onTimeChange,
   getSwatch, setSwatch,
@@ -49,6 +51,10 @@ export function mountBookingForm() {
   if (rcptBtn) rcptBtn.addEventListener("click", onReceiptClicked);
   const rcptGo = el(root, "receipt-go");
   if (rcptGo) rcptGo.addEventListener("click", issueReceipt);
+  const invBtn = el(root, "print-invoice");
+  if (invBtn) invBtn.addEventListener("click", onInvoiceClicked);
+  const invGo = el(root, "invoice-go");
+  if (invGo) invGo.addEventListener("click", issueInvoice);
   const confBtn = el(root, "print-confirmation");
   if (confBtn) confBtn.addEventListener("click", () => {
     if (!editingBookingId) return;
@@ -607,6 +613,131 @@ export function recalcAtTodayRate(fieldRoot, { fxInputId, homeInputId, sym, isPa
 // ---------- Damage diagram & signature ----------
 // The same car drawing the agreement prints, made tappable: each tap adds a
 // numbered mark with a note; saving writes them to the booking. The signature
+// ---------- Invoice numbers ----------
+// Identical discipline to receipts — consecutive, transaction-allocated,
+// blocked offline, fixed once issued — but two independent series: ordinary
+// invoices count INV-2026-0001 onwards, VAT invoices VAT-2026-0001. Which one
+// this company issues is read from the VAT-registered box on Settings at the
+// moment of issue, and the VAT rate is snapshotted onto the booking so a
+// later rate change never rewrites an invoice already sent. Unlike a receipt,
+// an invoice needs nothing to have been paid — billing is its whole point.
+
+function onInvoiceClicked() {
+  if (!editingBookingId) return;
+  const b = state.bookings.find(x => x.id === editingBookingId);
+  if (!b) return;
+
+  // Already issued: print exactly what went out, no questions.
+  if (hasInvoiceNo(b)) {
+    const r = openInvoice(editingBookingId);
+    if (!r.ok) showError(root, "booking-error", r.reason);
+    return;
+  }
+
+  showError(root, "invoice-error", null);
+  const kind = invoiceKindFor();
+  const year = receiptYear();
+  const next = (Number(state.settings?.[invoiceSeqField(kind)]?.[year]) || 0) + 1;
+  setVal(root, "invoice-no", formatInvoiceNo(next, year, kind));
+  const hint = el(root, "invoice-hint");
+  if (hint) {
+    hint.textContent =
+      (kind === "vat"
+        ? `This will be a VAT invoice at ${vatRatePct()}% — set on the Settings page. `
+        : `This will be an ordinary invoice — tick "VAT registered" on Settings to issue VAT invoices. `) +
+      `Suggested next number; change it to continue a numbering you already use. ` +
+      `A number already on another invoice will be refused. Once issued it cannot be edited.`;
+  }
+  openModal(root, "invoice-modal");
+  const box = el(root, "invoice-no");
+  if (box) setTimeout(() => { box.focus(); box.select(); }, 30);
+}
+
+async function issueInvoice() {
+  const id = editingBookingId;
+  if (!id) return;
+  const btn = el(root, "invoice-go");
+  const typed = val(root, "invoice-no").trim();
+
+  if (!typed) { showError(root, "invoice-error", "Enter an invoice number, or cancel."); return; }
+  if (invoiceNoTaken(typed, id)) {
+    showError(root, "invoice-error",
+      `Invoice ${typed} has already been issued on another booking. Use a different number.`);
+    return;
+  }
+  if (navigator.onLine === false) {
+    showError(root, "invoice-error",
+      "No connection. An invoice number has to be issued online so two people cannot be given the same one. Reconnect and try again.");
+    return;
+  }
+
+  showError(root, "invoice-error", null);
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = "Issuing...";
+  setSync("saving");
+
+  const kind = invoiceKindFor();
+  const seqField = invoiceSeqField(kind);
+  const year = receiptYear();
+  const auto = formatInvoiceNo((Number(state.settings?.[seqField]?.[year]) || 0) + 1, year, kind);
+
+  try {
+    const settingsRef = doc(db, "settings", state.ctx.companyId);
+    const bookingRefDoc = doc(db, "bookings", id);
+
+    const issued = await withTimeout(runTransaction(db, async (tx) => {
+      const snap = await tx.get(settingsRef);
+      const bSnap = await tx.get(bookingRefDoc);
+
+      const already = bSnap.exists() ? String(bSnap.data().invoiceNo || "") : "";
+      if (already) return already;
+
+      const data = snap.exists() ? snap.data() : {};
+      const seqMap = (data[seqField] && typeof data[seqField] === "object") ? { ...data[seqField] } : {};
+      const used = Number(seqMap[year]) || 0;
+      const prefix = String(data.receiptPrefix || "")
+        .toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
+
+      // Taking the suggested number advances the counter; a hand-typed one
+      // does not — same rule as receipts, same reason.
+      let number = typed;
+      if (typed === auto) {
+        const next = used + 1;
+        seqMap[year] = next;
+        number = formatInvoiceNo(next, year, kind, prefix);
+        tx.set(settingsRef, { companyId: state.ctx.companyId, [seqField]: seqMap }, { merge: true });
+      }
+
+      tx.update(bookingRefDoc, {
+        invoiceNo: number,
+        invoiceKind: kind,
+        invoiceVatPct: kind === "vat" ? vatRatePct() : null,
+        invoiceIssuedAt: new Date().toISOString(),
+        invoiceIssuedBy: state.ctx?.user?.email || ""
+      });
+      return number;
+    }), 12000);
+
+    closeModal(root, "invoice-modal");
+    setSync("live");
+    showToast(`Invoice ${issued} issued`);
+
+    const r = openInvoice(id, issued, kind);
+    if (!r.ok) showError(root, "booking-error", r.reason);
+    announce();
+  } catch (err) {
+    setSync("error");
+    const code = err && (err.code || err.message) || "";
+    showError(root, "invoice-error",
+      /timeout|unavailable|offline|network/i.test(String(code))
+        ? "Could not reach the server, so no number was issued. Check the connection and try again."
+        : `Could not issue an invoice number (${code}). Nothing was saved — try again.`);
+  }
+  btn.disabled = false;
+  btn.textContent = label;
+}
+
 // pad saves a small image that lands on the agreement's signature line.
 let damageDraft = [];
 let fuelDraft = null;   // 25 | 50 | 75 | 100 | null — saved with the marks
@@ -949,6 +1080,12 @@ export function openBookingModal(bookingId, preset) {
       // glance that this booking has already been receipted, and which one.
       rb.textContent = editing && hasReceiptNo(editing)
         ? `Receipt ${receiptNo(editing)}` : "Receipt";
+    }
+    const ib = el(root, "print-invoice");
+    if (ib) {
+      ib.style.display = editing ? "inline-block" : "none";
+      ib.textContent = editing && hasInvoiceNo(editing)
+        ? `Invoice ${invoiceNo(editing)}` : "Invoice";
     }
     const db2 = el(root, "damage-btn");
     if (db2) db2.style.display = editing ? "inline-block" : "none";

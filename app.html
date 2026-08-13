@@ -543,6 +543,7 @@
         <button class="tab active" data-rep="revenue">Revenue by car</button>
         <button class="tab" data-rep="expenses">Expenses by car</button>
         <button class="tab" data-rep="monthly">Month by month</button>
+        <button class="tab" data-rep="invoices">Invoices</button>
       </div>
 
       <div class="rep-headline" data-el="rep-headline"></div>
@@ -783,6 +784,34 @@
               <label for="s-licence-end">Licence end date</label>
               <input type="date" id="s-licence-end" data-el="s-licence-end">
             </div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h3>VAT &amp; invoicing</h3>
+          <p class="settings-note">Prices stay exactly as quoted — VAT-inclusive.
+            A VAT invoice shows the same total split into value and VAT; nobody's
+            balance changes. VAT invoices count in their own series (VAT-2026-0001)
+            so the quarterly MRA submission is one filtered export on the Reports page.</p>
+          <div class="field">
+            <label class="checkbox-field" style="text-transform:none;letter-spacing:0;">
+              <input type="checkbox" id="s-vat-registered" data-el="s-vat-registered">
+              This company is VAT registered — issue VAT invoices
+            </label>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="s-vat-number">VAT registration number</label>
+              <input type="text" id="s-vat-number" data-el="s-vat-number" placeholder="printed on every VAT invoice">
+            </div>
+            <div class="field">
+              <label for="s-vat-rate">VAT rate %</label>
+              <input type="number" id="s-vat-rate" data-el="s-vat-rate" min="0" step="0.1" placeholder="15">
+            </div>
+          </div>
+          <div class="field">
+            <label for="s-brn">Business Registration Number (BRN)</label>
+            <input type="text" id="s-brn" data-el="s-brn" placeholder="printed on invoices when set">
           </div>
         </div>
 
@@ -1074,6 +1103,22 @@
     </div>
   </div>
 
+  <div class="overlay" data-el="invoice-modal">
+    <div class="modal">
+      <h2>Invoice number</h2>
+      <div class="form-error" data-el="invoice-error"></div>
+      <div class="field">
+        <label for="invoice-no">Number on this invoice</label>
+        <input id="invoice-no" data-el="invoice-no" placeholder="loading...">
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin:-4px 0 10px;" data-el="invoice-hint"></div>
+      <div class="modal-actions">
+        <button class="btn" data-close="invoice-modal">Cancel</button>
+        <button class="btn-primary" data-el="invoice-go">Issue invoice</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Damage marks: tap the company's own car drawing where the damage is;
        each mark gets a number and a note, and prints on the agreement. -->
   <div class="overlay" data-el="damage-modal" id="damage-modal-root">
@@ -1281,6 +1326,7 @@
           <button class="btn" data-el="sign-btn" style="display:none;">Signature</button>
           <button class="btn" data-el="print-confirmation" style="display:none;">Booking confirmation</button>
           <button class="btn" data-el="print-receipt" style="display:none;">Receipt</button>
+          <button class="btn" data-el="print-invoice" style="display:none;">Invoice</button>
           <button class="btn" data-el="print-agreement" style="display:none;">Rental agreement</button>
           <button class="btn" data-el="email-booking" style="display:none;">Email customer</button>
           <button class="btn" data-el="whatsapp-booking" style="display:none;">WhatsApp</button>
