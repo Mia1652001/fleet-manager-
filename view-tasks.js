@@ -9,13 +9,12 @@ import {
   fillTimeOptions, getTime, setTime,
   findClash, describeInterval, startTime, endTime,
   rentalDays, rateFor, rentalTotal, hasManualTotal,
-  initPanelToggle, loadPref, savePref,
+  loadPref, savePref,
   el, val, setVal, openModal, closeModal, showError,
   showToast
 } from "./store.js";
 
 let root = null;
-let summaryOpen = () => true;   // set on mount; see initPanelToggle
 let range = "today";
 let showDone = false;
 // Empty means everyone. Otherwise a set of names, plus "__none__" standing for
@@ -29,12 +28,6 @@ let mode = loadPref("tasksView", "list");
 
 export function mount(container) {
   root = container;
-
-  // The summary figures start closed so the working part of the view is
-  // first on screen — the phone screens had almost nothing else visible.
-  // Fresh preference key: devices that remembered the old open state start
-  // closed like every other page; opening it is still remembered per device.
-  summaryOpen = initPanelToggle(root, "tasksSummary2", "toggle-summary", "hide-summary", "Summary");
 
   fillTimeOptions(root, "t-time");
   el(root, "search").addEventListener("input", render);
@@ -426,12 +419,6 @@ export function render() {
   const todayJobs = buildSchedule({ from: t, to: t, includeDone: false });
   const weekJobs = buildSchedule({ from: t, to: shiftDate(6), includeDone: false });
   const lateJobs = buildSchedule({ from: null, to: null, includeDone: false }).filter(j => j.overdue);
-
-  if (summaryOpen()) el(root, "stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Due today</div><div class="stat-val">${todayJobs.filter(j => !j.overdue).length}</div></div>
-    <div class="stat"><div class="stat-label">Next 7 days</div><div class="stat-val blue">${weekJobs.filter(j => !j.overdue).length}</div></div>
-    <div class="stat"><div class="stat-label">Running late</div><div class="stat-val red">${lateJobs.length}</div></div>
-  `;
 
   if (mode === "board") { renderBoard(jobs, denseFrom, to); return; }
 

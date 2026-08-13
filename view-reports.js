@@ -13,12 +13,12 @@ import {
   revenueByCarMonth, expensesByCarMonth, monthlySummary,
   bookingYears, companyName, bookingCarLabel, bookingRef,
   amountDue, vatSplit,
-  initPanelToggle, loadPref, savePref, el
+  loadPref, savePref, el
 } from "./store.js";
 import { loadXlsx, downloadBlob } from "./backup.js";
+import { openInvoice } from "./agreement.js";
 
 let root = null;
-let summaryOpen = () => true;
 let year = "";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -53,6 +53,7 @@ let current = "revenue";
 // window is the current quarter, which is the period the VAT return covers.
 let invFrom = "";
 let invTo = "";
+let invKind = "";   // "" all · "vat" · "normal"
 
 function quarterStart(t) {
   const m = Number(t.slice(5, 7));
@@ -72,7 +73,8 @@ function issuedInvoices() {
       return { b, no: String(b.invoiceNo), at, isVat, pct, total,
                excl: split ? split.excl : null, vat: split ? split.vat : null };
     })
-    .filter(r => r.at && (!invFrom || r.at >= invFrom) && (!invTo || r.at <= invTo))
+    .filter(r => r.at && (!invFrom || r.at >= invFrom) && (!invTo || r.at <= invTo)
+      && (!invKind || (invKind === "vat") === r.isVat))
     .sort((a, c) => a.at.localeCompare(c.at) || a.no.localeCompare(c.no));
 }
 
@@ -103,8 +105,6 @@ function paintTabs() {
 
 export function mount(container) {
   root = container;
-
-  summaryOpen = initPanelToggle(root, "reportsShowSummary", "toggle-summary", "hide-summary", "Summary");
   wireTabs();
 
   el(root, "rep-year").addEventListener("change", () => {
@@ -118,14 +118,22 @@ export function mount(container) {
   // table area, so their events are picked up here by delegation — the
   // elements are recreated on every render.
   el(root, "rep-table").addEventListener("change", (e) => {
-    const inp = e.target.closest("input[data-inv]");
+    const inp = e.target.closest("input[data-inv], select[data-inv]");
     if (!inp) return;
     if (inp.dataset.inv === "from") invFrom = inp.value;
-    else invTo = inp.value;
+    else if (inp.dataset.inv === "to") invTo = inp.value;
+    else invKind = inp.value;
     render();
   });
   el(root, "rep-table").addEventListener("click", (e) => {
-    if (e.target.closest("[data-inv-export]")) exportInvoicesXlsx();
+    if (e.target.closest("[data-inv-export]")) { exportInvoicesXlsx(); return; }
+    // The number itself opens the document — a real click, so no pop-up
+    // blocker has anything to say about it.
+    const openBtn = e.target.closest("[data-open-invoice]");
+    if (openBtn) {
+      const r = openInvoice(openBtn.dataset.openInvoice);
+      if (!r.ok) alert(r.reason);
+    }
   });
 
   onDataChange(() => { if (root.classList.contains("active")) render(); });
@@ -154,8 +162,6 @@ export function render() {
   const exp = expensesByCarMonth(year);
   const mon = monthlySummary(year);
 
-  renderSummary(rev, exp, mon);
-
   // The headline for whichever report is showing, stated once above the table
   // rather than left to be hunted for in a corner of it.
   const headline = el(root, "rep-headline");
@@ -163,11 +169,7 @@ export function render() {
     if (current === "invoices") {
       if (!invFrom) invFrom = quarterStart(todayStr());
       if (!invTo) invTo = todayStr();
-      const rows = issuedInvoices();
-      const vatSum = rows.reduce((a, r) => a + (r.vat || 0), 0);
-      headline.textContent =
-        `${rows.length} invoice${rows.length === 1 ? "" : "s"} issued ${formatDate(invFrom)} – ${formatDate(invTo)}` +
-        (vatSum > 0 ? ` · VAT within: ${formatAmount(Math.round(vatSum * 100) / 100)}` : "");
+      headline.textContent = "";
     } else {
       headline.textContent =
         current === "revenue" ? `${formatAmount(rev.grandTotal)} invoiced in ${year}` :
@@ -182,20 +184,6 @@ export function render() {
   else renderMonthly(mon);
 }
 
-function renderSummary(rev, exp, mon) {
-  if (!summaryOpen()) return;
-  const net = rev.grandTotal - exp.grandTotal;
-  el(root, "stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Invoiced<span class="stat-scope">${esc(year)}</span></div>
-      <div class="stat-val">${formatAmount(rev.grandTotal)}</div></div>
-    <div class="stat"><div class="stat-label">Expenses<span class="stat-scope">${esc(year)}</span></div>
-      <div class="stat-val amber">${formatAmount(exp.grandTotal)}</div></div>
-    <div class="stat"><div class="stat-label">Net<span class="stat-scope">${esc(year)}</span></div>
-      <div class="stat-val ${net < 0 ? "red" : "green"}">${formatAmount(net)}</div></div>
-    <div class="stat"><div class="stat-label">Occupancy<span class="stat-scope">${esc(year)} · ${mon.fleet} car${mon.fleet === 1 ? "" : "s"}</span></div>
-      <div class="stat-val blue">${percent(mon.total.occupancy)}</div></div>
-  `;
-}
 
 // ---------- The two car grids ----------
 // One function for both: a report that totalled its rows differently from its
@@ -255,17 +243,7 @@ function renderCarGrid(data, verb, which) {
       </tfoot>
     </table>`;
 
-  const cur = esc(state.settings?.currency || "Rs");
-  note.innerHTML = which === "revenue"
-    ? `All amounts in ${cur}. Invoiced value — rental plus delivery, insurance and other
-       charges, whether settled or not. Bank charges on card payments are excluded: the company
-       collects those for the bank. A rental counts in the month it starts, the same way
-       invoices are filed everywhere else, so the total here matches Booked on Billing for the
-       same year. Average is per month that earned, not per calendar month.`
-    : `All amounts in ${cur}. Everything recorded on the Expenses page, by the date and car on
-       each entry. Spending with no car against it — office costs, a bulk purchase — sits in
-       its own row, so this total always matches the Expenses page. Average is per month that
-       had spending.`;
+  note.textContent = "";
 }
 
 // ---------- Month by month ----------
@@ -330,16 +308,7 @@ function renderMonthly(mon) {
       </tfoot>
     </table>`;
 
-  note.innerHTML =
-    `All amounts in ${esc(state.settings?.currency || "Rs")}. Income is what was invoiced that
-     month — the same figure as Revenue by car and as Booked on Billing. Expenses come from the
-     Expenses page. Net is one minus the other.
-     Occupancy is days rented divided by days available, where available is
-     ${mon.fleet} car${mon.fleet === 1 ? "" : "s"} times the days in the month; a rental
-     spanning two months contributes its days to both, unlike the money, which belongs to the
-     month it started in. It uses today's fleet size for every month, because that is the only
-     fleet the app can know — through a big change in fleet size it drifts.
-     Total and Average both cover the months that had activity, not all twelve.`;
+  note.textContent = "";
 }
 
 // ---------- The invoices register ----------
@@ -356,6 +325,11 @@ function renderInvoices() {
     <div class="inv-controls">
       <label>From <input type="date" data-inv="from" value="${esc(invFrom)}"></label>
       <label>To <input type="date" data-inv="to" value="${esc(invTo)}"></label>
+      <select data-inv="kind">
+        <option value=""${invKind === "" ? " selected" : ""}>All invoices</option>
+        <option value="vat"${invKind === "vat" ? " selected" : ""}>VAT invoices</option>
+        <option value="normal"${invKind === "normal" ? " selected" : ""}>Regular invoices</option>
+      </select>
       <button class="btn" type="button" data-inv-export ${rows.length ? "" : "disabled"}>Export this list</button>
     </div>`;
 
@@ -389,7 +363,7 @@ function renderInvoices() {
       <tbody>
         ${rows.map(r => `
           <tr>
-            <th class="rep-car"><span class="rep-plate">${esc(r.no)}</span>
+            <th class="rep-car"><button type="button" class="inv-open" data-open-invoice="${r.b.id}">${esc(r.no)}</button>
               <span class="rep-model">${r.isVat ? `VAT invoice · ${esc(String(r.pct))}%` : "Invoice"}</span></th>
             <td>${esc(formatDate(r.at))}</td>
             <td>${esc(r.b.renter || "")}</td>
@@ -410,11 +384,7 @@ function renderInvoices() {
       </tfoot>
     </table>`;
 
-  const cur = esc(state.settings?.currency || "Rs");
-  note.innerHTML = `All amounts in ${cur}, VAT-inclusive — the VAT column states how much of each
-    total is VAT, at the rate fixed when that invoice was issued. Filtered by issue date.
-    Amounts shown are each booking's amount due today; an invoice reprint always
-    carries its own figures.`;
+  note.textContent = "";
 }
 
 async function exportInvoicesXlsx() {

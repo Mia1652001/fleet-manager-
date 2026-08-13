@@ -146,16 +146,25 @@ nav a.active { background: var(--bg); color: var(--text); }
 /* ---------- Controls ---------- */
 .toolbar { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
 
-input[type="text"], input[type="date"], input[type="email"], input[type="password"], input[type="number"], select {
+/* THE standard box. One size for every text, number, date and choice box in
+   the whole app, now and for every future feature: DM Mono at 16px, the same
+   padding, the same 44px height. 16px is also the exact threshold below which
+   iPhones zoom the page when a field is tapped. Widths follow the layout;
+   height and type never vary. */
+input[type="text"], input[type="date"], input[type="email"], input[type="password"],
+input[type="number"], input[type="tel"], input:not([type]), select, textarea {
   font-family: 'DM Mono', monospace;
-  font-size: 13px;
+  font-size: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 8px 12px;
+  padding: 10px 12px;
+  min-height: 44px;
   color: var(--text);
   outline: none;
 }
+textarea { min-height: 0; line-height: 1.45; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 
 .toolbar input[type="text"] { flex: 1; min-width: 180px; }
 input:focus, select:focus { border-color: var(--text); }
@@ -179,35 +188,6 @@ input[type="number"] {
   appearance: textfield;
 }
 
-/* ---------- One size for every box in every popup ----------
-   Every text, number, date and choice box inside a popup is the same: the
-   same mono font at 16px, the same padding, the same height. Two things at
-   once: forms read as one piece instead of a jumble of sizes, and 16px is
-   the exact threshold below which an iPhone zooms the whole page in when a
-   field is tapped — the single most annoying thing about filling the booking
-   form on a phone, gone. Widths still follow the layout: an hour box has no
-   business being as wide as a date. Checkboxes and range sliders keep their
-   native size. */
-.modal input[type="text"],
-.modal input[type="number"],
-.modal input[type="date"],
-.modal input[type="email"],
-.modal input[type="password"],
-.modal input[type="tel"],
-.modal select,
-.modal textarea {
-  font-family: 'DM Mono', monospace;
-  font-size: 16px;
-  padding: 10px 12px;
-  min-height: 44px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--text);
-  outline: none;
-}
-.modal textarea { min-height: 0; line-height: 1.45; }
-.modal input:focus, .modal select:focus, .modal textarea:focus { border-color: var(--text); }
 
 .btn-primary {
   font-family: 'DM Mono', monospace;
@@ -318,7 +298,7 @@ input[type="number"] {
   top: 6px;
   z-index: 30;
   display: block;
-  margin: -1.4rem -1.4rem -30px auto;
+  margin: calc(-2rem + 6px) calc(-2rem + 6px) -30px auto;
   width: 30px;
   height: 30px;
   border: 1px solid var(--border);
@@ -354,6 +334,10 @@ input[type="number"] {
   background: var(--surface);
   border-top: 1px solid var(--border);
   border-radius: 0 0 6px 6px;
+  /* The first shadow paints solid surface below the bar, so nothing in the
+     form can ever peek through between the bar and the popup's bottom edge;
+     the second lifts the bar off the content sliding beneath it. */
+  box-shadow: 0 2rem 0 0 var(--surface), 0 -10px 14px -12px rgba(0, 0, 0, 0.25);
 }
 /* The document and send actions. margin-right: auto keeps them on the left and
    pushes Cancel and Save to the right, so the two you press most often are
@@ -2611,12 +2595,13 @@ input[type="number"] {
 .car-row + .car-row { border-top: 1px dashed color-mix(in srgb, var(--border) 55%, transparent); }
 .car-row-l { color: var(--muted); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
 .car-cell {
-  font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text);
+  font-family: 'DM Mono', monospace; font-size: 16px; color: var(--text);
   background: transparent; border: 1px solid transparent; border-radius: 3px;
   padding: 2px 6px; text-align: right; width: 132px; min-height: 0;
 }
-.car-cell:hover { border-color: var(--border); }
-.car-cell:focus { border-color: var(--accent); outline: none; background: var(--surface); }
+input.car-cell, input.car-cell[type="date"] { min-height: 0; padding: 2px 6px; font-size: 13px; background: transparent; border: 1px solid transparent; }
+input.car-cell:hover { border-color: var(--border); }
+input.car-cell:focus { border-color: var(--accent); outline: none; background: var(--surface); }
 .car-rates { display: flex; gap: 4px; }
 .car-rates .car-cell-num { width: 58px; }
 .car-cell-num { width: 96px; }
@@ -2651,3 +2636,25 @@ input[type="number"] {
   width: 52px; height: 38px; padding: 2px;
   border: 1px solid var(--border); border-radius: 4px; background: var(--surface); cursor: pointer;
 }
+
+
+/* ---------- Mobile standard (≤640px) ----------
+   One layout language for every page: the search bar is always full width on
+   its own line, every other toolbar control shares a two-column grid of equal
+   44px buttons, and popup field rows stack to a single centred column. */
+@media (max-width: 640px) {
+  .toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .toolbar input[type="text"] { grid-column: 1 / -1; min-width: 0; width: 100%; }
+  .toolbar .btn, .toolbar .btn-primary, .toolbar select { width: 100%; margin: 0; }
+  .filter-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .filter-row .tab { flex: 1 1 calc(50% - 6px); text-align: center; }
+
+  .modal .field-row, .modal .field-row.equal { flex-direction: column; gap: 0; }
+  .modal .field { width: 100%; }
+  .modal .field input, .modal .field select, .modal .field textarea { width: 100%; }
+  .modal-actions .btn, .modal-actions .btn-primary { flex: 1 1 auto; }
+}
+
+/* invoice numbers open the document */
+.inv-open { background: none; border: none; padding: 0; font: inherit; color: var(--accent); text-decoration: underline; cursor: pointer; }
+.inv-open:hover { opacity: 0.75; }

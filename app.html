@@ -159,8 +159,6 @@
 
     <!-- ---------- FLEET ---------- -->
     <section class="view" id="view-fleet">
-      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
-      <div class="stats" data-el="stats"></div>
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search car, plate, category...">
         <select data-el="sort">
@@ -288,15 +286,12 @@
 
     <!-- ---------- BOOKINGS ---------- -->
     <section class="view" id="view-bookings">
-      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
-      <div class="stats" data-el="stats"></div>
       <!-- Wrapped so a wide screen can lay the search row and the planner
            controls out as a single line, which gives the planner back a whole
            row of height. On a phone they stay stacked. -->
       <div class="planner-bar">
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search booking by car or renter...">
-        <button class="btn-primary" data-el="new-booking">+ New booking</button>
         <button class="btn" data-el="check-avail" title="Enter dates and see every free car">Check availability</button>
       </div>
       <div class="cal-header">
@@ -404,8 +399,6 @@
 
     <!-- ---------- CUSTOMERS ---------- -->
     <section class="view" id="view-customers">
-      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
-      <div class="stats" data-el="stats"></div>
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search name, phone, email, or license...">
         <button class="btn-primary" data-el="add-customer">+ Add customer</button>
@@ -445,8 +438,6 @@
 
     <!-- ---------- BILLING ---------- -->
     <section class="view" id="view-billing">
-      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
-      <div class="stats" data-el="stats"></div>
       <!-- One control line, like the other pages: search, the payment tabs,
            then the period and broker filters. Year and month are independent:
            either alone works, together they narrow to one month of one year. -->
@@ -520,9 +511,7 @@
         <span class="inline-label">Year</span>
         <select data-el="rep-year"></select>
         <button class="btn" data-el="rep-export">Download for Excel</button>
-        <button type="button" class="panel-toggle push-right" data-el="toggle-summary">Summary</button>
       </div>
-      <div class="stats" data-el="stats"></div>
 
       <div class="filter-row" data-el="rep-tabs">
         <button class="tab active" data-rep="revenue">Revenue by car</button>
@@ -537,8 +526,6 @@
     </section>
 
     <section class="view" id="view-maintenance">
-      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
-      <div class="stats" data-el="stats"></div>
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search car or plate...">
       </div>
@@ -601,8 +588,6 @@
 
     <!-- ---------- TASKS ---------- -->
     <section class="view" id="view-expenses">
-      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
-      <div class="stats" data-el="stats"></div>
       <div data-el="cat-totals"></div>
       <div class="toolbar one-line-tools">
         <input type="text" data-el="search" placeholder="Search staff, category, car or note...">
@@ -747,9 +732,7 @@
 
         <div class="settings-card">
           <h3>Company licence</h3>
-          <p class="settings-note">The operating licence the company rents cars
-            under. The Dashboard warns before the end date arrives, and warns
-            separately if the fleet grows past the licensed size.</p>
+          <p class="settings-note">The Dashboard warns before the end date, and if the fleet exceeds the licensed size.</p>
           <div class="field-row">
             <div class="field">
               <label for="s-licence-number">Licence number</label>
@@ -774,10 +757,7 @@
 
         <div class="settings-card">
           <h3>VAT &amp; invoicing</h3>
-          <p class="settings-note">Prices stay exactly as quoted — VAT-inclusive.
-            A VAT invoice shows the same total split into value and VAT; nobody's
-            balance changes. VAT invoices count in their own series (VAT-2026-0001)
-            so the quarterly MRA submission is one filtered export on the Reports page.</p>
+          <p class="settings-note">VAT invoices count in their own series; the quarterly export is on the Reports page.</p>
           <div class="field">
             <label class="checkbox-field" style="text-transform:none;letter-spacing:0;">
               <input type="checkbox" id="s-vat-registered" data-el="s-vat-registered">
@@ -932,11 +912,7 @@
         </div>
         <div class="settings-card">
           <h3>Appearance</h3>
-          <p class="settings-note">The look of the app for everyone who signs in
-            to this company. Pick a theme, or set your own background and button
-            colours on top of it — you see it immediately, and
-            <strong>Save company details</strong> keeps it. Printed documents
-            always stay paper-white.</p>
+          <p class="settings-note">Applies to everyone in this company. Save keeps it; printed documents stay paper-white.</p>
           <div class="theme-grid" data-el="theme-presets"></div>
           <div class="field-row" style="margin-top:14px;">
             <div class="field">
@@ -960,8 +936,6 @@
       </div>
     </section>
     <section class="view" id="view-tasks">
-      <button type="button" class="panel-toggle" data-el="toggle-summary">Summary</button>
-      <div class="stats" data-el="stats"></div>
 
       <!-- Four separate rows of controls used to sit above the work itself,
            which on a laptop left very little room for the jobs. Wrapped like the
@@ -1117,13 +1091,12 @@
 
   <div class="overlay" data-el="invoice-modal">
     <div class="modal">
-      <h2>Invoice number</h2>
+      <h2 data-el="invoice-title">Invoice number</h2>
       <div class="form-error" data-el="invoice-error"></div>
       <div class="field">
         <label for="invoice-no">Number on this invoice</label>
         <input id="invoice-no" data-el="invoice-no" placeholder="loading...">
       </div>
-      <div style="font-size:11px;color:var(--muted);margin:-4px 0 10px;" data-el="invoice-hint"></div>
       <div class="modal-actions">
         <button class="btn" data-close="invoice-modal">Cancel</button>
         <button class="btn-primary" data-el="invoice-go">Issue invoice</button>

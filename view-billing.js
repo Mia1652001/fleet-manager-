@@ -10,7 +10,6 @@ import {
   settledAmount, isBillable, hasStarted, settledOn, moneySummary,
   bankCharge, bankChargePct, amountDue,
   brokerNames, fxPair, fxRate,
-  initPanelToggle,
   el, val, setVal, openModal, closeModal, showError,
   bookingRef,
   invoiceTotal,
@@ -26,7 +25,6 @@ const BADGE = {
 };
 
 let root = null;
-let summaryOpen = () => true;   // set on mount; see initPanelToggle
 let filter = "unpaid";
 // Both default to "", meaning no restriction. They work independently: a year
 // alone gives that whole year, a month alone gives that month in every year, and
@@ -46,10 +44,6 @@ let depositBookingId = null;
 
 export function mount(container) {
   root = container;
-
-  // The summary figures start closed so the working part of the view is
-  // first on screen — the phone screens had almost nothing else visible.
-  summaryOpen = initPanelToggle(root, "billingShowSummary", "toggle-summary", "hide-summary", "Summary");
 
   buildMonthOptions();
   el(root, "period-year").addEventListener("change", () => {
@@ -198,15 +192,6 @@ export function render() {
       <div class="stat-label">${esc(label)}<span class="stat-scope">${esc(scope)}</span></div>
       <div class="stat-val ${tone}">${value}</div>
     </div>`;
-
-  // Same order as the dashboard's Money card, which is the order finance asked
-  // for: sold, collected, still owed, then the two supporting figures.
-  if (summaryOpen()) el(root, "stats").innerHTML =
-    stat("Booked", formatAmount(m.booked), "") +
-    stat("Received", formatAmount(m.received), "green") +
-    stat("Outstanding", formatAmount(m.outstanding), "red") +
-    stat("Unpaid invoices", String(m.unpaidCount), "amber") +
-    stat("Deposits held", formatAmount(m.deposits), "blue");
 
   refreshPeriodOptions();
   refreshBrokerOptions();
@@ -546,6 +531,11 @@ async function saveDeposits() {
     const update = { advancePaid: advance, securityDeposit: security,
       fxAdvance: fxAdvance > 0 ? fxAdvance : null,
       fxSecurity: fxSecurity > 0 ? fxSecurity : null };
+    // The day the advance arrived, stamped when the figure changes — this is
+    // what lets Received count deposits in the month the money actually came.
+    if (advance !== (Number(b.advancePaid) || 0)) {
+      update.advanceRecordedAt = new Date().toISOString();
+    }
     if (security > 0 && !b.securityStatus) update.securityStatus = "held";
     if (security === 0) update.securityStatus = null;
     await updateDoc(doc(db, "bookings", depositBookingId), update);

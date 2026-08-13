@@ -494,12 +494,11 @@ async function issueReceipt() {
 
     closeModal(root, "receipt-modal");
     setSync("live");
-    showToast(`Receipt ${issued} issued`);
-
-    // The local copy may not have caught up with the write yet, so the number
-    // is handed to the printable directly rather than read back from state.
-    const r = openReceipt(id, issued);
-    if (!r.ok) showError(root, "booking-error", r.reason);
+    // Not auto-opened — same pop-up-blocker reason as invoices. The button
+    // carries the number; pressing it prints.
+    const rb = el(root, "print-receipt");
+    if (rb) rb.textContent = `Receipt ${issued}`;
+    showToast(`Receipt ${issued} issued — press the Receipt button to open it`);
     announce();
   } catch (err) {
     setSync("error");
@@ -639,15 +638,9 @@ function onInvoiceClicked() {
   const year = receiptYear();
   const next = (Number(state.settings?.[invoiceSeqField(kind)]?.[year]) || 0) + 1;
   setVal(root, "invoice-no", formatInvoiceNo(next, year, kind));
-  const hint = el(root, "invoice-hint");
-  if (hint) {
-    hint.textContent =
-      (kind === "vat"
-        ? `This will be a VAT invoice at ${vatRatePct()}% — set on the Settings page. `
-        : `This will be an ordinary invoice — tick "VAT registered" on Settings to issue VAT invoices. `) +
-      `Suggested next number; change it to continue a numbering you already use. ` +
-      `A number already on another invoice will be refused. Once issued it cannot be edited.`;
-  }
+  const title = el(root, "invoice-title");
+  if (title) title.textContent = kind === "vat"
+    ? `VAT invoice number (${vatRatePct()}%)` : "Invoice number";
   openModal(root, "invoice-modal");
   const box = el(root, "invoice-no");
   if (box) setTimeout(() => { box.focus(); box.select(); }, 30);
@@ -721,10 +714,13 @@ async function issueInvoice() {
 
     closeModal(root, "invoice-modal");
     setSync("live");
-    showToast(`Invoice ${issued} issued`);
-
-    const r = openInvoice(id, issued, kind);
-    if (!r.ok) showError(root, "booking-error", r.reason);
+    // Deliberately not opened here: a window.open after an await is no longer
+    // a click in the browser's eyes, and pop-up blockers eat it — the number
+    // was being issued and then an error shown, the worst of both. The button
+    // now carries the number; pressing it is a real click and prints cleanly.
+    const ib = el(root, "print-invoice");
+    if (ib) ib.textContent = `Invoice ${issued}`;
+    showToast(`Invoice ${issued} issued — press the Invoice button to open it`);
     announce();
   } catch (err) {
     setSync("error");
@@ -927,7 +923,7 @@ function paintDamage() {
     ? damageDraft.map((m, i) => `
       <div class="damage-row" data-mark="${i}">
         <strong>${i + 1}.</strong>
-        <input placeholder="e.g. scratch, rear left door" value="${esc(m.note || "")}">
+        <input type="text" placeholder="e.g. scratch, rear left door" value="${esc(m.note || "")}">
         <button type="button" class="btn danger" data-remove-mark="${i}">×</button>
       </div>`).join("")
     : `<div style="color:var(--muted);font-size:12px;">No marks yet — tap the drawing.</div>`;

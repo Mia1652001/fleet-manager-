@@ -426,6 +426,20 @@ export function monthLabel(key) {
 // by the day the money actually arrived, which is not the same day at all: an
 // advance taken in August on a September rental was received in August. That
 // distinction is the whole point of reporting by month.
+// The day an advance arrived. Recorded explicitly from now on
+// (advanceRecordedAt, stamped by the Deposits dialog); for the advances taken
+// before that field existed, inferred the way settledOn infers — the booking's
+// creation day, since a deposit is normally taken when the booking is made —
+// and never a future date.
+export function advanceReceivedOn(b) {
+  const explicit = String(b.advanceRecordedAt || "").slice(0, 10);
+  if (explicit) return explicit;
+  const created = String(b.createdAt || "").slice(0, 10);
+  const t = todayStr();
+  const guess = created || String(b.startDate || "").slice(0, 10) || t;
+  return guess > t ? t : guess;
+}
+
 export function moneySummary(bookings, inScope) {
   const ofPeriod = bookings.filter(b => inScope(b.startDate));
   // Owed means owed now. A rental that has not started yet owes nothing, and
@@ -437,9 +451,20 @@ export function moneySummary(bookings, inScope) {
     unpaidCount: owed.length,
     booked: ofPeriod.reduce((s, b) => s + invoiceTotal(b), 0),
     deposits: ofPeriod.reduce((s, b) => s + securityHeld(b), 0),
-    received: bookings
-      .filter(b => b.paid && inScope(settledOn(b)))
-      .reduce((s, b) => s + settledAmount(b), 0)
+    // Received is cash that actually arrived in the period: every advance by
+    // the day it was taken, plus every settled balance by the day it settled.
+    // The two cannot double-count — settledAmount is the balance only, the
+    // advance having been subtracted when the balance was struck. Before
+    // Aug 2026 advances were counted nowhere, which is why Booked, Received
+    // and Outstanding refused to reconcile: the gap was every deposit ever
+    // taken, plus rentals not yet started.
+    received:
+      bookings
+        .filter(b => Number(b.advancePaid) > 0 && inScope(advanceReceivedOn(b)))
+        .reduce((s, b) => s + Number(b.advancePaid), 0)
+      + bookings
+        .filter(b => b.paid && inScope(settledOn(b)))
+        .reduce((s, b) => s + settledAmount(b), 0)
   };
 }
 

@@ -10,7 +10,6 @@ import {
   sharesStartHandover, sharesEndHandover, serviceDue,
   orderedCars, loadPref, savePref,
   startTime, endTime, pickupLabel, dropoffLabel, rentalTotal,
-  initPanelToggle,
   el, val, closeModal,
   bookingRef,
   requestFocus,
@@ -52,7 +51,6 @@ let zoom = loadPref("timelineZoom", DEFAULT_ZOOM);
 // The planner is what the desk works from, so the summary figures and the
 // booking list stay closed until asked for. Each person's choice is remembered
 // on their own device.
-let showSummary = loadPref("bookingsShowSummary", false);
 let showList = loadPref("bookingsShowList", false);
 
 function isNarrowScreen() {
@@ -171,11 +169,9 @@ export function mount(container) {
   // room, so it stays open. Either way the choice is remembered.
   legendOpen = initPanelToggle(
     root, "bookingsShowLegend", "toggle-legend", "hide-legend", "Legend", !isNarrowScreen());
-  el(root, "toggle-summary").addEventListener("click", () => togglePanel("summary"));
   el(root, "toggle-list").addEventListener("click", () => togglePanel("list"));
 
   el(root, "search").addEventListener("input", render);   // redraws planner and list
-  el(root, "new-booking").addEventListener("click", () => openBookingModal(null));
 
 
   const zoomEl = el(root, "zoom");
@@ -294,7 +290,6 @@ function stateLabel(s) {
 
 export function render() {
   if (!root) return;
-  if (showSummary) renderStats();
   renderTimeline();
   fitPlannerHeight();
   // After the planner is drawn, so the readout can measure a laid-out element.
@@ -980,41 +975,24 @@ function fitPlannerHeight() {
 
 // ---------- Collapsible panels ----------
 function applyPanels() {
-  root.classList.toggle("hide-summary", !showSummary);
   root.classList.toggle("hide-list", !showList);
   updateToggleLabels();
 }
 
 function togglePanel(which) {
-  if (which === "summary") {
-    showSummary = !showSummary;
-    savePref("bookingsShowSummary", showSummary);
-  } else {
-    showList = !showList;
-    savePref("bookingsShowList", showList);
-  }
+  showList = !showList;
+  savePref("bookingsShowList", showList);
   applyPanels();
   render();          // fills in whatever was just opened
 }
 
 function updateToggleLabels() {
   const n = filteredBookings().length;
-  el(root, "toggle-summary").textContent = `${showSummary ? "\u25be" : "\u25b8"} Summary`;
   el(root, "toggle-list").textContent =
     `${showList ? "\u25be" : "\u25b8"} Booking list (${n})`;
 }
 
 
-function renderStats() {
-  const states = state.bookings.map(bookingState);
-  const count = s => states.filter(x => x === s).length;
-  el(root, "stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Active now</div><div class="stat-val green">${count("active-b")}</div></div>
-    <div class="stat"><div class="stat-label">Upcoming</div><div class="stat-val amber">${count("upcoming")}</div></div>
-    <div class="stat"><div class="stat-label">Overdue</div><div class="stat-val red">${count("overdue")}</div></div>
-    <div class="stat"><div class="stat-label">Completed</div><div class="stat-val">${count("completed")}</div></div>
-  `;
-}
 
 // ---------- Timeline / fleet planner ----------
 // Cars down the left, days across the top, one bar per rental.

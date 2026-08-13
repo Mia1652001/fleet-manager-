@@ -3,21 +3,15 @@ import { db, setSync } from "./firebase-init.js";
 import { updateDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, serviceDue, todayStr,
-  initPanelToggle,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
 let root = null;
-let summaryOpen = () => true;   // set on mount; see initPanelToggle
 let filter = "all";
 let editingCarId = null;
 
 export function mount(container) {
   root = container;
-
-  // The summary figures start closed so the working part of the view is
-  // first on screen — the phone screens had almost nothing else visible.
-  summaryOpen = initPanelToggle(root, "maintenanceShowSummary", "toggle-summary", "hide-summary", "Summary");
 
   el(root, "search").addEventListener("input", render);
   el(root, "save-maint").addEventListener("click", saveMaintenance);
@@ -70,12 +64,6 @@ export function render() {
 
   const dueCount = state.cars.filter(serviceDue).length;
   const serviceCount = state.cars.filter(c => c.outOfService).length;
-
-  if (summaryOpen()) el(root, "stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Total cars</div><div class="stat-val">${state.cars.length}</div></div>
-    <div class="stat"><div class="stat-label">Service due</div><div class="stat-val amber">${dueCount}</div></div>
-    <div class="stat"><div class="stat-label">Out of service</div><div class="stat-val red">${serviceCount}</div></div>
-  `;
 
   let list = state.cars.filter(c => {
     let mf = true;

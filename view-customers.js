@@ -3,22 +3,16 @@ import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, bookingCarLabel,
-  initPanelToggle,
   el, val, setVal, openModal, closeModal, showError,
   takeFocus
 } from "./store.js";
 
 let root = null;
-let summaryOpen = () => true;   // set on mount; see initPanelToggle
 let letter = "";                // "" is everyone; otherwise "A".."Z" or "#"
 let editingId = null;
 
 export function mount(container) {
   root = container;
-
-  // The summary figures start closed so the working part of the view is
-  // first on screen — the phone screens had almost nothing else visible.
-  summaryOpen = initPanelToggle(root, "customersShowSummary", "toggle-summary", "hide-summary", "Summary");
 
   el(root, "search").addEventListener("input", render);
 
@@ -106,11 +100,6 @@ export function render() {
   }
 
   const search = el(root, "search").value.toLowerCase();
-
-  if (summaryOpen()) el(root, "stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Customers</div><div class="stat-val">${state.customers.length}</div></div>
-    <div class="stat"><div class="stat-label">Total rentals</div><div class="stat-val blue">${state.bookings.length}</div></div>
-  `;
 
   // Search first, so the letters reflect what the search has already narrowed to
   // rather than offering letters that would come back empty.

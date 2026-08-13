@@ -6,7 +6,7 @@ import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr,
-  staffNames, expenseCategoryNames, orderedCars, initPanelToggle,
+  staffNames, expenseCategoryNames, orderedCars,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
@@ -56,7 +56,6 @@ export function mount(container) {
 
   wireBoard();
   el(root, "save-expense").addEventListener("click", saveExpense);
-  initPanelToggle(root, "expSummary1", "toggle-summary", "hide-summary", "Summary");
 
   // Paid-with drives whether the Refunded tick applies at all.
   el(root, "x-paidwith").addEventListener("change", () => {
@@ -237,18 +236,6 @@ export function render() {
     .reduce((s2, x) => s2 + (Number(x.amount) || 0), 0);
   const owed = list.filter(x => staffPaid(x) && !x.done)
     .reduce((s2, x) => s2 + (Number(x.amount) || 0), 0);
-  const bits = [];
-  if (periodYear || periodMonth) {
-    bits.push(periodMonth ? `${MONTH_NAMES[Number(periodMonth) - 1]}${periodYear ? " " + periodYear : ""}` : periodYear);
-  }
-  if (categoryFilter) bits.push(categoryFilter);
-  el(root, "stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Spent${bits.length ? ` · ${esc(bits.join(" · "))}` : ""}</div>
-      <div class="stat-val">${formatAmount(spent)}</div>
-      <div class="stat-sub">${list.length} expense${list.length === 1 ? "" : "s"}</div></div>
-    <div class="stat"><div class="stat-label">Refunded</div><div class="stat-val">${formatAmount(refunded)}</div></div>
-    <div class="stat"><div class="stat-label">Still to refund</div><div class="stat-val" style="color:${owed > 0 ? "var(--red-text)" : "inherit"};">${formatAmount(owed)}</div></div>
-  `;
 
   // A total per category, always matching exactly what the filters show.
   renderCategoryTotals(list);

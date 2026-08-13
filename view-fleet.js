@@ -7,22 +7,16 @@ import {
   fillTimeOptions, getTime, setTime, onTimeChange,
   currentBooking, nextUpcoming, carStatus, serviceDue, openBookingsForCar,
   orderedCars, getSwatch, setSwatch,
-  initPanelToggle,
   el, val, setVal, checked, setChecked, openModal, closeModal, showError,
   takeFocus, carLimit, carDocsDue
 } from "./store.js";
 
 let root = null;
-let summaryOpen = () => true;   // set on mount; see initPanelToggle
 let editingCarId = null;
 let rentingCarId = null;
 
 export function mount(container) {
   root = container;
-
-  // The summary figures start closed so the working part of the view is
-  // first on screen — the phone screens had almost nothing else visible.
-  summaryOpen = initPanelToggle(root, "fleetShowSummary", "toggle-summary", "hide-summary", "Summary");
 
   el(root, "search").addEventListener("input", render);
   el(root, "sort").addEventListener("change", render);
@@ -123,10 +117,6 @@ export function render() {
   const search = el(root, "search").value.toLowerCase();
   const sort = el(root, "sort").value;
 
-  if (summaryOpen()) el(root, "stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Total cars</div><div class="stat-val">${state.cars.length}${carLimit() ? `<span style="font-size:0.45em;color:${state.cars.length >= carLimit() ? "var(--red-text)" : "var(--muted)"};"> of ${carLimit()} on plan</span>` : ""}</div></div>
-    <div class="stat"><div class="stat-label">Out of service</div><div class="stat-val red">${state.cars.filter(c => c.outOfService).length}</div></div>
-  `;
 
   // The fleet page is the vehicle register now — what each car is, what it
   // costs, which papers expire when. Who is in a car today, and until when,
