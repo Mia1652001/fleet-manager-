@@ -15,6 +15,10 @@
   --red-text: #8a2020;
   --blue-bg: #e8eef6;
   --blue-text: #2d4a6a;
+  /* The accent: the surface of the header, primary buttons and active tabs.
+     Defaults to the ink so an unthemed company looks exactly as always. */
+  --accent: var(--text);
+  --accent-ink: var(--bg);
 }
 
 html {
@@ -34,8 +38,8 @@ body {
 
 /* ---------- Header & nav ---------- */
 header {
-  background: var(--text);
-  color: var(--bg);
+  background: var(--accent);
+  color: var(--accent-ink);
   padding: 1.2rem 2rem 0;
 }
 
@@ -209,8 +213,8 @@ input[type="number"] {
   font-family: 'DM Mono', monospace;
   font-size: 12px;
   letter-spacing: 0.05em;
-  background: var(--text);
-  color: var(--bg);
+  background: var(--accent);
+  color: var(--accent-ink);
   border: none;
   border-radius: 4px;
   padding: 8px 18px;
@@ -237,7 +241,7 @@ input[type="number"] {
 }
 
 .tab:hover { border-color: var(--text); color: var(--text); }
-.tab.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+.tab.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
 /* ---------- Cards ---------- */
 .card-list { display: flex; flex-direction: column; gap: 8px; }
@@ -512,7 +516,7 @@ input[type="number"] {
 }
 
 .tl-daynum.weekend { background: #efeade; }
-.tl-daynum.today { background: var(--text); color: var(--bg); }
+.tl-daynum.today { background: var(--accent); color: var(--accent-ink); }
 .tl-daynum.today .dow { opacity: 0.8; }
 
 /* Car label column */
@@ -728,8 +732,8 @@ input[type="number"] {
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--bg);
-  background: var(--text);
+  color: var(--accent-ink);
+  background: var(--accent);
   padding: 7px 12px;
   border-radius: 4px 4px 0 0;
 }
@@ -1619,7 +1623,7 @@ input[type="number"] {
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .alpha-btn:hover:not(:disabled) { border-color: var(--text); }
-.alpha-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+.alpha-btn.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 /* Shown but not clickable, so the row keeps its shape and an empty letter reads
    as empty rather than as something that failed to respond. */
 .alpha-btn:disabled { color: var(--border); cursor: default; }
@@ -1653,8 +1657,8 @@ input[type="number"] {
   pointer-events: none;      /* never blocks a click on what is underneath */
 }
 .toast {
-  background: var(--text);
-  color: var(--bg);
+  background: var(--accent);
+  color: var(--accent-ink);
   font-family: 'DM Mono', monospace;
   font-size: 12px;
   letter-spacing: 0.03em;
@@ -2115,8 +2119,8 @@ input[type="number"] {
   max-width: 180px;
 }
 .tab-select.active {
-  background: var(--text);
-  color: var(--bg);
+  background: var(--accent);
+  color: var(--accent-ink);
   border-color: var(--text);
 }
 
@@ -2202,8 +2206,8 @@ input[type="number"] {
   font-family: 'DM Mono', monospace;
   font-size: 11px;
   letter-spacing: 0.03em;
-  background: var(--text);
-  color: var(--bg);
+  background: var(--accent);
+  color: var(--accent-ink);
   padding: 4px 9px;
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
@@ -2608,8 +2612,25 @@ input[type="number"] {
 
 /* ---------- Fuel gauge on the damage diagram ---------- */
 .fuel-opts { display: flex; gap: 8px; flex-wrap: wrap; }
-.fuel-opt.selected { background: var(--text); color: var(--bg); border-color: var(--text); }
+.fuel-opt.selected { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
 /* ---------- Invoices tab controls ---------- */
 .inv-controls { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; font-size: 12px; color: var(--muted); }
 .inv-controls label { display: flex; gap: 6px; align-items: center; }
+
+/* ---------- Appearance picker ---------- */
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.theme-opt {
+  display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text);
+  font-family: inherit; font-size: 11px; cursor: pointer; text-align: left;
+}
+.theme-opt.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.theme-chips { display: flex; gap: 4px; }
+.theme-chip { width: 22px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.18); }
+.theme-pick { display: flex; gap: 8px; align-items: center; }
+.theme-pick input[type="color"] {
+  width: 52px; height: 38px; padding: 2px;
+  border: 1px solid var(--border); border-radius: 4px; background: var(--surface); cursor: pointer;
+}

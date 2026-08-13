@@ -617,6 +617,75 @@ function normaliseReceiptNo(v) {
   return String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
+// ---------- Themes ----------
+// Per-company appearance, stored on the settings document so everyone who
+// signs in to the company sees the same app. A theme is a full, curated set
+// of the CSS variables the stylesheet runs on — curated, because arbitrary
+// combinations are how text ends up unreadable on its own background. On top
+// of a preset, two custom colours may override: the page background, and the
+// accent (header, primary buttons, active tabs), whose text colour is chosen
+// automatically for contrast. Printed documents are untouched on purpose: an
+// agreement or invoice is paper, whatever the screen looks like.
+
+const THEME_PRESETS = {
+  cream:    { name: "Cream",       bg: "#f5f2eb", surface: "#ffffff", border: "#e0dbd0", text: "#1a1814", muted: "#7a7568", accent: "#1a1814", ink: "#f5f2eb" },
+  paper:    { name: "Paper",       bg: "#f7f7f5", surface: "#ffffff", border: "#e2e2df", text: "#1a1a1c", muted: "#71737a", accent: "#1a1a1c", ink: "#f7f7f5" },
+  ocean:    { name: "Ocean",       bg: "#edf3f5", surface: "#ffffff", border: "#d3e1e6", text: "#132f38", muted: "#54707c", accent: "#0f4c5c", ink: "#f2f8fa" },
+  forest:   { name: "Forest",      bg: "#f0f4ec", surface: "#ffffff", border: "#d9e2cf", text: "#1c291c", muted: "#647159", accent: "#2f5d2f", ink: "#f2f7ee" },
+  sand:     { name: "Sand",        bg: "#f7f0e3", surface: "#fffdf8", border: "#e7d9c0", text: "#2b2115", muted: "#8a7455", accent: "#7a4a1f", ink: "#faf4e8" },
+  lavender: { name: "Lavender",    bg: "#f3f0f8", surface: "#ffffff", border: "#ddd6ea", text: "#251d36", muted: "#6f6788", accent: "#5b3d8a", ink: "#f5f1fa" },
+  rose:     { name: "Rose",        bg: "#f9f0f2", surface: "#ffffff", border: "#ebd5db", text: "#331d24", muted: "#8a6d76", accent: "#963a55", ink: "#faf2f4" },
+  night:    { name: "Night (beta)", bg: "#15171c", surface: "#1e222a", border: "#343a46", text: "#e7e5e0", muted: "#98a0ac", accent: "#d8b45a", ink: "#15171c",
+              greenBg: "#1c2f1f", greenText: "#93cf9a", amberBg: "#322a12", amberText: "#e0bb63",
+              redBg: "#331b1b", redText: "#e28a8a", blueBg: "#1a2534", blueText: "#93b4dc" }
+};
+
+export const THEME_LIST = Object.entries(THEME_PRESETS)
+  .map(([key, p]) => ({ key, name: p.name, bg: p.bg, accent: p.accent }));
+
+export function themePresetOf(s) {
+  const k = String(s?.themePreset || "");
+  return THEME_PRESETS[k] ? k : "cream";
+}
+
+function cleanHex(v) {
+  return /^#[0-9a-fA-F]{6}$/.test(String(v || "")) ? String(v).toLowerCase() : "";
+}
+
+// Black or near-white ink, whichever reads better on the given colour.
+function readableOn(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return lum > 150 ? "#1a1814" : "#f7f5f0";
+}
+
+export function themeVars(s) {
+  const p = THEME_PRESETS[themePresetOf(s)];
+  const vars = {
+    "--bg": p.bg, "--surface": p.surface, "--border": p.border,
+    "--text": p.text, "--muted": p.muted,
+    "--accent": p.accent, "--accent-ink": p.ink,
+    "--green-bg": p.greenBg || "#e8f4e8", "--green-text": p.greenText || "#2d6a2d",
+    "--amber-bg": p.amberBg || "#fdf3dc", "--amber-text": p.amberText || "#8a5c00",
+    "--red-bg": p.redBg || "#fdeaea", "--red-text": p.redText || "#8a2020",
+    "--blue-bg": p.blueBg || "#e8eef6", "--blue-text": p.blueText || "#2d4a6a"
+  };
+  const bg = cleanHex(s?.themeBg);
+  if (bg) vars["--bg"] = bg;
+  const accent = cleanHex(s?.themeAccent);
+  if (accent) { vars["--accent"] = accent; vars["--accent-ink"] = readableOn(accent); }
+  return vars;
+}
+
+export function applyTheme(s) {
+  const vars = themeVars(s);
+  const rootEl = document.documentElement;
+  Object.entries(vars).forEach(([k, v]) => rootEl.style.setProperty(k, v));
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", vars["--accent"]);
+}
+
 // ---------- Invoice numbers ----------
 // Same discipline as receipts, two independent series: INV for ordinary
 // invoices, VAT for VAT invoices — "different invoice numbers for each so it's

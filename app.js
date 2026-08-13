@@ -4,7 +4,7 @@
 
 import { db, auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setSync, sendPasswordResetEmail } from "./firebase-init.js";
 import { collection, query, where, onSnapshot, doc, getDoc, getDocFromServer, terminate, clearIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, bookingRef, loadPref, savePref, bankCharge, bankChargePct, amountDue } from "./store.js";
+import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, bookingRef, loadPref, savePref, bankCharge, bankChargePct, amountDue, applyTheme } from "./store.js";
 
 import * as fleet from "./view-fleet.js";
 import * as bookings from "./view-bookings.js";
@@ -232,6 +232,10 @@ function startApp() {
       notifyDataChange();
       state.settings = {};
       loadedCollections = new Set();
+      // The theme belongs to the company that just left, exactly like its
+      // pixels: the sign-in screen and the next person start on the factory
+      // cream, not the previous company's colours.
+      applyTheme(null);
       document.title = "Fleet Manager";
       const logo = document.getElementById("company-logo");
       if (logo) { logo.innerHTML = ""; logo.style.display = "none"; }
@@ -336,6 +340,7 @@ function startListeners() {
 // to the name on the user record until that page has been filled in.
 function applyCompanyIdentity() {
   const s = state.settings || {};
+  applyTheme(s);
   const label = document.getElementById("company-label");
   if (label) label.textContent = s.companyName || state.ctx.companyName;
 

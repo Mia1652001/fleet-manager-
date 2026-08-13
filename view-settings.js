@@ -8,7 +8,7 @@
 
 import { db, setSync, auth, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "./firebase-init.js";
 import { doc, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES } from "./store.js";
+import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES, THEME_LIST, themePresetOf, themeVars, applyTheme } from "./store.js";
 import {
   CATEGORIES, INTERVALS, backupPrefs, saveBackupPrefs, daysSinceBackup,
   runBackup, folderSupported, folderStatus, chooseFolder, forgetFolder
@@ -35,6 +35,45 @@ const CURRENCY_PRESETS = [
   { label: "US dollar — $", value: "$" },
   { label: "Pound — £", value: "£" }
 ];
+
+// ---------- Theme draft ----------
+// What the person has clicked but not yet saved. null means "follow whatever
+// is saved". Applied to the screen immediately so choosing a theme is seeing
+// it; written to the database only by Save, like every other setting.
+let themeDraft = { preset: null, bg: null, accent: null };
+
+function effectiveTheme() {
+  const s = state.settings || {};
+  return {
+    themePreset: themeDraft.preset !== null ? themeDraft.preset : themePresetOf(s),
+    themeBg: themeDraft.bg !== null ? themeDraft.bg : (s.themeBg || ""),
+    themeAccent: themeDraft.accent !== null ? themeDraft.accent : (s.themeAccent || "")
+  };
+}
+
+function paintThemeControls() {
+  const grid = el(root, "theme-presets");
+  if (!grid) return;
+  const eff = effectiveTheme();
+  grid.innerHTML = THEME_LIST.map(t => `
+    <button type="button" class="theme-opt${t.key === eff.themePreset ? " selected" : ""}" data-theme="${t.key}">
+      <span class="theme-chips">
+        <span class="theme-chip" style="background:${t.bg}"></span>
+        <span class="theme-chip" style="background:${t.accent}"></span>
+      </span>
+      ${esc(t.name)}
+    </button>`).join("");
+  const vars = themeVars(eff);
+  const bgIn = el(root, "s-theme-bg");
+  if (bgIn) bgIn.value = eff.themeBg || vars["--bg"];
+  const acIn = el(root, "s-theme-accent");
+  if (acIn) acIn.value = eff.themeAccent || vars["--accent"];
+}
+
+function previewTheme() {
+  applyTheme(effectiveTheme());
+  paintThemeControls();
+}
 
 export function mount(container) {
   root = container;
@@ -68,6 +107,25 @@ export function mount(container) {
   el(root, "save-settings").addEventListener("click", saveSettings);
   const pwBtn = el(root, "pw-change");
   if (pwBtn) pwBtn.addEventListener("click", changePassword);
+
+  const themeGrid = el(root, "theme-presets");
+  if (themeGrid) themeGrid.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-theme]");
+    if (!b) return;
+    themeDraft.preset = b.dataset.theme;
+    // A new theme starts clean: custom colours picked against the old one
+    // rarely survive the change of everything around them.
+    themeDraft.bg = ""; themeDraft.accent = "";
+    previewTheme();
+  });
+  const tBg = el(root, "s-theme-bg");
+  if (tBg) tBg.addEventListener("input", () => { themeDraft.bg = tBg.value; previewTheme(); });
+  const tAc = el(root, "s-theme-accent");
+  if (tAc) tAc.addEventListener("input", () => { themeDraft.accent = tAc.value; previewTheme(); });
+  const tBgClear = el(root, "s-theme-bg-clear");
+  if (tBgClear) tBgClear.addEventListener("click", () => { themeDraft.bg = ""; previewTheme(); });
+  const tAcClear = el(root, "s-theme-accent-clear");
+  if (tAcClear) tAcClear.addEventListener("click", () => { themeDraft.accent = ""; previewTheme(); });
   el(root, "s-logo-file").addEventListener("change", onLogoPicked);
   el(root, "s-logo-clear").addEventListener("click", () => {
     logoData = null; logoTouched = true; paintLogo();
@@ -111,6 +169,11 @@ export function render() {
     const who = el(root, "pw-email");
     if (who) who.textContent = state.ctx?.user?.email || "\u2014";
   }
+
+  // The theme swatches live in this view but the theme itself is applied
+  // globally, so the picker repaints on every render to reflect what is
+  // actually on screen — draft included.
+  paintThemeControls();
 
   // Only refill the form when the user is not part-way through editing it, so a
   // colleague's save elsewhere does not overwrite what is being typed.
@@ -445,6 +508,10 @@ async function saveSettings() {
       return Number.isFinite(n) && n > 0 ? n : null;
     })(),
     brn: val(root, "s-brn"),
+    // Appearance — whatever is on screen right now is what Save keeps.
+    themePreset: effectiveTheme().themePreset,
+    themeBg: effectiveTheme().themeBg,
+    themeAccent: effectiveTheme().themeAccent,
     terms: val(root, "s-terms"),
     messageNote: val(root, "s-note"),
     locations: linesTo(val(root, "s-locations")),
@@ -464,6 +531,8 @@ async function saveSettings() {
     // new record each time. merge keeps any field this form does not manage.
     await setDoc(doc(db, "settings", state.ctx.companyId), data, { merge: true });
     logoTouched = false;
+    // The saved theme is now the theme; the draft has nothing left to say.
+    themeDraft = { preset: null, bg: null, accent: null };
     el(root, "settings-saved").textContent = "Saved.";
     setTimeout(() => { const n = el(root, "settings-saved"); if (n) n.textContent = ""; }, 2500);
   } catch (e) {
