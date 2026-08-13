@@ -76,11 +76,44 @@ export function mount(container) {
     else if (btn.dataset.act === "remove") removeCar(id);
   });
 
+  // Autosave for the inline cells: the moment a field is left (or a date is
+  // picked), that one value is written. Nothing else on the car is touched,
+  // so two people editing different fields of the same car cannot overwrite
+  // each other.
+  el(root, "list").addEventListener("change", async (e) => {
+    const inp = e.target.closest(".car-cell");
+    if (!inp) return;
+    const { id, field, kind } = inp.dataset;
+    let value;
+    if (kind === "date") value = inp.value || "";
+    else if (kind === "numnull") {
+      const n = parseFloat(inp.value);
+      value = Number.isFinite(n) && n >= 0 && inp.value !== "" ? n : null;
+    } else {
+      const n = parseFloat(inp.value);
+      value = Number.isFinite(n) && n >= 0 ? n : 0;
+    }
+    setSync("saving");
+    try {
+      await updateDoc(doc(db, "cars", id), { [field]: value });
+    } catch (err) {
+      setSync("error");
+      alert("Couldn't save that value (" + (err.code || err.message) + "). It has been put back.");
+      render();
+    }
+  });
+
   onDataChange(() => { if (root.classList.contains("active")) render(); });
 }
 
 export function render() {
   if (!root) return;
+
+  // Someone is typing straight into a card — a snapshot arriving now (very
+  // often the echo of their own last cell save) must not rebuild the list
+  // under their cursor. The next change after they leave the field repaints.
+  const active = document.activeElement;
+  if (active && active.classList?.contains("car-cell") && root.contains(active)) return;
 
   // Arriving from a planner: clear the search, or the car being jumped to
   // might not be in the list at all and the jump would silently do nothing.
@@ -116,18 +149,22 @@ export function render() {
   soonD.setDate(soonD.getDate() + 30);
   const soon = `${soonD.getFullYear()}-${String(soonD.getMonth() + 1).padStart(2, "0")}-${String(soonD.getDate()).padStart(2, "0")}`;
 
-  // One labelled row of the card's column. A date that has passed is red, one
-  // inside 30 days amber — the warning lives on the fact itself rather than in
-  // a separate line above the card.
-  const dateRow = (label, v) => {
-    const cls = !v ? "" : v < t ? " car-row-red" : v <= soon ? " car-row-amber" : "";
-    return `<div class="car-row${cls}"><span class="car-row-l">${label}</span><span class="car-row-v">${v ? formatDate(v) : "—"}</span></div>`;
+  // Every figure is typed straight into the card and saved the moment the
+  // field is left — no Edit dialog for the numbers the office updates all
+  // year (pilot request, Aug 2026). The Edit button remains for identity:
+  // make, model, plate, colour, planner highlight.
+  const dateCell = (c, field, label) => {
+    const v = c[field] || "";
+    const cls = !v ? "" : v < t ? " car-cell-red" : v <= soon ? " car-cell-amber" : "";
+    return `<div class="car-row${cls}"><span class="car-row-l">${label}</span>
+      <input type="date" class="car-cell" data-id="${c.id}" data-field="${field}" data-kind="date" value="${esc(v)}"></div>`;
   };
-  const moneyRow = (label, v) =>
-    `<div class="car-row"><span class="car-row-l">${label}</span><span class="car-row-v">${typeof v === "number" ? esc(formatAmount(v)) : "—"}</span></div>`;
+  const numCell = (c, field, kind, ph) =>
+    `<input type="number" min="0" class="car-cell car-cell-num" data-id="${c.id}" data-field="${field}" data-kind="${kind}"
+       value="${typeof c[field] === "number" && (kind === "numnull" ? true : c[field] > 0) ? esc(c[field]) : ""}" placeholder="${ph}">`;
 
   listEl.innerHTML = list.map(c => `
-    <div class="item-card ${c.outOfService ? "overdue" : ""}" data-car-id="${c.id}">
+    <div class="item-card car-compact ${c.outOfService ? "overdue" : ""}" data-car-id="${c.id}">
       <div class="card-top">
         <div>
           <div class="card-title">${esc(c.make)} ${esc(c.model)}</div>
@@ -135,18 +172,19 @@ export function render() {
         </div>
         ${c.outOfService ? `<span class="badge overdue">Out of service</span>` : ""}
       </div>
-      ${serviceDue(c) ? `<div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;"><span style="color:var(--amber-text);">⚠ Service due ${formatDate(c.nextServiceDate)}</span></div>` : ""}
+      ${serviceDue(c) ? `<div class="card-details" style="border-top:none;padding-top:0;margin-top:4px;"><span style="color:var(--amber-text);">⚠ Service due ${formatDate(c.nextServiceDate)}</span></div>` : ""}
       <div class="car-rows">
-        <div class="car-row"><span class="car-row-l">Rates</span><span class="car-row-v">${c.dailyRate ? `<strong>${esc(c.dailyRate)}</strong>/day` : "—"}${c.weeklyRate ? ` · <strong>${esc(c.weeklyRate)}</strong>/week` : ""}${c.monthlyRate ? ` · <strong>${esc(c.monthlyRate)}</strong>/month` : ""}</span></div>
-        ${dateRow("Registration date", c.regDate)}
-        ${dateRow("Licence expiry", c.licenceExpiry)}
-        ${dateRow("Road tax expiry", c.roadTaxExpiry)}
-        ${dateRow("Insurance expiry", c.insuranceExpiry)}
-        ${dateRow("Fitness expiry", c.fitnessExpiry)}
-        ${dateRow("Lease expiry", c.leaseExpiry)}
-        ${moneyRow("Lease amount", c.leaseAmount)}
-        ${moneyRow("Purchase amount", c.purchaseAmount)}
-        ${moneyRow("Total lease paid", c.totalLeasePaid)}
+        <div class="car-row"><span class="car-row-l">Rates /d·/w·/m</span>
+          <span class="car-rates">${numCell(c, "dailyRate", "num0", "day")}${numCell(c, "weeklyRate", "num0", "week")}${numCell(c, "monthlyRate", "num0", "month")}</span></div>
+        ${dateCell(c, "regDate", "Registered")}
+        ${dateCell(c, "licenceExpiry", "Licence exp.")}
+        ${dateCell(c, "roadTaxExpiry", "Road tax exp.")}
+        ${dateCell(c, "insuranceExpiry", "Insurance exp.")}
+        ${dateCell(c, "fitnessExpiry", "Fitness exp.")}
+        ${dateCell(c, "leaseExpiry", "Lease exp.")}
+        <div class="car-row"><span class="car-row-l">Lease amount</span>${numCell(c, "leaseAmount", "numnull", "—")}</div>
+        <div class="car-row"><span class="car-row-l">Purchase</span>${numCell(c, "purchaseAmount", "numnull", "—")}</div>
+        <div class="car-row"><span class="car-row-l">Lease paid</span>${numCell(c, "totalLeasePaid", "numnull", "—")}</div>
       </div>
       <div class="card-actions">
         <button class="btn" data-act="rent" data-id="${c.id}">Rent out now</button>

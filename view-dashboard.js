@@ -16,56 +16,22 @@ import {
 } from "./store.js";
 
 let root = null;
-const DASH_DAYS = 14;
-let anchorOffset = -1;   // days relative to today for the first visible column
 
 // Which month the Money card is reporting. Starts on the current one every
 // time the app opens: a figure left on some month three back would be read as
 // today's position by whoever glanced at it next.
 let moneyMonth = thisMonth();
 
-function shiftAnchor(days) { anchorOffset += days; render(); }
-
-// The vehicle column and day columns were sized for a desktop card. Inside a
-// phone-width card that left 120px of the ~306px available to the car names,
-// squeezing a fortnight into the rest. Narrower on a phone, unchanged elsewhere.
-function miniColumns() {
-  return window.matchMedia("(max-width: 640px)").matches
-    ? { label: 84, half: 9 }
-    : { label: 120, half: 14 };
-}
-
 export function mount(container) {
   root = container;
 
-  // The planner here behaves exactly like the one on the Bookings page:
-  // tap a booking to edit it, tap an empty day to create one.
-  el(root, "mini").addEventListener("click", (e) => {
-    const bar = e.target.closest("[data-booking]");
-    if (bar) { openBookingModal(bar.dataset.booking); return; }
-
-    const cell = e.target.closest("[data-add-car]");
-    if (cell) { openBookingModal(null, { carId: cell.dataset.addCar, date: cell.dataset.addDate }); return; }
-
-    const car = e.target.closest("[data-carjump]");
-    if (car) {
-      requestFocus("fleet", car.dataset.carjump);
-      location.hash = "#fleet";
-      return;
-    }
-  });
-
-  // Everything else on the dashboard is a shortcut to the page that owns it
+  // Everything on the dashboard is a shortcut to the page that owns it.
+  // The mini planner that used to live here is gone (pilot request, Aug
+  // 2026): the real planner is one tap away and this one repeated it worse.
   root.addEventListener("click", (e) => {
-    if (e.target.closest("[data-el='mini']")) return;   // planner handled above
     const go = e.target.closest("[data-goto]");
     if (go) { location.hash = "#" + go.dataset.goto; return; }
   });
-
-  // Prev / today / next for the planner window
-  el(root, "mini-prev").addEventListener("click", () => { shiftAnchor(-7); });
-  el(root, "mini-next").addEventListener("click", () => { shiftAnchor(7); });
-  el(root, "mini-today").addEventListener("click", () => { anchorOffset = -1; render(); });
 
   // Prev / this month / next for the Money card. Guarded the same way the
   // booking form guards its newer buttons: if the browser is still holding an
@@ -82,14 +48,6 @@ export function mount(container) {
     if (btn) btn.addEventListener("click", () => { step(); render(); });
   });
 
-  // Rotating a phone or resizing changes which column sizes apply, so redraw.
-  let resizeTimer = null;
-  window.addEventListener("resize", () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      if (root.classList.contains("active")) render();
-    }, 150);
-  });
 
   onDataChange(() => { if (root.classList.contains("active")) render(); });
 }
@@ -109,7 +67,6 @@ export function render() {
   renderAlerts(t);
   renderTodayJobs();
   renderMoney();
-  renderMiniTimeline();
   renderFleetFigures();
   renderBookingFigures();
   renderServiceFigures();
@@ -249,100 +206,6 @@ function renderMoney() {
     figure("Received", formatAmount(m.received), "green", "billing") +
     figure("Outstanding", formatAmount(m.outstanding), "red", "billing") +
     figure("Deposits held", formatAmount(m.deposits), "blue", "billing");
-}
-
-// ---------- Compact read-only planner ----------
-function renderMiniTimeline() {
-  const grid = el(root, "mini");
-  const t = todayStr();
-
-  const days = [];
-  const anchor = new Date();
-  anchor.setHours(0, 0, 0, 0);
-  anchor.setDate(anchor.getDate() + anchorOffset);
-  for (let i = 0; i < DASH_DAYS; i++) {
-    const d = new Date(anchor);
-    d.setDate(d.getDate() + i);
-    days.push(d);
-  }
-  const dstr = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const first = dstr(days[0]), last = dstr(days[days.length - 1]);
-
-  const cars = orderedCars();
-  if (cars.length === 0) {
-    grid.style.gridTemplateColumns = "1fr";
-    grid.innerHTML = `<div class="tl-empty">No cars yet — add some on the Fleet view.</div>`;
-    return;
-  }
-
-  const cols = miniColumns();
-  grid.style.gridTemplateColumns =
-    `${cols.label}px repeat(${DASH_DAYS * 2}, minmax(${cols.half}px, 1fr))`;
-  // Same as the full planner: state the width rather than let the longest
-  // booking label decide it. This grid shares the .timeline class, so it had the
-  // same fault — columns widening whenever a wordy booking came into view.
-  grid.style.minWidth = (cols.label + DASH_DAYS * 2 * cols.half) + "px";
-
-  const dow = ["Su","Mo","Tu","We","Th","Fr","Sa"];
-  const MON3 = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  let html = `<div class="tl-corner" style="grid-row:1;grid-column:1;">Vehicle</div>`;
-  days.forEach((d, i) => {
-    const ds = dstr(d);
-    const monthStart = d.getDate() === 1;
-    const cls = (ds === t ? "today" : (d.getDay() === 0 || d.getDay() === 6) ? "weekend" : "")
-      + (monthStart ? " month-start" : "");
-    html += `<div class="tl-daynum ${cls}" style="grid-row:1;grid-column:${i * 2 + 2} / span 2;">
-      <span class="dow">${monthStart ? MON3[d.getMonth()] : dow[d.getDay()]}</span>${d.getDate()}</div>`;
-  });
-
-  cars.forEach((car, idx) => {
-    const row = idx + 2;
-    const oos = !!car.outOfService;
-
-    html += `<div class="tl-car" data-carjump="${car.id}" style="grid-row:${row};grid-column:1;">
-      <strong><span class="car-hl"${car.rowColour ? ` style="background:${car.rowColour}"` : ""}>${esc(`${car.make} ${car.model}`)}</span></strong>
-      <span class="tl-plate">${esc(car.plate || "no plate")}</span>
-    </div>`;
-
-    days.forEach((d, i) => {
-      const ds = dstr(d);
-      const cls = (ds === t ? "today" : (d.getDay() === 0 || d.getDay() === 6) ? "weekend" : "")
-        + (d.getDate() === 1 ? " month-start" : "");
-      html += `<div class="tl-cell addable ${cls}" data-add-car="${car.id}" data-add-date="${ds}"
-        title="Add a booking for this car on ${formatDate(ds)}"
-        style="grid-row:${row};grid-column:${i * 2 + 2} / span 2;"></div>`;
-    });
-
-    if (oos) {
-      html += `<div class="tl-oos-bar" style="grid-row:${row};grid-column:2 / ${DASH_DAYS * 2 + 2};">Out of service</div>`;
-    }
-
-    state.bookings
-      .filter(b => b.carId === car.id && b.startDate <= last && b.endDate >= first)
-      .forEach(b => {
-        const s0 = b.startDate < first ? 0 : Math.round((new Date(b.startDate) - days[0]) / 86400000);
-        const e0 = b.endDate > last ? DASH_DAYS - 1 : Math.round((new Date(b.endDate) - days[0]) / 86400000);
-        if (!(e0 >= 0 && s0 <= DASH_DAYS - 1 && e0 >= s0)) return;
-
-        const st = bookingState(b);
-        const clipS = sharesStartHandover(b) && b.startDate >= first;
-        const clipE = sharesEndHandover(b) && b.endDate <= last;
-        const colS = s0 * 2 + 2 + (clipS ? 1 : 0);
-        const colE = e0 * 2 + 4 - (clipE ? 1 : 0);
-        const custom = b.barColour ? `background:${b.barColour};color:#24201a;` : "";
-
-        html += `<div class="tl-bar ${st} ${b.barColour ? "custom" : ""}" data-booking="${b.id}"
-          title="${esc(`${b.renter} · ${formatDate(b.startDate)} ${startTime(b)} – ${formatDate(b.endDate)} ${endTime(b)}`)}"
-          style="grid-row:${row};grid-column:${colS} / ${colE};${custom}">
-            <span class="tl-bar-name">${esc(b.renter || "")}</span>
-          </div>`;
-      });
-  });
-
-  grid.innerHTML = html;
-
-  const fmt = d => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-  el(root, "mini-range").textContent = `${fmt(days[0])} – ${fmt(days[days.length - 1])}`;
 }
 
 // ---------- Figures by page ----------

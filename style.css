@@ -2271,6 +2271,7 @@ input[type="number"] {
    form, so they must paint above it — explicit stacking, immune to DOM order. */
 .overlay[data-el="damage-modal"],
 .overlay[data-el="receipt-modal"],
+.overlay[data-el="invoice-modal"],
 .overlay[data-el="sign-modal"] { z-index: 110; }
 
 /* Per-category totals on the Expenses page: a strip of small cards that
@@ -2599,16 +2600,32 @@ input[type="number"] {
 }
 
 
-/* ---------- Fleet card as a column of facts ----------
-   The vehicle register layout (Aug 2026): every fact on its own labelled row,
-   the way the pilot keeps it on paper. A date that has passed goes red, one
-   inside 30 days amber — the warning is on the fact itself. */
-.car-rows { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
-.car-row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 12px; }
-.car-row-l { color: var(--muted); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 2px; white-space: nowrap; }
-.car-row-v { text-align: right; }
-.car-row-red .car-row-v { color: var(--red-text); font-weight: 500; }
-.car-row-amber .car-row-v { color: var(--amber-text); font-weight: 500; }
+/* ---------- Fleet card as a working table ----------
+   Compact (pilot: "no reason for all the extra space"), and every value is an
+   input: type, leave the field, saved. Cells look like printed figures until
+   touched — a border appears on hover and focus. Past dates red, dates inside
+   30 days amber, on the field itself. */
+.item-card.car-compact { padding: 10px 12px; }
+.car-rows { margin-top: 6px; padding-top: 4px; border-top: 1px solid var(--border); }
+.car-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 26px; }
+.car-row + .car-row { border-top: 1px dashed color-mix(in srgb, var(--border) 55%, transparent); }
+.car-row-l { color: var(--muted); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+.car-cell {
+  font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text);
+  background: transparent; border: 1px solid transparent; border-radius: 3px;
+  padding: 2px 6px; text-align: right; width: 132px; min-height: 0;
+}
+.car-cell:hover { border-color: var(--border); }
+.car-cell:focus { border-color: var(--accent); outline: none; background: var(--surface); }
+.car-rates { display: flex; gap: 4px; }
+.car-rates .car-cell-num { width: 58px; }
+.car-cell-num { width: 96px; }
+.car-cell-red, .car-cell-amber { border-radius: 3px; }
+.car-cell-red .car-cell { color: var(--red-text); font-weight: 500; }
+.car-cell-amber .car-cell { color: var(--amber-text); font-weight: 500; }
+/* date inputs paint their own chrome on iOS; keep them tight */
+.car-cell[type="date"] { width: 132px; padding: 2px 4px; }
+.car-compact .card-actions { margin-top: 8px; padding-top: 8px; }
 
 /* ---------- Fuel gauge on the damage diagram ---------- */
 .fuel-opts { display: flex; gap: 8px; flex-wrap: wrap; }
