@@ -162,20 +162,9 @@ export function render() {
   const exp = expensesByCarMonth(year);
   const mon = monthlySummary(year);
 
-  // The headline for whichever report is showing, stated once above the table
-  // rather than left to be hunted for in a corner of it.
-  const headline = el(root, "rep-headline");
-  if (headline) {
-    if (current === "invoices") {
-      if (!invFrom) invFrom = quarterStart(todayStr());
-      if (!invTo) invTo = todayStr();
-      headline.textContent = "";
-    } else {
-      headline.textContent =
-        current === "revenue" ? `${formatAmount(rev.grandTotal)} invoiced in ${year}` :
-        current === "expenses" ? `${formatAmount(exp.grandTotal)} spent in ${year}` :
-        `${formatAmount(mon.total.net)} net in ${year} · ${percent(mon.total.occupancy)} occupancy`;
-    }
+  if (current === "invoices") {
+    if (!invFrom) invFrom = quarterStart(todayStr());
+    if (!invTo) invTo = todayStr();
   }
 
   if (current === "revenue") renderCarGrid(rev, "earned", "revenue");

@@ -449,7 +449,6 @@
           <button class="tab" data-f="upcoming">Not started</button>
           <button class="tab" data-f="all">All</button>
         </span>
-        <span class="inline-label">Period</span>
         <select data-el="period-year"></select>
         <select data-el="period-month"></select>
         <!-- No "Broker" label: the dropdown's own default option reads
@@ -508,7 +507,6 @@
          and the others are one click away rather than folded somewhere below. -->
     <section class="view" id="view-reports">
       <div class="toolbar one-line-tools">
-        <span class="inline-label">Year</span>
         <select data-el="rep-year"></select>
         <button class="btn" data-el="rep-export">Download for Excel</button>
       </div>
@@ -520,7 +518,6 @@
         <button class="tab" data-rep="invoices">Invoices</button>
       </div>
 
-      <div class="rep-headline" data-el="rep-headline"></div>
       <div class="rep-wrap" data-el="rep-table"></div>
       <p class="rep-note" data-el="rep-note"></p>
     </section>
@@ -598,10 +595,8 @@
         <button class="btn-primary" data-el="add-expense">+ Add expense</button>
         <button class="tab" data-mode="list" style="margin-left:18px;">List</button>
         <button class="tab active" data-mode="board">Board</button>
-        <span class="inline-label">Period</span>
         <select data-el="period-year"></select>
         <select data-el="period-month"></select>
-        <span class="inline-label">Category</span>
         <select data-el="period-category"></select>
       </div>
       <div class="card-list" data-el="list" style="display:none;"><div class="loading-screen">Loading expenses...</div></div>
@@ -1120,7 +1115,6 @@
           <button type="button" class="btn fuel-opt" data-fuel="75">75%</button>
           <button type="button" class="btn fuel-opt" data-fuel="100">100%</button>
         </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Tap one — tap it again to clear. Prints on the agreement with the damage notes.</div>
       </div>
       <div class="modal-actions">
         <button class="btn" data-close="damage-modal">Cancel</button>

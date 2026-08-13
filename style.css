@@ -2643,11 +2643,39 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
    its own line, every other toolbar control shares a two-column grid of equal
    44px buttons, and popup field rows stack to a single centred column. */
 @media (max-width: 640px) {
-  .toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .toolbar input[type="text"] { grid-column: 1 / -1; min-width: 0; width: 100%; }
-  .toolbar .btn, .toolbar .btn-primary, .toolbar select { width: 100%; margin: 0; }
-  .filter-row { display: flex; flex-wrap: wrap; gap: 6px; }
-  .filter-row .tab { flex: 1 1 calc(50% - 6px); text-align: center; }
+  /* Nothing may ever drag the page sideways: the page clips, and every
+     control row is forced to fit. The desktop layout's inline margins
+     (used to group controls on one wide line) are neutralised here — on a
+     phone the grid does the grouping. */
+  html, body { max-width: 100vw; overflow-x: clip; }
+
+  .toolbar, .one-line-tools {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  }
+  .toolbar > *, .one-line-tools > * { min-width: 0; margin: 0 !important; }
+  .toolbar input[type="text"] { grid-column: 1 / -1; width: 100%; }
+  .toolbar .btn, .toolbar .btn-primary, .toolbar select { width: 100%; }
+  .toolbar .multi-pick { position: relative; width: 100%; }
+  .toolbar .multi-pick .btn { width: 100%; }
+  /* a tab strip inside a toolbar takes a full line of its own, tabs 2×2 */
+  .toolbar .filter-row { grid-column: 1 / -1; display: flex !important; flex-wrap: wrap; gap: 6px; }
+
+  .planner-bar { max-width: 100%; }
+  .planner-bar > *, .cal-header > * { min-width: 0; margin-left: 0 !important; }
+
+  .filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin-left: 0 !important; }
+  .filter-row .tab, .filter-row select { flex: 1 1 calc(50% - 6px); min-width: 0; text-align: center; }
+
+  /* boards scroll inside themselves, never the page */
+  .staff-board { max-width: 100%; overflow-x: auto; }
+
+  /* the expenses category totals become one thumb-scrollable row of chips
+     instead of a stack that fills the screen */
+  .cat-total-strip {
+    display: flex !important; overflow-x: auto; gap: 6px;
+    -webkit-overflow-scrolling: touch; padding-bottom: 4px;
+  }
+  .cat-total-strip > * { flex: 0 0 auto; min-width: 128px; }
 
   .modal .field-row, .modal .field-row.equal { flex-direction: column; gap: 0; }
   .modal .field { width: 100%; }
