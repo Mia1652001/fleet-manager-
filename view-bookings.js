@@ -7,7 +7,7 @@ import { db, setSync } from "./firebase-init.js";
 import { updateDoc, deleteDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr, bookingCarLabel, bookingState,
-  sharesStartHandover, sharesEndHandover, serviceDue,
+  sharesStartHandover, sharesEndHandover, serviceDue, initPanelToggle,
   orderedCars, loadPref, savePref,
   startTime, endTime, pickupLabel, dropoffLabel, rentalTotal,
   el, val, closeModal,
