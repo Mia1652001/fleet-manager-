@@ -8,7 +8,7 @@
 
 import { db, setSync, auth, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "./firebase-init.js";
 import { doc, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES, THEME_LIST, themePresetOf, themeVars, applyTheme } from "./store.js";
+import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES, THEME_LIST, themePresetOf, themeVars, applyTheme, FONT_LIST, themeFontOf } from "./store.js";
 import {
   CATEGORIES, INTERVALS, backupPrefs, saveBackupPrefs, daysSinceBackup,
   runBackup, folderSupported, folderStatus, chooseFolder, forgetFolder
@@ -40,14 +40,17 @@ const CURRENCY_PRESETS = [
 // What the person has clicked but not yet saved. null means "follow whatever
 // is saved". Applied to the screen immediately so choosing a theme is seeing
 // it; written to the database only by Save, like every other setting.
-let themeDraft = { preset: null, bg: null, accent: null };
+let themeDraft = { preset: null, bg: null, accent: null, font: null, text: null, headInk: null };
 
 function effectiveTheme() {
   const s = state.settings || {};
   return {
     themePreset: themeDraft.preset !== null ? themeDraft.preset : themePresetOf(s),
     themeBg: themeDraft.bg !== null ? themeDraft.bg : (s.themeBg || ""),
-    themeAccent: themeDraft.accent !== null ? themeDraft.accent : (s.themeAccent || "")
+    themeAccent: themeDraft.accent !== null ? themeDraft.accent : (s.themeAccent || ""),
+    themeFont: themeDraft.font !== null ? themeDraft.font : themeFontOf(s),
+    themeText: themeDraft.text !== null ? themeDraft.text : (s.themeText || ""),
+    themeHeadInk: themeDraft.headInk !== null ? themeDraft.headInk : (s.themeHeadInk || "")
   };
 }
 
@@ -68,6 +71,16 @@ function paintThemeControls() {
   if (bgIn) bgIn.value = eff.themeBg || vars["--bg"];
   const acIn = el(root, "s-theme-accent");
   if (acIn) acIn.value = eff.themeAccent || vars["--accent"];
+  const fSel = el(root, "s-theme-font");
+  if (fSel) {
+    if (!fSel.options.length) fSel.innerHTML = FONT_LIST.map(f =>
+      `<option value="${f.key}">${esc(f.name)}</option>`).join("");
+    fSel.value = eff.themeFont;
+  }
+  const txIn = el(root, "s-theme-text");
+  if (txIn) txIn.value = eff.themeText || vars["--text"];
+  const hkIn = el(root, "s-theme-headink");
+  if (hkIn) hkIn.value = eff.themeHeadInk || vars["--accent-ink"];
 }
 
 function previewTheme() {
@@ -116,6 +129,7 @@ export function mount(container) {
     // A new theme starts clean: custom colours picked against the old one
     // rarely survive the change of everything around them.
     themeDraft.bg = ""; themeDraft.accent = "";
+    themeDraft.text = ""; themeDraft.headInk = "";
     previewTheme();
   });
   const tBg = el(root, "s-theme-bg");
@@ -126,6 +140,16 @@ export function mount(container) {
   if (tBgClear) tBgClear.addEventListener("click", () => { themeDraft.bg = ""; previewTheme(); });
   const tAcClear = el(root, "s-theme-accent-clear");
   if (tAcClear) tAcClear.addEventListener("click", () => { themeDraft.accent = ""; previewTheme(); });
+  const tFont = el(root, "s-theme-font");
+  if (tFont) tFont.addEventListener("change", () => { themeDraft.font = tFont.value; previewTheme(); });
+  const tText = el(root, "s-theme-text");
+  if (tText) tText.addEventListener("input", () => { themeDraft.text = tText.value; previewTheme(); });
+  const tTextClear = el(root, "s-theme-text-clear");
+  if (tTextClear) tTextClear.addEventListener("click", () => { themeDraft.text = ""; previewTheme(); });
+  const tHk = el(root, "s-theme-headink");
+  if (tHk) tHk.addEventListener("input", () => { themeDraft.headInk = tHk.value; previewTheme(); });
+  const tHkClear = el(root, "s-theme-headink-clear");
+  if (tHkClear) tHkClear.addEventListener("click", () => { themeDraft.headInk = ""; previewTheme(); });
   el(root, "s-logo-file").addEventListener("change", onLogoPicked);
   el(root, "s-logo-clear").addEventListener("click", () => {
     logoData = null; logoTouched = true; paintLogo();
@@ -512,6 +536,9 @@ async function saveSettings() {
     themePreset: effectiveTheme().themePreset,
     themeBg: effectiveTheme().themeBg,
     themeAccent: effectiveTheme().themeAccent,
+    themeFont: effectiveTheme().themeFont,
+    themeText: effectiveTheme().themeText,
+    themeHeadInk: effectiveTheme().themeHeadInk,
     terms: val(root, "s-terms"),
     messageNote: val(root, "s-note"),
     locations: linesTo(val(root, "s-locations")),
@@ -532,7 +559,7 @@ async function saveSettings() {
     await setDoc(doc(db, "settings", state.ctx.companyId), data, { merge: true });
     logoTouched = false;
     // The saved theme is now the theme; the draft has nothing left to say.
-    themeDraft = { preset: null, bg: null, accent: null };
+    themeDraft = { preset: null, bg: null, accent: null, font: null, text: null, headInk: null };
     el(root, "settings-saved").textContent = "Saved.";
     setTimeout(() => { const n = el(root, "settings-saved"); if (n) n.textContent = ""; }, 2500);
   } catch (e) {

@@ -668,6 +668,20 @@ const THEME_PRESETS = {
 export const THEME_LIST = Object.entries(THEME_PRESETS)
   .map(([key, p]) => ({ key, name: p.name, bg: p.bg, accent: p.accent }));
 
+// Typeface pairs. Curated, and none needs a new font download: Classic uses
+// the two faces already loaded, Clean uses what the phone or PC ships with,
+// Typewriter sets the mono face everywhere.
+const FONT_PRESETS = {
+  classic: { name: "Classic — Fraunces & DM Mono", ui: "'DM Mono', monospace", display: "'Fraunces', serif" },
+  clean:   { name: "Clean — the system font", ui: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", display: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" },
+  mono:    { name: "Typewriter — DM Mono everywhere", ui: "'DM Mono', monospace", display: "'DM Mono', monospace" }
+};
+export const FONT_LIST = Object.entries(FONT_PRESETS).map(([key, f]) => ({ key, name: f.name }));
+export function themeFontOf(sett) {
+  const k = String(sett?.themeFont || "");
+  return FONT_PRESETS[k] ? k : "classic";
+}
+
 export function themePresetOf(s) {
   const k = String(s?.themePreset || "");
   return THEME_PRESETS[k] ? k : "cream";
@@ -700,6 +714,15 @@ export function themeVars(s) {
   if (bg) vars["--bg"] = bg;
   const accent = cleanHex(s?.themeAccent);
   if (accent) { vars["--accent"] = accent; vars["--accent-ink"] = readableOn(accent); }
+  // Text colours override last: body text, and the ink on the header and
+  // buttons (which otherwise follows the accent's contrast automatically).
+  const text = cleanHex(s?.themeText);
+  if (text) vars["--text"] = text;
+  const headInk = cleanHex(s?.themeHeadInk);
+  if (headInk) vars["--accent-ink"] = headInk;
+  const f = FONT_PRESETS[themeFontOf(s)];
+  vars["--font-ui"] = f.ui;
+  vars["--font-display"] = f.display;
   return vars;
 }
 

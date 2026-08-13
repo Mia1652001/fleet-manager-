@@ -44,10 +44,12 @@
   <header>
     <div class="header-top">
       <div>
-        <h1>Fleet <em>Manager</em></h1>
+        <div class="header-brand">
+          <h1>Fleet <em>Manager</em></h1>
+          <!-- Filled from the Settings page; hidden until a logo is uploaded. -->
+          <div class="header-logo" id="company-logo" style="display:none;"></div>
+        </div>
         <div class="header-company" id="company-label">—</div>
-        <!-- Filled from the Settings page; hidden until a logo is uploaded. -->
-        <div class="header-logo" id="company-logo" style="display:none;"></div>
       </div>
       <div class="header-right">
         <div class="sync-status"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">Live</span></div>
@@ -909,7 +911,27 @@
           <h3>Appearance</h3>
           <p class="settings-note">Applies to everyone in this company. Save keeps it; printed documents stay paper-white.</p>
           <div class="theme-grid" data-el="theme-presets"></div>
-          <div class="field-row" style="margin-top:14px;">
+          <div class="field" style="margin-top:14px;">
+            <label>Font</label>
+            <select data-el="s-theme-font"></select>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Text colour</label>
+              <div class="theme-pick">
+                <input type="color" data-el="s-theme-text" title="Pick the text colour">
+                <button type="button" class="btn" data-el="s-theme-text-clear">Theme default</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Header &amp; button text</label>
+              <div class="theme-pick">
+                <input type="color" data-el="s-theme-headink" title="Pick the text colour on the header and buttons">
+                <button type="button" class="btn" data-el="s-theme-headink-clear">Theme default</button>
+              </div>
+            </div>
+          </div>
+          <div class="field-row" style="margin-top:0;">
             <div class="field">
               <label>Background colour</label>
               <div class="theme-pick">
@@ -1258,7 +1280,7 @@
            this market pays cash or Juice and carries no fee at all. The rate
            fills itself from Settings and stays editable for a one-off. -->
       <div class="field checkbox-field" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-        <label><input type="checkbox" data-el="b-card"> Paying by credit card — add bank charge</label>
+        <label><input type="checkbox" data-el="b-card"> Paying by credit card</label>
         <span data-el="b-card-pct-wrap" style="display:none;align-items:center;gap:6px;">
           <input type="number" min="0" max="100" step="any" data-el="b-card-pct"
                  style="width:80px;" placeholder="3">

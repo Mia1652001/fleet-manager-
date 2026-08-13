@@ -6,7 +6,7 @@ import { db, setSync } from "./firebase-init.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr,
-  staffNames, expenseCategoryNames, orderedCars,
+  staffNames, expenseCategoryNames, orderedCars, loadPref, savePref,
   el, val, setVal, openModal, closeModal, showError
 } from "./store.js";
 
@@ -122,6 +122,13 @@ export function mount(container) {
       catch (err) { alert("Couldn't delete (" + (err.code || err.message) + ")."); setSync("error"); }
       return;
     }
+  });
+
+  el(root, "cat-totals").addEventListener("click", (e) => {
+    if (!e.target.closest(".cat-totals-toggle")) return;
+    totalsOpen = !totalsOpen;
+    savePref("expTotalsOpen", totalsOpen);
+    render();
   });
 
   onDataChange(() => { if (root.classList.contains("active")) render(); });
@@ -290,9 +297,13 @@ function fillSuggestions() {
 // The per-category breakdown: what each category has cost, and how much of it
 // is still to be refunded. Always computed from the same filtered list as the
 // totals line, so the two can never disagree.
+let totalsOpen = loadPref("expTotalsOpen", false);
+
 function renderCategoryTotals(list) {
   const box = el(root, "cat-totals");
   if (!box) return;
+  box.classList.add("cat-totals");
+  box.classList.toggle("open", totalsOpen);
   const map = new Map();
   list.forEach(x => {
     const name = (x.category || "").trim() || "Uncategorised";
@@ -306,7 +317,7 @@ function renderCategoryTotals(list) {
   });
   if (!map.size) { box.innerHTML = ""; return; }
   const rows = [...map.values()].sort((a, b) => b.total - a.total);
-  box.innerHTML = `<div class="cat-total-strip">` + rows.map(r => `
+  box.innerHTML = `<button type="button" class="btn cat-totals-toggle">${totalsOpen ? "\u25be" : "\u25b8"} Totals</button><div class="cat-total-strip">` + rows.map(r => `
     <div class="cat-total">
       <div class="cat-total-name">${esc(r.name)}</div>
       <div class="cat-total-val">${esc(formatAmount(r.total))}</div>
