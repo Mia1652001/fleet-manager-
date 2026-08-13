@@ -1294,6 +1294,11 @@
       <div class="field"><label>Notes for this booking</label>
         <textarea data-el="b-notes" rows="4" placeholder="e.g. baby seat, second driver, late flight&#10;Multiple lines are fine."></textarea>
       </div>
+      <!-- The money this form implies, always current, right where Save is
+           pressed — the desk never saves a booking without seeing it.
+           (Pattern from the pilot's own tools: Total / to pay now / to pay
+           at pickup, above the fixed Save bar.) -->
+      <div class="money-block" data-el="b-money-block"></div>
       <div class="modal-actions">
         <!-- Grouped so Cancel and Save always stay together at the right, whatever
              else is on the row. These four are hidden until the booking exists:

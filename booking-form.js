@@ -83,7 +83,7 @@ export function mountBookingForm() {
     location.hash = "#billing";
   });
   ["b-delivery", "b-insurance", "b-other", "b-total"].forEach(name =>
-    el(root, name).addEventListener("input", () => { syncExtrasHint(); syncCardCharge(); }));
+    el(root, name).addEventListener("input", () => { syncExtrasHint(); syncCardCharge(); syncMoneyBlock(); }));
   // Guarded like the other later additions: an older cached page has no
   // card box, and reaching for it unguarded would break the whole form.
   const cardBox = el(root, "b-card");
@@ -95,12 +95,14 @@ export function mountBookingForm() {
       if (d) setVal(root, "b-card-pct", d);
     }
     syncCardCharge();
+    syncMoneyBlock();
   });
   const cardPct = el(root, "b-card-pct");
   if (cardPct) cardPct.addEventListener("input", syncCardCharge);
+  if (cardPct) cardPct.addEventListener("input", syncMoneyBlock);
   ["b-start", "b-end", "b-car"].forEach(n => {
     const f = el(root, n);
-    if (f) f.addEventListener("change", syncCardCharge);
+    if (f) f.addEventListener("change", () => { syncCardCharge(); syncMoneyBlock(); });
   });
   // Guarded: if the page the browser cached is older than this script, the
   // button is not there yet — the feature waits for the fresh page instead of
@@ -130,6 +132,7 @@ export function mountBookingForm() {
     // was touched. Refresh them here directly.
     syncExtrasHint();
     syncCardCharge();
+    syncMoneyBlock();
   });
 
   el(root, "b-contact-toggle").addEventListener("click", () => {
@@ -199,6 +202,7 @@ function keepReturnAfterPickup() {
   // with the recalculation means the card-charge line can never show a figure
   // built on a day count that just changed.
   syncCardCharge();
+  syncMoneyBlock();
 }
 
 function toggleNewCustomer() {
@@ -345,6 +349,28 @@ function extrasInFx() {
     parseFloat(val(root, "b-fxtotal")) || 0,
     parseFloat(val(root, "b-total")) || 0);
   return rate ? { sym, rate } : null;
+}
+
+// The money the form currently implies: total (with the card charge when
+// ticked, same rounding the books use), the advance already received on an
+// existing booking, and what remains to collect at pickup. Reuses
+// cardChargeBase() so this figure and the saved figure can never disagree.
+function syncMoneyBlock() {
+  const box = el(root, "b-money-block");
+  if (!box) return;
+  const base = cardChargeBase();
+  const pct = checked(root, "b-card") ? (parseFloat(val(root, "b-card-pct")) || 0) : 0;
+  const charge = pct > 0 ? Math.round(base * pct) / 100 : 0;
+  const total = Math.round((base + charge) * 100) / 100;
+  const b = editingBookingId ? state.bookings.find(x => x.id === editingBookingId) : null;
+  const advance = Number(b?.advancePaid) || 0;
+  const due = Math.max(0, Math.round((total - advance) * 100) / 100);
+  box.innerHTML = `
+    <div class="money-row"><span>Total${charge > 0 ? " (incl. card charge)" : ""}</span><strong>${esc(formatAmount(total))}</strong></div>
+    ${advance > 0 ? `
+    <div class="money-row"><span>Advance received</span><strong>${esc(formatAmount(advance))}</strong></div>
+    <div class="money-row ${due > 0 ? "money-due" : "money-settled"}"><span>Due at pickup</span><strong>${esc(formatAmount(due))}</strong></div>` : ""}
+  `;
 }
 
 function syncExtrasHint() {
@@ -1094,6 +1120,7 @@ export function openBookingModal(bookingId, preset) {
   toggleNewCustomer();
   syncCardCharge();
   showError(root, "booking-error", null);
+  syncMoneyBlock();
   openModal(root, "booking-modal");
 }
 

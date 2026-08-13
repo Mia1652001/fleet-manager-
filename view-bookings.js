@@ -273,11 +273,17 @@ export function mount(container) {
 
   el(root, "list").addEventListener("click", (e) => {
     const btn = e.target.closest("button");
-    if (!btn) return;
-    const id = btn.dataset.id;
-    if (btn.dataset.act === "complete") completeBooking(id);
-    else if (btn.dataset.act === "edit") openBookingModal(id);
-    else if (btn.dataset.act === "delete") deleteBooking(id);
+    if (btn) {
+      const id = btn.dataset.id;
+      if (btn.dataset.act === "complete") completeBooking(id);
+      else if (btn.dataset.act === "edit") openBookingModal(id);
+      else if (btn.dataset.act === "delete") deleteBooking(id);
+      return;
+    }
+    // Tapping anywhere on the card opens the booking.
+    if (e.target.closest("input, select, textarea, a")) return;
+    const card = e.target.closest("[data-booking-card]");
+    if (card) openBookingModal(card.dataset.bookingCard);
   });
 
   onDataChange(() => { if (root.classList.contains("active")) render(); });
@@ -1288,7 +1294,7 @@ function renderList() {
   listEl.innerHTML = list.map(b => {
     const s = bookingState(b);
     return `
-    <div class="item-card ${s}">
+    <div class="item-card ${s}" data-booking-card="${b.id}">
       <div class="card-top">
         <div>
           <div class="card-title">${esc(b.renter)}</div>

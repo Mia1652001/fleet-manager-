@@ -63,11 +63,19 @@ export function mount(container) {
 
   el(root, "list").addEventListener("click", (e) => {
     const btn = e.target.closest("button");
-    if (!btn) return;
-    const id = btn.dataset.id;
-    if (btn.dataset.act === "rent") openRentModal(id);
-    else if (btn.dataset.act === "editcar") openCarModal(id);
-    else if (btn.dataset.act === "remove") removeCar(id);
+    if (btn) {
+      const id = btn.dataset.id;
+      if (btn.dataset.act === "rent") openRentModal(id);
+      else if (btn.dataset.act === "editcar") openCarModal(id);
+      else if (btn.dataset.act === "remove") removeCar(id);
+      return;
+    }
+    // Tapping anywhere else on the card opens the record — the gesture the
+    // pilot's other tools have taught. The inline cells stay inline: a tap
+    // on a field is editing, not opening.
+    if (e.target.closest("input, select, textarea, a")) return;
+    const card = e.target.closest("[data-car-id]");
+    if (card) openCarModal(card.dataset.carId);
   });
 
   // Autosave for the inline cells: the moment a field is left (or a date is
