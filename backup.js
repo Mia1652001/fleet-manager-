@@ -16,7 +16,7 @@ import { state, bookingCarLabel, rentalDays, rateFor, rentalTotal,
          advancePaid, balanceFor, settledOn, bookingRef,
          deliveryCost, insuranceCost, otherCost, invoiceTotal,
          bankCharge, bankChargePct, amountDue,
-         loadPref, savePref } from "./store.js";
+         loadPref, savePref , paidTotal, paymentsOf, lastPaymentMethod } from "./store.js";
 
 export const CATEGORIES = [
   { key: "bookings",  label: "Bookings & invoices" },
@@ -91,7 +91,7 @@ function bookingRows() {
      "Days","Daily rate","Rental total","Delivery","Insurance","Other","Invoice total","Bank charge %","Bank charge","Total due",
      "Currency","Total (foreign)","Advance (foreign)","Security (foreign)",
      "Delivery (foreign)","Insurance (foreign)","Other (foreign)",
-     "Advance paid","Balance",
+     "Advance paid","Balance","Received so far","Payments recorded","Last paid by","Invoice no",
      "Security deposit","Deposit status","Paid","Settled on","Status",
      "Pick-up place","Drop-off place","Broker","Managed by","Delivered by","Recovered by","Notes"],
     ...state.bookings.slice()
@@ -105,6 +105,7 @@ function bookingRows() {
         b.fxCurrency || "", b.fxTotal || "", b.fxAdvance || "", b.fxSecurity || "",
         b.fxDelivery || "", b.fxInsurance || "", b.fxOther || "",
         advancePaid(b), balanceFor(b),
+        paidTotal(b), paymentsOf(b).length, lastPaymentMethod(b), b.invoiceNo || "",
         b.securityDeposit || 0, b.securityStatus || "",
         b.paid ? "Yes" : "No", b.paid ? settledOn(b) : "",
         b.status === "completed" ? "Completed" : "Open",

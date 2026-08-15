@@ -455,7 +455,7 @@ function renderTabCounts(search) {
 // ---------- Payment history ----------
 let payBookingId = null;
 
-function openPayModal(id) {
+export function openPayModal(id) {
   payBookingId = id;
   const b = state.bookings.find(x => x.id === id);
   if (!b) return;
@@ -548,7 +548,7 @@ async function savePayment() {
   btn.disabled = false;
 }
 
-function openDepositModal(id) {
+export function openDepositModal(id) {
   depositBookingId = id;
   const b = state.bookings.find(x => x.id === id);
   setVal(root, "dep-advance", b?.advancePaid || "");

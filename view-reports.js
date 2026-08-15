@@ -12,11 +12,13 @@ import {
   state, onDataChange, esc, formatAmount, formatDate, todayStr,
   revenueByCarMonth, expensesByCarMonth, monthlySummary,
   bookingYears, companyName, bookingCarLabel, bookingRef,
-  amountDue, vatSplit, balanceFor, paidPatch,
+  amountDue, vatSplit, balanceFor, paidPatch, paidTotal, hasLedger, hasStarted,
   loadPref, savePref, el
 } from "./store.js";
 import { loadXlsx, downloadBlob } from "./backup.js";
 import { openInvoice } from "./agreement.js";
+import { openPayModal, openDepositModal } from "./view-billing.js";
+import { openBookingModal } from "./booking-form.js";
 import { openBookingModal } from "./booking-form.js";
 import { db, setSync } from "./firebase-init.js";
 import { updateDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -66,21 +68,30 @@ function quarterStart(t) {
 }
 
 function issuedInvoices() {
+  // "Everything" widens the register to every booking, invoiced or not, so
+  // nothing can hide from the money page by never having been invoiced. An
+  // uninvoiced booking files under its start date instead of an issue date.
+  const everything = invKind === "everything";
   return state.bookings
-    .filter(b => b.invoiceNo)
+    .filter(b => everything || b.invoiceNo)
     .map(b => {
-      const at = String(b.invoiceIssuedAt || "").slice(0, 10);
+      const at = String(b.invoiceIssuedAt || "").slice(0, 10)
+        || (everything ? String(b.startDate || "").slice(0, 10) : "");
       // The figure as invoiced when the snapshot exists (from Aug 2026 on);
       // today's amount due for invoices issued before the snapshot existed.
       const total = typeof b.invoiceTotalAt === "number" ? b.invoiceTotalAt : amountDue(b);
       const isVat = b.invoiceKind === "vat";
       const pct = typeof b.invoiceVatPct === "number" && b.invoiceVatPct > 0 ? b.invoiceVatPct : 15;
-      const split = isVat ? vatSplit(total, pct) : null;
-      return { b, no: String(b.invoiceNo), at, isVat, pct, total,
-               excl: split ? split.excl : null, vat: split ? split.vat : null };
+      const split = isVat && b.invoiceNo ? vatSplit(total, pct) : null;
+      const received = paidTotal(b);
+      return { b, no: String(b.invoiceNo || ""), at, isVat, pct, total,
+               excl: split ? split.excl : null, vat: split ? split.vat : null,
+               received,
+               balance: b.paid ? 0 : balanceFor(b),
+               status: b.paid ? "Paid" : hasStarted(b) ? "Owed" : "Upcoming" };
     })
     .filter(r => r.at && (!invFrom || r.at >= invFrom) && (!invTo || r.at <= invTo)
-      && (!invKind || (invKind === "vat") === r.isVat))
+      && (everything || !invKind || (invKind === "vat") === r.isVat))
     .sort((a, c) => a.at.localeCompare(c.at) || a.no.localeCompare(c.no));
 }
 
@@ -146,6 +157,12 @@ export function mount(container) {
     // action bar, and issuing stays one deliberate act in one place.
     const bk = e.target.closest("[data-open-booking]");
     if (bk) { openBookingModal(bk.dataset.openBooking); return; }
+    // Record payment / Payments opens the same dialog Billing uses — one
+    // dialog, one write path, so the two pages can never disagree.
+    const rec = e.target.closest("[data-payrec]");
+    if (rec) { openPayModal(rec.dataset.payrec); return; }
+    const dep = e.target.closest("[data-dep]");
+    if (dep) { openDepositModal(dep.dataset.dep); return; }
     const pay = e.target.closest("[data-pay]");
     if (pay) setPaidFromReports(pay.dataset.pay, pay.dataset.to === "1");
   });
@@ -329,6 +346,7 @@ function allBookingRows() {
       start: String(b.startDate || "").slice(0, 10),
       no: String(b.invoiceNo || ""),
       total: typeof b.invoiceTotalAt === "number" ? b.invoiceTotalAt : amountDue(b),
+      received: paidTotal(b),
       balance: b.paid ? 0 : balanceFor(b)
     }))
     .filter(r => r.start && (!invFrom || r.start >= invFrom) && (!invTo || r.start <= invTo))
@@ -384,6 +402,7 @@ function renderInvoices() {
           <th class="rep-num">Excl. VAT</th>
           <th class="rep-num">VAT</th>
           <th class="rep-num rep-strong">Total</th>
+          <th class="rep-num">Received</th>
           <th class="rep-num">Balance</th>
           <th></th>
         </tr>
@@ -399,10 +418,13 @@ function renderInvoices() {
             <td class="rep-num">${r.excl !== null ? esc(money(r.excl)) : `<span class="rep-zero">—</span>`}</td>
             <td class="rep-num">${r.vat !== null ? esc(money(r.vat)) : `<span class="rep-zero">—</span>`}</td>
             <td class="rep-num rep-strong">${esc(money(r.total))}</td>
+            <td class="rep-num">${r.received > 0 ? esc(money(r.received)) : `<span class="rep-zero">\u2014</span>`}</td>
             <td class="rep-num">${r.b.paid ? `<span class="pay-chip paid">PAID</span>` : esc(money(balanceFor(r.b)))}</td>
-            <td>${r.b.paid
-              ? `<button class="btn btn-small" data-pay="${r.b.id}" data-to="0">Unmark</button>`
-              : `<button class="btn btn-small" data-pay="${r.b.id}" data-to="1">Mark paid</button>`}</td>
+            <td class="inv-actions">${r.b.paid
+              ? (hasLedger(r.b)
+                  ? `<button class="btn btn-small" data-payrec="${r.b.id}">Payments</button>`
+                  : `<button class="btn btn-small" data-pay="${r.b.id}" data-to="0">Unmark</button>`)
+              : `<button class="btn btn-small" data-payrec="${r.b.id}">Record payment</button>`}<button class="btn btn-small" data-dep="${r.b.id}">Deposits</button></td>
           </tr>`).join("")}
       </tbody>
       <tfoot>
@@ -412,6 +434,7 @@ function renderInvoices() {
           <td class="rep-num">${totals.excl ? esc(money(r2(totals.excl))) : "—"}</td>
           <td class="rep-num">${totals.vat ? esc(money(r2(totals.vat))) : "—"}</td>
           <td class="rep-num rep-strong">${esc(money(r2(totals.total)))}</td>
+          <td class="rep-num">${esc(money(r2(rows.reduce((a, r) => a + r.received, 0))))}</td>
           <td class="rep-num">${esc(money(r2(rows.reduce((a, r) => a + (r.b.paid ? 0 : balanceFor(r.b)), 0))))}</td>
           <td></td>
         </tr>
@@ -428,8 +451,8 @@ function renderAllBookings(box, note, controls, rows) {
     return;
   }
   const r2 = x => Math.round(x * 100) / 100;
-  const tot = rows.reduce((a, r) => ({ total: a.total + r.total, bal: a.bal + r.balance }),
-    { total: 0, bal: 0 });
+  const tot = rows.reduce((a, r) => ({ total: a.total + r.total, rec: a.rec + r.received, bal: a.bal + r.balance }),
+    { total: 0, rec: 0, bal: 0 });
   box.innerHTML = controls + `
     <table class="rep-table">
       <thead>
@@ -439,6 +462,7 @@ function renderAllBookings(box, note, controls, rows) {
           <th>Customer</th>
           <th>Vehicle</th>
           <th class="rep-num rep-strong">Total</th>
+          <th class="rep-num">Received</th>
           <th class="rep-num">Balance</th>
           <th></th>
         </tr>
@@ -454,10 +478,13 @@ function renderAllBookings(box, note, controls, rows) {
             <td>${esc(r.b.renter || "")}</td>
             <td>${esc(bookingCarLabel(r.b))}</td>
             <td class="rep-num rep-strong">${esc(money(r.total))}</td>
+            <td class="rep-num">${r.received > 0 ? esc(money(r.received)) : `<span class="rep-zero">\u2014</span>`}</td>
             <td class="rep-num">${r.b.paid ? `<span class="pay-chip paid">PAID</span>` : esc(money(r.balance))}</td>
-            <td>${r.b.paid
-              ? `<button class="btn btn-small" data-pay="${r.b.id}" data-to="0">Unmark</button>`
-              : `<button class="btn btn-small" data-pay="${r.b.id}" data-to="1">Mark paid</button>`}</td>
+            <td class="inv-actions">${r.b.paid
+              ? (hasLedger(r.b)
+                  ? `<button class="btn btn-small" data-payrec="${r.b.id}">Payments</button>`
+                  : `<button class="btn btn-small" data-pay="${r.b.id}" data-to="0">Unmark</button>`)
+              : `<button class="btn btn-small" data-payrec="${r.b.id}">Record payment</button>`}<button class="btn btn-small" data-dep="${r.b.id}">Deposits</button></td>
           </tr>`).join("")}
       </tbody>
       <tfoot>
@@ -465,6 +492,7 @@ function renderAllBookings(box, note, controls, rows) {
           <th class="rep-car">Total \u00b7 ${rows.length} booking${rows.length === 1 ? "" : "s"}</th>
           <td></td><td></td><td></td>
           <td class="rep-num rep-strong">${esc(money(r2(tot.total)))}</td>
+          <td class="rep-num">${esc(money(r2(tot.rec)))}</td>
           <td class="rep-num">${esc(money(r2(tot.bal)))}</td>
           <td></td>
         </tr>
