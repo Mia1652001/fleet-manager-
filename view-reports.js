@@ -19,7 +19,6 @@ import { loadXlsx, downloadBlob } from "./backup.js";
 import { openInvoice } from "./agreement.js";
 import { openPayModal, openDepositModal } from "./view-billing.js";
 import { openBookingModal } from "./booking-form.js";
-import { openBookingModal } from "./booking-form.js";
 import { db, setSync } from "./firebase-init.js";
 import { updateDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 

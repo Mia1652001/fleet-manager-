@@ -690,7 +690,7 @@ function normaliseReceiptNo(v) {
 // ---------- Version ----------
 // Stamped into Settings and the console by app.js, bumped in every zip, so
 // "did the new version deploy?" is answered by looking, not guessing.
-export const APP_VERSION = "v101 \u00b7 13 Aug 2026";
+
 
 // ---------- Payment status ----------
 // The one shape of a paid/unpaid change, used by every page that offers the
@@ -711,7 +711,7 @@ export function paidPatch(b, paid) {
 // The version shown in Settings and on the wordmark's tooltip, bumped with
 // every package — so "did the upload deploy?" is answered by looking, not by
 // wondering. Format: date, then a word for what the build was about.
-export const APP_VERSION = "15 Aug 2026 \u00b7 invoices-2";
+export const APP_VERSION = "15 Aug 2026 \u00b7 invoices-2b";
 
 // ---------- Themes ----------
 // Per-company appearance, stored on the settings document so everyone who
