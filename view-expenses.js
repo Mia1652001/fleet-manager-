@@ -249,6 +249,7 @@ export function render() {
 
   el(root, "list").style.display = mode === "list" ? "" : "none";
   el(root, "xboard").style.display = mode === "board" ? "" : "none";
+  if (mode !== "board") { const hw = el(root, "xhead-wrap"); if (hw) hw.style.display = "none"; }
   if (mode === "board") { renderBoard(list); return; }
 
   const listEl = el(root, "list");
@@ -317,25 +318,13 @@ function renderCategoryTotals(list) {
   });
   if (!map.size) { box.innerHTML = ""; return; }
   const rows = [...map.values()].sort((a, b) => b.total - a.total);
-  // The grand total answers the question the per-category chips can't: what
-  // does everything on this filtered board come to — and how much of it is
-  // owed back to the person filtered. Computed from the same filtered rows,
-  // so filtering to one staff member makes this exactly their refund figure.
-  const grandTotal = rows.reduce((a, r) => a + r.total, 0);
-  const grandOwed = rows.reduce((a, r) => a + (r.owed || 0), 0);
-  const grandCount = rows.reduce((a, r) => a + r.count, 0);
   box.innerHTML = `<button type="button" class="btn cat-totals-toggle">${totalsOpen ? "\u25be" : "\u25b8"} Totals</button><div class="cat-total-strip">` + rows.map(r => `
     <div class="cat-total">
       <div class="cat-total-name">${esc(r.name)}</div>
       <div class="cat-total-val">${esc(formatAmount(r.total))}</div>
       <div class="cat-total-sub">${r.count} item${r.count === 1 ? "" : "s"}${
         r.owed > 0 ? ` · ${esc(formatAmount(r.owed))} to refund` : ""}</div>
-    </div>`).join("") + `
-    <div class="cat-total cat-grand">
-      <div class="cat-total-name">Total</div>
-      <div class="cat-total-val">${esc(formatAmount(grandTotal))}</div>
-      <div class="cat-total-sub">${grandCount} item${grandCount === 1 ? "" : "s"}${grandOwed > 0 ? ` · ${esc(formatAmount(grandOwed))} to refund` : ""}</div>
-    </div></div>`;
+    </div>`).join("") + `</div>`;
 }
 
 function boardColumns(items) {
@@ -355,16 +344,25 @@ function renderBoard(items) {
   const cols = boardColumns(items);
   const days = [...new Set(items.map(x => x.date).filter(Boolean))].sort();
 
+  const headWrap = el(root, "xhead-wrap");
   if (!days.length) {
+    if (headWrap) headWrap.style.display = "none";
     box.style.gridTemplateColumns = "1fr";
     box.innerHTML = '<div class="empty">No expenses here. Add one with "+ Add expense" — it lands in its category\'s column.</div>';
     return;
   }
 
   const phone = window.matchMedia("(max-width: 640px)").matches;
-  box.style.gridTemplateColumns =
-    `minmax(84px, 0.6fr) repeat(${cols.length}, minmax(${phone ? 170 : 130}px, 1fr))`;
+  const columnsSpec =
+    `minmax(84px, 0.6fr) repeat(${cols.length}, minmax(${phone ? 170 : 130}px, 1fr)) minmax(${phone ? 170 : 150}px, 1fr)`;
+  box.style.gridTemplateColumns = columnsSpec;
 
+  // The grand total lives at the right end of the frozen header — the whole
+  // filtered board summed, so filtering to one staff member makes the refund
+  // figure theirs (pilot: "I want to know the total to refund to 1 staff").
+  const grandTotal = items.reduce((a, x) => a + (Number(x.amount) || 0), 0);
+  const grandOwed = items.filter(x => staffPaid(x) && !x.done)
+    .reduce((a, x) => a + (Number(x.amount) || 0), 0);
   const head = `<div class="board-cell board-corner">Day</div>` +
     cols.map(cName => {
       const mine = items.filter(x => (x.category || "").trim().toLowerCase() === cName.toLowerCase());
@@ -375,7 +373,10 @@ function renderBoard(items) {
         ${tot ? `<span class="board-head-total">${esc(formatAmount(tot))}${
           owed2 > 0 ? ` · ${esc(formatAmount(owed2))} to refund` : ""}</span>` : ""}
       </div>`;
-    }).join("");
+    }).join("") + `<div class="board-cell board-head board-grand">Total
+        <span class="board-head-total">${esc(formatAmount(grandTotal))}${
+          grandOwed > 0 ? ` · ${esc(formatAmount(grandOwed))} to refund` : ""}</span>
+      </div>`;
 
   const rows = days.map(ds => {
     const cells = cols.map(cName => {
@@ -390,14 +391,29 @@ function renderBoard(items) {
             <span class="board-chip-main"><strong>${esc(formatAmount(x.amount))}</strong>${x.staff ? ` ${esc(x.staff)}` : ""}${x.note ? ` · ${esc(x.note)}` : ""}</span>
           </div>`).join("")}${add}</div>`;
     }).join("");
-    return `<div class="board-cell board-day">${esc(formatDate(ds))}</div>${cells}`;
+    return `<div class="board-cell board-day">${esc(formatDate(ds))}</div>${cells}<div class="board-cell"></div>`;
   }).join("");
 
-  box.innerHTML = head + rows;
+  // The header lives in its own strip pinned above the board (same pattern
+  // as Tasks): a horizontally-scrolling container captures position:sticky,
+  // so the frozen copy must sit outside the scroller, sharing the exact
+  // column widths and mirroring the sideways scroll.
+  const headGrid = el(root, "xhead");
+  if (headWrap) headWrap.style.display = "";
+  if (headGrid) {
+    headGrid.style.gridTemplateColumns = columnsSpec;
+    headGrid.innerHTML = head;
+  }
+  box.innerHTML = rows;
 }
 
 function wireBoard() {
   const box = el(root, "xboard");
+
+  // The frozen header mirrors the board's sideways scroll so its columns
+  // stay lined up while the strip stays pinned to the top of the page.
+  const hw = el(root, "xhead-wrap");
+  if (hw) box.addEventListener("scroll", () => { hw.scrollLeft = box.scrollLeft; });
 
   box.addEventListener("click", async (e) => {
     const tick = e.target.closest("[data-tick]");

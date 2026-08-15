@@ -1809,7 +1809,8 @@ input[type="number"] {
    lives in its own strip that sticks to the top of the page, and JS mirrors
    the board's sideways scroll into it. It cannot live inside the board — a
    horizontally-scrolling container captures position:sticky. */
-#view-tasks .board-head-wrap {
+#view-tasks .board-head-wrap,
+#view-expenses .board-head-wrap {
   position: sticky;
   top: 0;
   z-index: 20;
@@ -1819,14 +1820,16 @@ input[type="number"] {
   border-bottom: none;
   border-radius: 4px 4px 0 0;
 }
-#view-tasks .board-head-wrap .staff-board {
+#view-tasks .board-head-wrap .staff-board,
+#view-expenses .board-head-wrap .staff-board {
   border: none;
   border-radius: 0;
   margin-bottom: 0;
   background: transparent;
   overflow: visible;
 }
-#view-tasks [data-el="board"] {
+#view-tasks [data-el="board"],
+#view-expenses [data-el="xboard"] {
   border-top: none;
   border-radius: 0 0 4px 4px;
 }
@@ -1849,13 +1852,15 @@ input[type="number"] {
    already as wide as the column and it scrolls sideways instead. */
 @media (min-width: 641px) {
   #view-tasks .staff-board,
-  #view-tasks .board-head-wrap {
+  #view-tasks .board-head-wrap,
+  #view-expenses .board-head-wrap {
     --board-w: min(100vw - 2rem, 2600px);
     width: var(--board-w);
     margin-left: calc(-1 * max(0px, (var(--board-w) - 100%) / 2));
   }
   /* The strip's inner grid must not double the breakout shift */
-  #view-tasks .board-head-wrap .staff-board { width: 100%; margin-left: 0; }
+  #view-tasks .board-head-wrap .staff-board,
+  #view-expenses .board-head-wrap .staff-board { width: 100%; margin-left: 0; }
 }
 
 /* A card jumped to from a planner. Marked briefly so it is obvious which of
@@ -2743,12 +2748,8 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 /* ---------- Version stamp ---------- */
 .app-version { margin-top: 20px; font-size: 11px; color: var(--muted); }
 
-/* ---------- Expenses: the totals row freezes at the top while the board
-   scrolls (pilot request — same behaviour as the Tasks board header), and
-   the grand total sits at its right edge. overflow-x on the page uses clip,
-   not hidden, precisely so position: sticky keeps working. ---------- */
-.cat-totals { position: sticky; top: 0; z-index: 40; background: var(--bg); padding: 6px 0; }
-.cat-grand { margin-left: auto; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-@media (max-width: 640px) {
-  .cat-grand { margin-left: 0; }
-}
+/* ---------- Expenses board: grand-total header cell at the right end of
+   the frozen row. (First attempt froze the category-chip strip instead —
+   wrong row; the pilot meant the board's own header, like Tasks.) ---------- */
+.board-grand { box-shadow: inset 3px 0 0 var(--accent); color: var(--text); }
+.board-grand .board-head-total { font-weight: 600; }
