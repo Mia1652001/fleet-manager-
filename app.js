@@ -4,7 +4,7 @@
 
 import { db, auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setSync, sendPasswordResetEmail } from "./firebase-init.js";
 import { collection, query, where, onSnapshot, doc, getDoc, getDocFromServer, terminate, clearIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, bookingRef, loadPref, savePref, bankCharge, bankChargePct, amountDue, applyTheme } from "./store.js";
+import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, bookingRef, loadPref, savePref, bankCharge, bankChargePct, amountDue, applyTheme, APP_VERSION } from "./store.js";
 
 import * as fleet from "./view-fleet.js";
 import * as bookings from "./view-bookings.js";
@@ -254,6 +254,15 @@ function startApp() {
 
     guardNumberFields();
     injectModalCloseButtons();
+    // The deployment question, answered by looking: Settings shows the build,
+    // the console logs it, the wordmark's tooltip carries it.
+    {
+      const v = document.getElementById("app-version");
+      if (v) v.textContent = "Fleet Manager " + APP_VERSION;
+      const h1 = document.querySelector("header h1");
+      if (h1) h1.title = APP_VERSION;
+      console.log("Fleet Manager", APP_VERSION);
+    }
     wireBackupBanner();
     applyTabOrder();
     wireTabDragging();

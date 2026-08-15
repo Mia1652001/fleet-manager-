@@ -12,11 +12,14 @@ import {
   state, onDataChange, esc, formatAmount, formatDate, todayStr,
   revenueByCarMonth, expensesByCarMonth, monthlySummary,
   bookingYears, companyName, bookingCarLabel, bookingRef,
-  amountDue, vatSplit,
+  amountDue, vatSplit, balanceFor, paidPatch,
   loadPref, savePref, el
 } from "./store.js";
 import { loadXlsx, downloadBlob } from "./backup.js";
 import { openInvoice } from "./agreement.js";
+import { openBookingModal } from "./booking-form.js";
+import { db, setSync } from "./firebase-init.js";
+import { updateDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 let root = null;
 let year = "";
@@ -54,6 +57,7 @@ let current = "revenue";
 let invFrom = "";
 let invTo = "";
 let invKind = "";   // "" all · "vat" · "normal"
+let invScope = "issued";   // "issued" (by issue date) · "all" (every booking, by start date)
 
 function quarterStart(t) {
   const m = Number(t.slice(5, 7));
@@ -66,7 +70,9 @@ function issuedInvoices() {
     .filter(b => b.invoiceNo)
     .map(b => {
       const at = String(b.invoiceIssuedAt || "").slice(0, 10);
-      const total = amountDue(b);
+      // The figure as invoiced when the snapshot exists (from Aug 2026 on);
+      // today's amount due for invoices issued before the snapshot existed.
+      const total = typeof b.invoiceTotalAt === "number" ? b.invoiceTotalAt : amountDue(b);
       const isVat = b.invoiceKind === "vat";
       const pct = typeof b.invoiceVatPct === "number" && b.invoiceVatPct > 0 ? b.invoiceVatPct : 15;
       const split = isVat ? vatSplit(total, pct) : null;
@@ -122,6 +128,7 @@ export function mount(container) {
     if (!inp) return;
     if (inp.dataset.inv === "from") invFrom = inp.value;
     else if (inp.dataset.inv === "to") invTo = inp.value;
+    else if (inp.dataset.inv === "scope") invScope = inp.value;
     else invKind = inp.value;
     render();
   });
@@ -133,7 +140,14 @@ export function mount(container) {
     if (openBtn) {
       const r = openInvoice(openBtn.dataset.openInvoice);
       if (!r.ok) alert(r.reason);
+      return;
     }
+    // "Issue invoice" opens the booking — the Invoice button is in its
+    // action bar, and issuing stays one deliberate act in one place.
+    const bk = e.target.closest("[data-open-booking]");
+    if (bk) { openBookingModal(bk.dataset.openBooking); return; }
+    const pay = e.target.closest("[data-pay]");
+    if (pay) setPaidFromReports(pay.dataset.pay, pay.dataset.to === "1");
   });
 
   onDataChange(() => { if (root.classList.contains("active")) render(); });
@@ -305,22 +319,45 @@ function renderMonthly(mon) {
 // inside each one stated — because every three months this exact list, for
 // one quarter, goes to the MRA. The export button hands over the filtered
 // list as a spreadsheet for precisely that trip.
+// Every booking in the window, invoiced or not — the view for running the
+// money once invoices become the money page. Filtered by rental start date,
+// because an uninvoiced booking has no issue date to filter by.
+function allBookingRows() {
+  return state.bookings
+    .map(b => ({
+      b,
+      start: String(b.startDate || "").slice(0, 10),
+      no: String(b.invoiceNo || ""),
+      total: typeof b.invoiceTotalAt === "number" ? b.invoiceTotalAt : amountDue(b),
+      balance: b.paid ? 0 : balanceFor(b)
+    }))
+    .filter(r => r.start && (!invFrom || r.start >= invFrom) && (!invTo || r.start <= invTo))
+    .sort((a, c) => a.start.localeCompare(c.start));
+}
+
 function renderInvoices() {
   const box = el(root, "rep-table");
   const note = el(root, "rep-note");
-  const rows = issuedInvoices();
+  const rows = invScope === "all" ? allBookingRows() : issuedInvoices();
 
   const controls = `
     <div class="inv-controls">
+      <select data-inv="scope">
+        <option value="issued"${invScope === "issued" ? " selected" : ""}>Issued invoices (by issue date)</option>
+        <option value="all"${invScope === "all" ? " selected" : ""}>All bookings (by start date)</option>
+      </select>
       <label>From <input type="date" data-inv="from" value="${esc(invFrom)}"></label>
       <label>To <input type="date" data-inv="to" value="${esc(invTo)}"></label>
+      ${invScope === "issued" ? `
       <select data-inv="kind">
         <option value=""${invKind === "" ? " selected" : ""}>All invoices</option>
         <option value="vat"${invKind === "vat" ? " selected" : ""}>VAT invoices</option>
         <option value="normal"${invKind === "normal" ? " selected" : ""}>Regular invoices</option>
       </select>
-      <button class="btn" type="button" data-inv-export ${rows.length ? "" : "disabled"}>Export this list</button>
+      <button class="btn" type="button" data-inv-export ${rows.length ? "" : "disabled"}>Export this list</button>` : ""}
     </div>`;
+
+  if (invScope === "all") { renderAllBookings(box, note, controls, rows); return; }
 
   if (!rows.length) {
     box.innerHTML = controls + `<div class="empty">No invoices issued between these dates.
@@ -347,6 +384,8 @@ function renderInvoices() {
           <th class="rep-num">Excl. VAT</th>
           <th class="rep-num">VAT</th>
           <th class="rep-num rep-strong">Total</th>
+          <th class="rep-num">Balance</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -360,6 +399,10 @@ function renderInvoices() {
             <td class="rep-num">${r.excl !== null ? esc(money(r.excl)) : `<span class="rep-zero">—</span>`}</td>
             <td class="rep-num">${r.vat !== null ? esc(money(r.vat)) : `<span class="rep-zero">—</span>`}</td>
             <td class="rep-num rep-strong">${esc(money(r.total))}</td>
+            <td class="rep-num">${r.b.paid ? `<span class="pay-chip paid">PAID</span>` : esc(money(balanceFor(r.b)))}</td>
+            <td>${r.b.paid
+              ? `<button class="btn btn-small" data-pay="${r.b.id}" data-to="0">Unmark</button>`
+              : `<button class="btn btn-small" data-pay="${r.b.id}" data-to="1">Mark paid</button>`}</td>
           </tr>`).join("")}
       </tbody>
       <tfoot>
@@ -369,11 +412,80 @@ function renderInvoices() {
           <td class="rep-num">${totals.excl ? esc(money(r2(totals.excl))) : "—"}</td>
           <td class="rep-num">${totals.vat ? esc(money(r2(totals.vat))) : "—"}</td>
           <td class="rep-num rep-strong">${esc(money(r2(totals.total)))}</td>
+          <td class="rep-num">${esc(money(r2(rows.reduce((a, r) => a + (r.b.paid ? 0 : balanceFor(r.b)), 0))))}</td>
+          <td></td>
         </tr>
       </tfoot>
     </table>`;
 
   note.textContent = "";
+}
+
+function renderAllBookings(box, note, controls, rows) {
+  note.textContent = "";
+  if (!rows.length) {
+    box.innerHTML = controls + `<div class="empty">No bookings start between these dates.</div>`;
+    return;
+  }
+  const r2 = x => Math.round(x * 100) / 100;
+  const tot = rows.reduce((a, r) => ({ total: a.total + r.total, bal: a.bal + r.balance }),
+    { total: 0, bal: 0 });
+  box.innerHTML = controls + `
+    <table class="rep-table">
+      <thead>
+        <tr>
+          <th class="rep-car">Invoice</th>
+          <th>Starts</th>
+          <th>Customer</th>
+          <th>Vehicle</th>
+          <th class="rep-num rep-strong">Total</th>
+          <th class="rep-num">Balance</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr>
+            <th class="rep-car">${r.no
+              ? `<button type="button" class="inv-open" data-open-invoice="${r.b.id}">${esc(r.no)}</button>`
+              : `<button type="button" class="btn btn-small" data-open-booking="${r.b.id}">Issue invoice</button>`}
+              <span class="rep-model">${esc(bookingRef(r.b))}</span></th>
+            <td>${esc(formatDate(r.start))}</td>
+            <td>${esc(r.b.renter || "")}</td>
+            <td>${esc(bookingCarLabel(r.b))}</td>
+            <td class="rep-num rep-strong">${esc(money(r.total))}</td>
+            <td class="rep-num">${r.b.paid ? `<span class="pay-chip paid">PAID</span>` : esc(money(r.balance))}</td>
+            <td>${r.b.paid
+              ? `<button class="btn btn-small" data-pay="${r.b.id}" data-to="0">Unmark</button>`
+              : `<button class="btn btn-small" data-pay="${r.b.id}" data-to="1">Mark paid</button>`}</td>
+          </tr>`).join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th class="rep-car">Total \u00b7 ${rows.length} booking${rows.length === 1 ? "" : "s"}</th>
+          <td></td><td></td><td></td>
+          <td class="rep-num rep-strong">${esc(money(r2(tot.total)))}</td>
+          <td class="rep-num">${esc(money(r2(tot.bal)))}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>`;
+}
+
+// Marking paid from this page writes exactly what Billing writes — the one
+// paidPatch both pages share — so the two pages can never tell different
+// stories about the same booking.
+async function setPaidFromReports(id, to) {
+  const b = state.bookings.find(x => x.id === id);
+  if (!b) return;
+  setSync("saving");
+  try {
+    const p = paidPatch(b, to);
+    await updateDoc(doc(db, "bookings", id), { ...p.patch, paidLog: arrayUnion(p.logEntry) });
+  } catch (err) {
+    setSync("error");
+    alert("Couldn't update (" + (err.code || err.message) + "). Try again.");
+  }
 }
 
 async function exportInvoicesXlsx() {

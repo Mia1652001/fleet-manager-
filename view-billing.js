@@ -7,7 +7,8 @@ import { updateDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/1
 import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName, takeFocus,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,
-  settledAmount, isBillable, hasStarted, settledOn, moneySummary,
+  settledAmount, isBillable, hasStarted, settledOn, moneySummary, paidPatch,
+  paymentsOf, hasLedger, paidTotal, paymentOn, advanceReceivedOn, todayStr, showToast,
   bankCharge, bankChargePct, amountDue,
   brokerNames, fxPair, fxRate,
   el, val, setVal, openModal, closeModal, showError,
@@ -58,6 +59,7 @@ export function mount(container) {
 
   el(root, "search").addEventListener("input", render);
   el(root, "save-deposit").addEventListener("click", saveDeposits);
+  el(root, "pay-save").addEventListener("click", savePayment);
   // Foreign deposit amounts fill their Rs twins from the house rate, exactly
   // like the booking total. The Rs fields stay editable afterwards.
   [["dep-fxadvance", "dep-advance"], ["dep-fxsecurity", "dep-security"]].forEach(([fxName, homeName]) => {
@@ -119,6 +121,7 @@ export function mount(container) {
     if (btn.dataset.act === "open") { openBookingModal(id); return; }
     if (btn.dataset.act === "email") { contactByEmail(b); return; }
     if (btn.dataset.act === "whatsapp") { contactByWhatsApp(b); return; }
+    if (btn.dataset.act === "pay") { openPayModal(id); return; }
 
     btn.disabled = true;
     setSync("saving");
@@ -127,14 +130,11 @@ export function mount(container) {
       // login did it. When money history looks different from what someone
       // remembers, this is the difference between an answer and a mystery.
       if (btn.dataset.act === "markpaid") {
-        await updateDoc(doc(db, "bookings", id), {
-          paid: true, paidAmount: settledAmount(b), paidAt: new Date().toISOString(),
-          paidLog: arrayUnion({ at: new Date().toISOString(), action: "marked paid", by: state.ctx?.user?.email || "" })
-        });
+        const p = paidPatch(b, true);
+        await updateDoc(doc(db, "bookings", id), { ...p.patch, paidLog: arrayUnion(p.logEntry) });
       } else if (btn.dataset.act === "markunpaid") {
-        await updateDoc(doc(db, "bookings", id), { paid: false, paidAmount: null, paidAt: null,
-          paidLog: arrayUnion({ at: new Date().toISOString(), action: "marked unpaid", by: state.ctx?.user?.email || "" })
-        });
+        const p = paidPatch(b, false);
+        await updateDoc(doc(db, "bookings", id), { ...p.patch, paidLog: arrayUnion(p.logEntry) });
       } else if (btn.dataset.act === "refund") {
         await updateDoc(doc(db, "bookings", id), { securityStatus: "refunded" });
       } else if (btn.dataset.act === "keep") {
@@ -243,8 +243,10 @@ export function render() {
         ${extrasTotal(b) > 0 ? `<span>Invoice total: <strong>${formatAmount(invoiceTotal(b))}</strong></span>` : ""}
         ${bankCharge(b) > 0 ? `<span>Bank charge ${bankChargePct(b)}%: <strong>+${formatAmount(bankCharge(b))}</strong> <span style="opacity:0.7;">(card payment)</span></span>` : ""}
         ${bankCharge(b) > 0 ? `<span>Total due: <strong>${formatAmount(amountDue(b))}</strong></span>` : ""}
-        ${adv > 0 ? `<span>Advance paid: <strong>-${fxPair(b, adv, b.fxAdvance)}</strong></span>` : ""}
-        ${adv > 0 && !b.paid ? `<span>Balance: <strong>${formatAmount(balance)}</strong></span>` : ""}
+        ${hasLedger(b)
+          ? `<span>Received so far: <strong>${formatAmount(paidTotal(b))}</strong> <span style="opacity:0.7;">(${paymentsOf(b).length} payment${paymentsOf(b).length === 1 ? "" : "s"})</span></span>`
+          : adv > 0 ? `<span>Advance paid: <strong>-${fxPair(b, adv, b.fxAdvance)}</strong></span>` : ""}
+        ${(hasLedger(b) ? paidTotal(b) > 0 : adv > 0) && !b.paid ? `<span>Balance: <strong>${formatAmount(balance)}</strong></span>` : ""}
         ${b.paid && b.paidAt ? `<span>Paid on: <strong>${formatDate(b.paidAt.slice(0, 10))}</strong></span>` : ""}
         ${(() => {
           const log = Array.isArray(b.paidLog) && b.paidLog.length ? b.paidLog[b.paidLog.length - 1] : null;
@@ -264,8 +266,10 @@ export function render() {
       </div>` : ""}
       <div class="card-actions">
         ${b.paid
-          ? `<button class="btn" data-act="markunpaid" data-id="${b.id}">Mark as unpaid</button>`
-          : `<button class="btn" data-act="markpaid" data-id="${b.id}">Mark balance paid</button>`}
+          ? (hasLedger(b)
+              ? `<button class="btn" data-act="pay" data-id="${b.id}">Payments</button>`
+              : `<button class="btn" data-act="markunpaid" data-id="${b.id}">Mark as unpaid</button>`)
+          : `<button class="btn" data-act="pay" data-id="${b.id}">Record payment</button>`}
         <button class="btn" data-act="deposits" data-id="${b.id}">Deposits</button>
         <button class="btn" data-act="open" data-id="${b.id}">View booking</button>
         ${!b.paid && hasEmail ? `<button class="btn" data-act="email" data-id="${b.id}">Email reminder</button>` : ""}
@@ -448,10 +452,114 @@ function renderTabCounts(search) {
   });
 }
 
+// ---------- Payment history ----------
+let payBookingId = null;
+
+function openPayModal(id) {
+  payBookingId = id;
+  const b = state.bookings.find(x => x.id === id);
+  if (!b) return;
+  showError(root, "pay-error", null);
+  el(root, "pay-title").textContent = `Payments \u2014 ${b.renter || bookingRef(b)}`;
+
+  const pays = paymentsOf(b);
+  const due = amountDue(b);
+  const got = paidTotal(b);
+  const rows = pays.map(p => `
+    <div class="pay-row">
+      <span>${esc(formatDate(paymentOn(p)))}</span>
+      <span>${p.method ? esc(p.method) : "\u2014"}</span>
+      <span class="pay-amt${(Number(p.amount) || 0) < 0 ? " pay-neg" : ""}">${esc(formatAmount(Number(p.amount) || 0))}</span>
+    </div>${p.note ? `<div class="pay-note">${esc(p.note)}</div>` : ""}`).join("");
+  el(root, "pay-list").innerHTML = `
+    ${pays.length ? rows : (Number(b.advancePaid) || 0) > 0
+      ? `<div class="pay-note">The advance of ${esc(formatAmount(Number(b.advancePaid)))} will appear here as the opening entry when the first payment is recorded.</div>`
+      : `<div class="pay-note">Nothing received yet.</div>`}
+    <div class="pay-row pay-sum">
+      <span>Received so far</span><span></span><span class="pay-amt">${esc(formatAmount(got))}</span>
+    </div>
+    <div class="pay-row pay-sum">
+      <span>${b.paid ? "Settled" : "Remaining"}</span><span></span>
+      <span class="pay-amt">${esc(formatAmount(Math.max(0, due - got)))}</span>
+    </div>`;
+
+  setVal(root, "pay-amount", b.paid ? "" : (balanceFor(b) || ""));
+  setVal(root, "pay-method", "");
+  setVal(root, "pay-date", todayStr());
+  setVal(root, "pay-note", "");
+  openModal(root, "pay-modal");
+}
+
+async function savePayment() {
+  const id = payBookingId;
+  const b = state.bookings.find(x => x.id === id);
+  if (!b) return;
+  const amount = parseFloat(val(root, "pay-amount"));
+  const method = val(root, "pay-method");
+  const on = val(root, "pay-date") || todayStr();
+  const note = val(root, "pay-note");
+
+  if (!Number.isFinite(amount) || amount === 0) {
+    showError(root, "pay-error", "Enter the amount received — a negative amount records a refund.");
+    return;
+  }
+
+  const btn = el(root, "pay-save");
+  btn.disabled = true;
+  setSync("saving");
+  try {
+    const now = new Date().toISOString();
+    const by = state.ctx?.user?.email || "";
+    const entries = [];
+    // First payment on a booking that already carried an advance: the advance
+    // migrates in as the opening entry, dated the day it was recorded, so the
+    // ledger is the whole story from its first day and nothing double-counts.
+    if (!hasLedger(b) && (Number(b.advancePaid) || 0) > 0) {
+      entries.push({
+        on: advanceReceivedOn(b), at: now, amount: Number(b.advancePaid),
+        method: "", by: "", note: "Advance recorded before payment history existed"
+      });
+    }
+    entries.push({ on, at: now, amount, method, by, note });
+
+    const before = hasLedger(b) ? paidTotal(b) : (Number(b.advancePaid) || 0);
+    const after = Math.round((before + amount) * 100) / 100;
+    const settledNow = after >= amountDue(b) - 0.005;
+
+    const patch = { payments: arrayUnion(...entries) };
+    if (settledNow !== !!b.paid) {
+      patch.paid = settledNow;
+      patch.paidAt = settledNow ? now : null;
+      patch.paidLog = arrayUnion({
+        at: now, by,
+        action: settledNow ? "settled by payment" : "reopened by correction"
+      });
+    }
+    await updateDoc(doc(db, "bookings", id), patch);
+    setSync("live");
+    closeModal(root, "pay-modal");
+    showToast(settledNow && !b.paid
+      ? `Payment recorded \u2014 booking settled in full`
+      : `Payment recorded`);
+  } catch (err) {
+    setSync("error");
+    showError(root, "pay-error", "Couldn't save the payment (" + (err.code || err.message) + "). Try again.");
+  }
+  btn.disabled = false;
+}
+
 function openDepositModal(id) {
   depositBookingId = id;
   const b = state.bookings.find(x => x.id === id);
   setVal(root, "dep-advance", b?.advancePaid || "");
+  // Once a booking has a payment history, the advance lives there: this field
+  // becomes a display, and Record payment is the only door money comes in by.
+  const ledgered = b && hasLedger(b);
+  const advIn = el(root, "dep-advance");
+  advIn.disabled = !!ledgered;
+  if (ledgered) setVal(root, "dep-advance", "");
+  const advLabel = el(root, "dep-advance-label");
+  if (ledgered) advLabel.textContent = "Advance is in the payment history — use Record payment";
   setVal(root, "dep-security", b?.securityDeposit || "");
 
   // Foreign-currency bookings take deposits in that currency too: the foreign
@@ -528,12 +636,17 @@ async function saveDeposits() {
   btn.disabled = true; btn.textContent = "Saving...";
   setSync("saving");
   try {
-    const update = { advancePaid: advance, securityDeposit: security,
-      fxAdvance: fxAdvance > 0 ? fxAdvance : null,
-      fxSecurity: fxSecurity > 0 ? fxSecurity : null };
+    // A booking with a payment history takes money only through Record
+    // payment; the deposits dialog then only manages the security deposit.
+    const ledgered = hasLedger(b);
+    const update = ledgered
+      ? { securityDeposit: security, fxSecurity: fxSecurity > 0 ? fxSecurity : null }
+      : { advancePaid: advance, securityDeposit: security,
+          fxAdvance: fxAdvance > 0 ? fxAdvance : null,
+          fxSecurity: fxSecurity > 0 ? fxSecurity : null };
     // The day the advance arrived, stamped when the figure changes — this is
     // what lets Received count deposits in the month the money actually came.
-    if (advance !== (Number(b.advancePaid) || 0)) {
+    if (!ledgered && advance !== (Number(b.advancePaid) || 0)) {
       update.advanceRecordedAt = new Date().toISOString();
     }
     if (security > 0 && !b.securityStatus) update.securityStatus = "held";

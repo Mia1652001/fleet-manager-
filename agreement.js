@@ -20,7 +20,8 @@ import {
   startTime, endTime, customerForBooking, companyName, companyTerms, todayStr,
   deliveryCost, insuranceCost, otherCost, invoiceTotal, extrasTotal, fxPair,
   bankCharge, bankChargePct, amountDue, receiptNo,
-  invoiceNo, vatRatePct, vatSplit
+  invoiceNo, vatRatePct, vatSplit,
+  paidTotal, lastPaymentMethod, hasLedger
 } from "./store.js";
 
 function line(label, value) {
@@ -65,7 +66,10 @@ function moneyBlock(b) {
   const days = rentalDays(b);
   const rate = rateFor(b);
   const total = rentalTotal(b);
-  const advance = advancePaid(b);
+  // "Advance" on a ledger booking means everything received so far — the
+  // agreement and the receipt must never disagree about the same rupees.
+  const ledgered = hasLedger(b);
+  const advance = ledgered ? paidTotal(b) : advancePaid(b);
   const balance = balanceFor(b);
   const security = b.securityDeposit || 0;
   // Its own line, never folded into the total: the client is entitled to see
@@ -93,7 +97,7 @@ function moneyBlock(b) {
       ${charge > 0
         ? `<tr><th>Bank charge (${esc(String(bankChargePct(b)))}% — card payment)</th><td class="ag-num">${esc(formatAmount(charge))}</td></tr>`
         : ""}
-      ${advance > 0 ? `<tr><th>Less advance already paid</th><td class="ag-num">− ${esc(fxPair(b, advance, b.fxAdvance))}</td></tr>` : ""}
+      ${advance > 0 ? `<tr><th>${ledgered ? "Less received so far" : "Less advance already paid"}</th><td class="ag-num">− ${esc(ledgered ? formatAmount(advance) : fxPair(b, advance, b.fxAdvance))}</td></tr>` : ""}
       <tr class="ag-total"><th>${b.paid ? "Total (settled)" : "Balance due"}</th>
         <td class="ag-num">${esc(formatAmount(b.paid ? amountDue(b) : balance))}</td></tr>
       ${security > 0 ? `<tr><th>Refundable security deposit</th><td class="ag-num">${esc(fxPair(b, security, b.fxSecurity))}</td></tr>` : ""}
@@ -354,7 +358,10 @@ function confirmationText(b) {
   const s = state.settings || {};
   const days = rentalDays(b);
   const total = rentalTotal(b);
-  const advance = advancePaid(b);
+  // "Advance" on a ledger booking means everything received so far — the
+  // agreement and the receipt must never disagree about the same rupees.
+  const ledgered = hasLedger(b);
+  const advance = ledgered ? paidTotal(b) : advancePaid(b);
   const balance = balanceFor(b);
   const security = b.securityDeposit || 0;
 
@@ -388,7 +395,9 @@ function confirmationText(b) {
     lines.push(`Bank charge (${bankChargePct(b)}% — card payment): ${formatAmount(bankCharge(b))}`);
   }
 
-  if (advance > 0) lines.push(`Advance already paid: ${fxPair(b, advance, b.fxAdvance)}`);
+  if (advance > 0) lines.push(ledgered
+    ? `Received so far: ${formatAmount(advance)}`
+    : `Advance already paid: ${fxPair(b, advance, b.fxAdvance)}`);
   lines.push(b.paid ? "Paid in full — thank you." : `Balance due: ${formatAmount(balance)}`);
   if (security > 0) lines.push(`Refundable security deposit: ${fxPair(b, security, b.fxSecurity)}`);
 
@@ -566,9 +575,10 @@ function invoiceHtml(b, justIssuedNo, justKind) {
   const total = amountDue(b);
   const pct = typeof b.invoiceVatPct === "number" && b.invoiceVatPct > 0 ? b.invoiceVatPct : vatRatePct();
   const split = vatSplit(total, pct);
-  const advance = Number(b.advancePaid) || 0;
-  const settled = b.paid ? total : advance;
-  const outstanding = Math.max(0, total - settled);
+  // Everything actually received — the payments ledger when there is one,
+  // the old advance/settled figures when there is not. Same rupees either way.
+  const settled = paidTotal(b);
+  const outstanding = Math.max(0, Math.round((total - settled) * 100) / 100);
   const issuedOn = b.invoiceIssuedAt ? String(b.invoiceIssuedAt).slice(0, 10) : todayStr();
   const extras = [
     ["Delivery", deliveryCost(b)],
@@ -643,8 +653,8 @@ ${DOC_ACTIONS}
 export function openReceipt(bookingId, justIssuedNo) {
   const b = state.bookings.find(x => x.id === bookingId);
   if (!b) return { ok: false, reason: "That booking could not be found." };
-  if (!b.paid && !(Number(b.advancePaid) > 0)) {
-    return { ok: false, reason: "Nothing has been received on this booking yet — mark the balance paid, or record an advance, first." };
+  if (!b.paid && !(paidTotal(b) > 0)) {
+    return { ok: false, reason: "Nothing has been received on this booking yet — record a payment first." };
   }
   // The number is passed in when it has only just been allocated: the write is
   // on its way to the server but this device's copy of the booking may not
@@ -663,10 +673,12 @@ function receiptHtml(b, justIssuedNo) {
   // What the client actually handed over includes the card fee, so a receipt
   // that showed only the rental would not match their statement.
   const total = amountDue(b);
-  const advance = Number(b.advancePaid) || 0;
-  const settled = b.paid ? total : advance;
-  const outstanding = Math.max(0, total - settled);
+  const settled = paidTotal(b);
+  const outstanding = Math.max(0, Math.round((total - settled) * 100) / 100);
   const paidOn = b.paid && b.paidAt ? String(b.paidAt).slice(0, 10) : todayStr();
+  // How the money arrived — the last recorded payment's method. The slot for
+  // this existed in the receipt from the start; the ledger finally fills it.
+  const paidBy = lastPaymentMethod(b);
 
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
@@ -687,7 +699,7 @@ ${DOC_ACTIONS}
   </div>
 
   <p>Received with thanks from <strong>${esc(b.renter || "")}</strong>${b.passport ? ` (passport ${esc(b.passport)})` : ""},
-  the sum of <strong>${esc(formatAmount(settled))}</strong> on ${esc(formatDate(paidOn))}${b.paidBy ? `, ${esc(b.paidBy)}` : ""}.</p>
+  the sum of <strong>${esc(formatAmount(settled))}</strong> on ${esc(formatDate(paidOn))}${paidBy ? `, paid by ${esc(paidBy)}` : ""}.</p>
 
   <div class="ag-cols">
     <div>

@@ -13,7 +13,8 @@ import {
   staffNames, locationNames, brokerNames, FX_CURRENCIES, fxRate, deleteBookingWarning,
   rentalDays, formatAmount, defaultBankChargePct,
   receiptPrefix, formatReceiptNo, receiptNo, hasReceiptNo, receiptNoTaken,
-  invoiceKindFor, vatRatePct, formatInvoiceNo, invoiceNo, hasInvoiceNo,
+  invoiceKindFor, vatRatePct, formatInvoiceNo, invoiceNo, hasInvoiceNo, amountDue,
+  paidTotal,
   invoiceNoTaken, invoiceSeqField,
   startTime, endTime,
   fillTimeOptions, getTime, setTime, onTimeChange,
@@ -363,12 +364,12 @@ function syncMoneyBlock() {
   const charge = pct > 0 ? Math.round(base * pct) / 100 : 0;
   const total = Math.round((base + charge) * 100) / 100;
   const b = editingBookingId ? state.bookings.find(x => x.id === editingBookingId) : null;
-  const advance = Number(b?.advancePaid) || 0;
+  const advance = b ? paidTotal(b) : 0;
   const due = Math.max(0, Math.round((total - advance) * 100) / 100);
   box.innerHTML = `
     <div class="money-row"><span>Total${charge > 0 ? " (incl. card charge)" : ""}</span><strong>${esc(formatAmount(total))}</strong></div>
     ${advance > 0 ? `
-    <div class="money-row"><span>Advance received</span><strong>${esc(formatAmount(advance))}</strong></div>
+    <div class="money-row"><span>Received so far</span><strong>${esc(formatAmount(advance))}</strong></div>
     <div class="money-row ${due > 0 ? "money-due" : "money-settled"}"><span>Due at pickup</span><strong>${esc(formatAmount(due))}</strong></div>` : ""}
   `;
 }
@@ -431,9 +432,9 @@ function onReceiptClicked() {
 
   // Nothing received yet is the same refusal as before, and worth making before
   // a number is burned on a receipt that should not exist.
-  if (!b.paid && !(Number(b.advancePaid) > 0)) {
+  if (!b.paid && !(paidTotal(b) > 0)) {
     showError(root, "booking-error",
-      "Nothing has been received on this booking yet — mark the balance paid, or record an advance, first.");
+      "Nothing has been received on this booking yet — record a payment on the Billing page first.");
     return;
   }
 
@@ -732,6 +733,9 @@ async function issueInvoice() {
         invoiceNo: number,
         invoiceKind: kind,
         invoiceVatPct: kind === "vat" ? vatRatePct() : null,
+        // The total as invoiced, frozen — the reports list shows this figure
+        // even if the booking's price is edited later, matching the reprint.
+        invoiceTotalAt: amountDue(state.bookings.find(x => x.id === id) || {}),
         invoiceIssuedAt: new Date().toISOString(),
         invoiceIssuedBy: state.ctx?.user?.email || ""
       });

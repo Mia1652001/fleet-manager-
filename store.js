@@ -295,6 +295,36 @@ export function rentalTotal(b) {
   return Math.max(0, rentalDays(b) * rateFor(b));
 }
 export function advancePaid(b) { return typeof b.advancePaid === "number" ? b.advancePaid : 0; }
+
+// ---------- The payments ledger ----------
+// Every payment on a booking, as it happened: business date, amount (negative
+// for a refund or correction), how it was paid, who recorded it. Bookings from
+// before this existed have no ledger and keep the old advance/settled maths —
+// the first payment recorded on one migrates its advance in as a dated opening
+// entry, so the two systems never overlap on one booking and never double-count.
+export function paymentsOf(b) {
+  return Array.isArray(b?.payments) ? b.payments : [];
+}
+export function hasLedger(b) { return paymentsOf(b).length > 0; }
+export function paymentOn(p) {
+  return String(p?.on || p?.at || "").slice(0, 10);
+}
+
+// Everything received on this booking so far, whichever world it lives in.
+export function paidTotal(b) {
+  const pays = paymentsOf(b);
+  if (pays.length) {
+    return Math.round(pays.reduce((s, p) => s + (Number(p.amount) || 0), 0) * 100) / 100;
+  }
+  return (Number(b.advancePaid) || 0) + (b.paid ? settledAmount(b) : 0);
+}
+
+// The method of the most recent real payment — what a receipt prints after
+// "Paid by". Blank for pre-ledger bookings, which recorded no method.
+export function lastPaymentMethod(b) {
+  const pays = paymentsOf(b).filter(p => (Number(p.amount) || 0) > 0 && p.method);
+  return pays.length ? String(pays[pays.length - 1].method) : "";
+}
 // ---------- Extra charges ----------
 // Delivery, insurance and anything else agreed on top of the hire itself. Kept
 // apart from the rental line so an invoice can show what the car cost and what
@@ -352,7 +382,12 @@ export function defaultBankChargePct() {
   return Number.isFinite(p) && p > 0 ? p : 0;
 }
 
-export function balanceFor(b) { return Math.max(0, amountDue(b) - advancePaid(b)); }
+export function balanceFor(b) {
+  // Ledger bookings: due minus everything actually received. Legacy bookings:
+  // paidTotal degrades to the old advance-only figure when unpaid, so this is
+  // byte-for-byte the old behaviour for them.
+  return Math.max(0, Math.round((amountDue(b) - (hasLedger(b) ? paidTotal(b) : advancePaid(b))) * 100) / 100);
+}
 export function securityHeld(b) {
   // Anything not explicitly refunded or kept is still in hand. Requiring the
   // status to say "held" meant a deposit recorded without one was left out of
@@ -458,13 +493,23 @@ export function moneySummary(bookings, inScope) {
     // Aug 2026 advances were counted nowhere, which is why Booked, Received
     // and Outstanding refused to reconcile: the gap was every deposit ever
     // taken, plus rentals not yet started.
-    received:
-      bookings
-        .filter(b => Number(b.advancePaid) > 0 && inScope(advanceReceivedOn(b)))
-        .reduce((s, b) => s + Number(b.advancePaid), 0)
-      + bookings
-        .filter(b => b.paid && inScope(settledOn(b)))
-        .reduce((s, b) => s + settledAmount(b), 0)
+    // Received is cash that actually arrived in the period. A booking with a
+    // payments ledger answers from the ledger — each entry by its own date —
+    // and a booking without one answers the old way (advance by its recorded
+    // date, settled balance by its settle date). One booking is always in
+    // exactly one branch, so nothing can be counted twice.
+    received: Math.round(bookings.reduce((sum, b) => {
+      const pays = paymentsOf(b);
+      if (pays.length) {
+        return sum + pays
+          .filter(p => inScope(paymentOn(p)))
+          .reduce((x, p) => x + (Number(p.amount) || 0), 0);
+      }
+      let r = 0;
+      if ((Number(b.advancePaid) || 0) > 0 && inScope(advanceReceivedOn(b))) r += Number(b.advancePaid);
+      if (b.paid && inScope(settledOn(b))) r += settledAmount(b);
+      return sum + r;
+    }, 0) * 100) / 100
   };
 }
 
@@ -641,6 +686,32 @@ export function hasReceiptNo(b) { return !!receiptNo(b); }
 function normaliseReceiptNo(v) {
   return String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
+
+// ---------- Version ----------
+// Stamped into Settings and the console by app.js, bumped in every zip, so
+// "did the new version deploy?" is answered by looking, not guessing.
+export const APP_VERSION = "v101 \u00b7 13 Aug 2026";
+
+// ---------- Payment status ----------
+// The one shape of a paid/unpaid change, used by every page that offers the
+// button, so the books can never disagree about what "marked paid" writes.
+// paidAmount snapshots the balance at the moment of marking: the advance came
+// in earlier and is counted on its own date.
+export function paidPatch(b, paid) {
+  const now = new Date().toISOString();
+  return {
+    patch: paid
+      ? { paid: true, paidAmount: settledAmount(b), paidAt: now }
+      : { paid: false, paidAmount: null, paidAt: null },
+    logEntry: { at: now, action: paid ? "marked paid" : "marked unpaid",
+                by: state.ctx?.user?.email || "" }
+  };
+}
+
+// The version shown in Settings and on the wordmark's tooltip, bumped with
+// every package — so "did the upload deploy?" is answered by looking, not by
+// wondering. Format: date, then a word for what the build was about.
+export const APP_VERSION = "15 Aug 2026 \u00b7 payments";
 
 // ---------- Themes ----------
 // Per-company appearance, stored on the settings document so everyone who

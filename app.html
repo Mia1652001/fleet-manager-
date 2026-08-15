@@ -493,6 +493,40 @@
           </div>
         </div>
       </div>
+
+      <!-- Payment history: every rupee received on a booking, as it happened.
+           Recording the payment that clears the balance is what "mark paid"
+           now means — and it is how receipts learn HOW money arrived. -->
+      <div class="overlay" data-el="pay-modal">
+        <div class="modal">
+          <h2 data-el="pay-title">Payments</h2>
+          <div class="form-error" data-el="pay-error"></div>
+          <div data-el="pay-list" style="margin-bottom:12px;"></div>
+          <div class="field-row">
+            <div class="field"><label>Amount received</label>
+              <input type="number" step="0.01" data-el="pay-amount" placeholder="negative = refund"></div>
+            <div class="field"><label>Paid by</label>
+              <select data-el="pay-method">
+                <option value="">—</option>
+                <option>Cash</option>
+                <option>Juice</option>
+                <option>Bank transfer</option>
+                <option>Card</option>
+                <option>Other</option>
+              </select></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Date received</label>
+              <input type="date" data-el="pay-date"></div>
+            <div class="field"><label>Note</label>
+              <input type="text" data-el="pay-note" placeholder="optional"></div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn" data-close="pay-modal">Close</button>
+            <button class="btn-primary" data-el="pay-save">Record payment</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ---------- MAINTENANCE ---------- -->
@@ -951,6 +985,7 @@
 
 
       </div>
+          <div class="app-version" id="app-version"></div>
     </section>
     <section class="view" id="view-tasks">
 
