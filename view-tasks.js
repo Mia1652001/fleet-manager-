@@ -295,13 +295,13 @@ function isPast() {
 }
 
 function rangeBounds() {
-  // The past tabs look backwards, ending yesterday — today's work stays on
-  // Today. "Everything before" fetches all history; the display draws the
-  // last month solid and reaches older days through the skipped-days markers,
-  // the same way "Everything ahead" treats the far future.
-  if (range === "past7") return { from: shiftDate(-7), to: shiftDate(-1) };
-  if (range === "past30") return { from: shiftDate(-PAST_DAYS), to: shiftDate(-1) };
-  if (range === "pastall") return { from: null, to: shiftDate(-1) };
+  // The past tabs look backwards AND include today (pilot, Aug 2026: "is it
+  // possible to display today's tasks AND past 7 days?"). Reviewing recent
+  // work naturally includes the day being worked — the mirror of the rule
+  // that forward ranges must start today, never behind it.
+  if (range === "past7") return { from: shiftDate(-7), to: shiftDate(0) };
+  if (range === "past30") return { from: shiftDate(-PAST_DAYS), to: shiftDate(0) };
+  if (range === "pastall") return { from: null, to: shiftDate(0) };
 
   // Forward ranges begin today, always. They used to reach a week backwards
   // whenever "Show completed" was on, so that a review had something to show —

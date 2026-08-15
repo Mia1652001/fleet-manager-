@@ -2742,3 +2742,13 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 
 /* ---------- Version stamp ---------- */
 .app-version { margin-top: 20px; font-size: 11px; color: var(--muted); }
+
+/* ---------- Expenses: the totals row freezes at the top while the board
+   scrolls (pilot request — same behaviour as the Tasks board header), and
+   the grand total sits at its right edge. overflow-x on the page uses clip,
+   not hidden, precisely so position: sticky keeps working. ---------- */
+.cat-totals { position: sticky; top: 0; z-index: 40; background: var(--bg); padding: 6px 0; }
+.cat-grand { margin-left: auto; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+@media (max-width: 640px) {
+  .cat-grand { margin-left: 0; }
+}

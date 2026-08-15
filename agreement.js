@@ -249,8 +249,8 @@ ${DOC_ACTIONS}
       <h2>Renter</h2>
       <table class="ag-table">
         ${line("Name", b.renter)}
-        ${line("Phone", b.phone || customer?.phone)}
-        ${line("Email", b.email || customer?.email)}
+        ${line("Phone", customer?.phone || b.phone)}
+        ${line("Email", customer?.email || b.email)}
         ${line("Passport number", b.passport || customer?.passport)}
         ${line("Licence number", b.licence || customer?.license)}
         ${line("Broker", b.broker)}
@@ -426,7 +426,7 @@ export function emailBooking(bookingId) {
   // The booking's own address first: a walk-in booked with "just type a name"
   // has contact details on the booking rather than in the customer register, and
   // that is the route most bookings are taken through.
-  const to = b.email || customerForBooking(b)?.email || "";
+  const to = customerForBooking(b)?.email || b.email || "";
   if (!to) {
     return {
       ok: false,
@@ -478,7 +478,10 @@ export function whatsappBooking(bookingId) {
   const b = state.bookings.find(x => x.id === bookingId);
   if (!b) return { ok: false, reason: "That booking could not be found." };
 
-  const raw = b.phone || customerForBooking(b)?.phone || "";
+  // The customer record is the living truth for contact details: correct the
+  // record and every document, reprint and message follows. The number typed
+  // on the booking is only the fallback for walk-ins with no record.
+  const raw = customerForBooking(b)?.phone || b.phone || "";
   const digits = waNumber(raw);
   if (!digits) {
     return { ok: false, reason: "No phone number saved for this booking or customer." };
@@ -612,8 +615,8 @@ ${DOC_ACTIONS}
       <h2>Billed to</h2>
       <table class="ag-table">
         ${line("Name", b.renter)}
-        ${line("Phone", b.phone || customer?.phone)}
-        ${line("Email", b.email || customer?.email)}
+        ${line("Phone", customer?.phone || b.phone)}
+        ${line("Email", customer?.email || b.email)}
       </table>
     </div>
     <div>
@@ -706,8 +709,8 @@ ${DOC_ACTIONS}
       <h2>Paid by</h2>
       <table class="ag-table">
         ${line("Name", b.renter)}
-        ${line("Phone", b.phone || customer?.phone)}
-        ${line("Email", b.email || customer?.email)}
+        ${line("Phone", customer?.phone || b.phone)}
+        ${line("Email", customer?.email || b.email)}
       </table>
     </div>
     <div>
@@ -777,8 +780,8 @@ ${DOC_ACTIONS}
       <h2>Booked for</h2>
       <table class="ag-table">
         ${line("Name", b.renter)}
-        ${line("Phone", b.phone || customer?.phone)}
-        ${line("Email", b.email || customer?.email)}
+        ${line("Phone", customer?.phone || b.phone)}
+        ${line("Email", customer?.email || b.email)}
       </table>
     </div>
     <div>

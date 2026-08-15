@@ -317,13 +317,25 @@ function renderCategoryTotals(list) {
   });
   if (!map.size) { box.innerHTML = ""; return; }
   const rows = [...map.values()].sort((a, b) => b.total - a.total);
+  // The grand total answers the question the per-category chips can't: what
+  // does everything on this filtered board come to — and how much of it is
+  // owed back to the person filtered. Computed from the same filtered rows,
+  // so filtering to one staff member makes this exactly their refund figure.
+  const grandTotal = rows.reduce((a, r) => a + r.total, 0);
+  const grandOwed = rows.reduce((a, r) => a + (r.owed || 0), 0);
+  const grandCount = rows.reduce((a, r) => a + r.count, 0);
   box.innerHTML = `<button type="button" class="btn cat-totals-toggle">${totalsOpen ? "\u25be" : "\u25b8"} Totals</button><div class="cat-total-strip">` + rows.map(r => `
     <div class="cat-total">
       <div class="cat-total-name">${esc(r.name)}</div>
       <div class="cat-total-val">${esc(formatAmount(r.total))}</div>
       <div class="cat-total-sub">${r.count} item${r.count === 1 ? "" : "s"}${
         r.owed > 0 ? ` · ${esc(formatAmount(r.owed))} to refund` : ""}</div>
-    </div>`).join("") + `</div>`;
+    </div>`).join("") + `
+    <div class="cat-total cat-grand">
+      <div class="cat-total-name">Total</div>
+      <div class="cat-total-val">${esc(formatAmount(grandTotal))}</div>
+      <div class="cat-total-sub">${grandCount} item${grandCount === 1 ? "" : "s"}${grandOwed > 0 ? ` · ${esc(formatAmount(grandOwed))} to refund` : ""}</div>
+    </div></div>`;
 }
 
 function boardColumns(items) {
