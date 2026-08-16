@@ -2329,7 +2329,14 @@ input[type="number"] {
     margin-left: calc(-1 * max(0px, (var(--page-w) - 100%) / 2));
   }
 
-  #view-fleet .card-list,
+  /* Fleet cards: capped width (pilot: "too much space in the middle") — on a
+     wide screen more, narrower cards instead of two enormous ones. */
+  #view-fleet .card-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 10px;
+  }
+
   #view-customers .card-list,
   #view-billing .card-list,
   #view-maintenance .card-list {
@@ -2676,8 +2683,13 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
   .filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin-left: 0 !important; }
   .filter-row .tab, .filter-row select { flex: 1 1 calc(50% - 6px); min-width: 0; text-align: center; }
 
+  /* the invoice filters stay visible while the register scrolls */
+  #view-reports [data-el="rep-controls"] {
+    position: sticky; top: 0; z-index: 35;
+    background: var(--bg); padding: 6px 0;
+  }
+
   /* boards scroll inside themselves, never the page */
-  .staff-board { max-width: 100%; overflow-x: auto; }
 
   /* the expenses category totals become one thumb-scrollable row of chips
      instead of a stack that fills the screen */
@@ -2688,8 +2700,10 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
   .cat-total-strip > * { flex: 0 0 auto; min-width: 128px; }
 
   /* item: nothing sits in a 60%-wide column with dead space beside it */
-  .view, .toolbar, .planner-bar, .card-list, .staff-board { width: 100%; }
-  .staff-board { overflow-x: auto; }
+  /* Boards are deliberately absent here: they have their own full-bleed
+     width rules, and a blanket width:100% capped them into a left-shifted
+     column with a blank strip on the right (pilot, Aug 2026 — twice). */
+  .view, .toolbar, .planner-bar, .card-list { width: 100%; }
 
   /* checkbox rows (card payment, marked as paid) stack their extras below
      the tick instead of squeezing them into a right-hand sliver */
@@ -2753,3 +2767,11 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
    wrong row; the pilot meant the board's own header, like Tasks.) ---------- */
 .board-grand { box-shadow: inset 3px 0 0 var(--accent); color: var(--text); }
 .board-grand .board-head-total { font-weight: 600; }
+
+/* The + square on the colour row */
+.swatch-add {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px; color: var(--muted);
+  background: var(--surface); border: 1px dashed var(--border);
+}
+.swatch-add:hover { border-color: var(--accent); color: var(--accent); }

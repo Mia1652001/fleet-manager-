@@ -133,7 +133,7 @@ export function mount(container) {
   // The invoices tab draws its own date filters and export button into the
   // table area, so their events are picked up here by delegation — the
   // elements are recreated on every render.
-  el(root, "rep-table").addEventListener("change", (e) => {
+  el(root, "rep-controls").addEventListener("change", (e) => {
     const inp = e.target.closest("input[data-inv], select[data-inv]");
     if (!inp) return;
     if (inp.dataset.inv === "from") invFrom = inp.value;
@@ -142,8 +142,10 @@ export function mount(container) {
     else invKind = inp.value;
     render();
   });
+  el(root, "rep-controls").addEventListener("click", (e) => {
+    if (e.target.closest("[data-inv-export]")) exportInvoicesXlsx();
+  });
   el(root, "rep-table").addEventListener("click", (e) => {
-    if (e.target.closest("[data-inv-export]")) { exportInvoicesXlsx(); return; }
     // The number itself opens the document — a real click, so no pop-up
     // blocker has anything to say about it.
     const openBtn = e.target.closest("[data-open-invoice]");
@@ -195,6 +197,9 @@ export function render() {
   if (current === "invoices") {
     if (!invFrom) invFrom = quarterStart(todayStr());
     if (!invTo) invTo = todayStr();
+  } else {
+    const slot = el(root, "rep-controls");
+    if (slot) slot.innerHTML = "";
   }
 
   if (current === "revenue") renderCarGrid(rev, "earned", "revenue");
@@ -373,11 +378,12 @@ function renderInvoices() {
       </select>
       <button class="btn" type="button" data-inv-export ${rows.length ? "" : "disabled"}>Export this list</button>` : ""}
     </div>`;
+  el(root, "rep-controls").innerHTML = controls;
 
   if (invScope === "all") { renderAllBookings(box, note, controls, rows); return; }
 
   if (!rows.length) {
-    box.innerHTML = controls + `<div class="empty">No invoices issued between these dates.
+    box.innerHTML = `<div class="empty">No invoices issued between these dates.
       Invoices are issued from a booking — open one and press Invoice.</div>`;
     note.textContent = "";
     return;
@@ -390,7 +396,7 @@ function renderInvoices() {
   }), { total: 0, excl: 0, vat: 0 });
   const r2 = x => Math.round(x * 100) / 100;
 
-  box.innerHTML = controls + `
+  box.innerHTML = `
     <table class="rep-table">
       <thead>
         <tr>
@@ -446,13 +452,13 @@ function renderInvoices() {
 function renderAllBookings(box, note, controls, rows) {
   note.textContent = "";
   if (!rows.length) {
-    box.innerHTML = controls + `<div class="empty">No bookings start between these dates.</div>`;
+    box.innerHTML = `<div class="empty">No bookings start between these dates.</div>`;
     return;
   }
   const r2 = x => Math.round(x * 100) / 100;
   const tot = rows.reduce((a, r) => ({ total: a.total + r.total, rec: a.rec + r.received, bal: a.bal + r.balance }),
     { total: 0, rec: 0, bal: 0 });
-  box.innerHTML = controls + `
+  box.innerHTML = `
     <table class="rep-table">
       <thead>
         <tr>

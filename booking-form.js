@@ -165,8 +165,31 @@ export function mountBookingForm() {
     const sw = e.target.closest(".swatch");
     if (!sw) return;
     e.preventDefault();
+    // The + square opens the browser's own colour wheel; a chosen colour is
+    // saved to the company palette and every future booking offers it.
+    if (sw.classList.contains("swatch-add")) {
+      const pick = el(root, "b-colour-pick");
+      if (pick) pick.click();
+      return;
+    }
     setSwatch(root, "b-colour", sw.dataset.colour);
   });
+  {
+    const pick = el(root, "b-colour-pick");
+    if (pick) pick.addEventListener("change", async () => {
+      const hex = String(pick.value || "").toLowerCase();
+      if (!/^#[0-9a-f]{6}$/.test(hex)) return;
+      paintColourSwatches(hex);
+      setSwatch(root, "b-colour", hex);
+      // Company-wide, written immediately: the palette belongs to everyone.
+      try {
+        await updateDoc(doc(db, "settings", state.ctx.companyId),
+          { companyId: state.ctx.companyId, plannerColours: arrayUnion(hex) });
+      } catch (err) {
+        console.warn("Could not save the colour to the palette", err);
+      }
+    });
+  }
 
   root.querySelectorAll("[data-close]").forEach(b =>
     b.addEventListener("click", () => closeModal(root, b.dataset.close)));
@@ -648,6 +671,26 @@ export function recalcAtTodayRate(fieldRoot, { fxInputId, homeInputId, sym, isPa
 // later rate change never rewrites an invoice already sent. Unlike a receipt,
 // an invoice needs nothing to have been paid — billing is its whole point.
 
+// The colour row: Automatic, then every colour this company has ever chosen
+// (pilot, Aug 2026: "the colors should be fully chosen by the person using
+// the app... they can add as many as they want"), then the + square. A colour
+// on the current booking that is not in the palette still shows, selected —
+// old bookings keep their colours whatever the palette does.
+function paintColourSwatches(selected) {
+  const row = el(root, "b-colour");
+  if (!row) return;
+  const palette = Array.isArray(state.settings?.plannerColours)
+    ? state.settings.plannerColours.filter(c => /^#[0-9a-fA-F]{6}$/.test(String(c)))
+    : [];
+  const sel = String(selected || "");
+  const shown = palette.includes(sel) || !sel ? palette : [...palette, sel];
+  row.innerHTML =
+    `<button type="button" class="swatch auto" data-colour="" title="Automatic \u2014 colour by status">A</button>` +
+    shown.map(c =>
+      `<button type="button" class="swatch" data-colour="${c}" style="background:${c}" title="${c}"></button>`).join("") +
+    `<button type="button" class="swatch swatch-add" title="Add a colour to the company palette">+</button>`;
+}
+
 function onInvoiceClicked() {
   if (!editingBookingId) return;
   const b = state.bookings.find(x => x.id === editingBookingId);
@@ -1004,6 +1047,7 @@ export function openBookingModal(bookingId, preset) {
   setChecked(root, "b-paid", false);
   setChecked(root, "b-card", false);
   setVal(root, "b-card-pct", "");
+  paintColourSwatches("");
   setSwatch(root, "b-colour", "");
   // Sensible default times so staff only change them when it matters
   setTime(root, "b-start-time", "12:00");
@@ -1068,6 +1112,7 @@ export function openBookingModal(bookingId, preset) {
     setVal(root, "b-card-pct",
       (typeof editing.bankChargePct === "number" && editing.bankChargePct > 0)
         ? editing.bankChargePct : "");
+    paintColourSwatches(editing.barColour || "");
     setSwatch(root, "b-colour", editing.barColour || "");
     if (editing.customerId && state.customers.some(c => c.id === editing.customerId)) {
       csel.value = editing.customerId;

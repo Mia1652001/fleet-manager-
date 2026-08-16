@@ -99,3 +99,24 @@ account and on GitHub; get every pilot company to run its first backup.
 - [x] Full task names visible on board chips — wrap instead of truncating (v24)
 - [x] Currency list trimmed to € / $ / £ (v24)
 - [x] Booking form sized for desktop — no inner scrolling on PC (v24)
+
+## Accounts & access (discussed 16 Aug 2026, parked)
+- Staff logins: already possible today — console-created accounts sharing a companyId.
+  Do this for Arshad's staff when he asks; it also makes the who-did-what stamps real.
+- Restricted access, layer 1: role field on the users doc; app hides Billing/Reports/
+  Settings and destructive buttons for restricted roles. Build after Arshad says which
+  screens/actions his staff must not have.
+- Restricted access, layer 2: rules-enforced roles. Cheap check (role rides the same
+  users-doc read the rules already do) but it IS a rules change: playground-tested,
+  quiet day, never with a feature release.
+- Staff self-signup via invite codes (rules change) or Cloud Functions (Blaze).
+  Full company self-signup: only when actually charging money.
+
+## Colour palette follow-up
+- Palette entries cannot be deleted yet (add-only, per the request). If a company
+  saves an ugly colour, removal needs a small UI — long-press or an × in a manage
+  mode. Ask Arshad if it bothers them before building it.
+
+## Fleet import note
+- gpsSim / psvNumber are on the car record but NOT in the Excel importer's
+  recognised columns. Add mappings when a client file actually carries them.

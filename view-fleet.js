@@ -1,10 +1,10 @@
 // Fleet view — inventory with status derived from bookings.
 import { db, setSync } from "./firebase-init.js";
-import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch , arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { loadXlsx } from "./backup.js";
 import {
-  state, onDataChange, esc, formatDate, formatAmount, todayStr, findClash, describeInterval,
-  fillTimeOptions, getTime, setTime, onTimeChange,
+  state, onDataChange, esc, formatDate, formatAmount, todayStr, describeInterval,
+  getTime, setTime,
   currentBooking, nextUpcoming, carStatus, serviceDue, openBookingsForCar,
   orderedCars, getSwatch, setSwatch,
   el, val, setVal, checked, setChecked, openModal, closeModal, showError,
@@ -13,7 +13,6 @@ import {
 
 let root = null;
 let editingCarId = null;
-let rentingCarId = null;
 
 export function mount(container) {
   root = container;
@@ -40,16 +39,26 @@ export function mount(container) {
     const sw = e.target.closest(".swatch");
     if (!sw) return;
     e.preventDefault();
+    if (sw.classList.contains("swatch-add")) {
+      const pick = el(root, "c-rowcolour-pick");
+      if (pick) pick.click();
+      return;
+    }
     setSwatch(root, "c-rowcolour", sw.dataset.colour);
   });
-  el(root, "confirm-rent").addEventListener("click", confirmRent);
-  fillTimeOptions(root, "r-start-time");
-  fillTimeOptions(root, "r-end-time");
-  el(root, "r-customer").addEventListener("change", toggleRentNewCustomer);
-
-  el(root, "r-date").addEventListener("change", keepRentReturnAfterPickup);
-  onTimeChange(root, "r-start-time", keepRentReturnAfterPickup);
-  onTimeChange(root, "r-end-time", keepRentReturnAfterPickup);
+  {
+    const pick = el(root, "c-rowcolour-pick");
+    if (pick) pick.addEventListener("change", async () => {
+      const hex = String(pick.value || "").toLowerCase();
+      if (!/^#[0-9a-f]{6}$/.test(hex)) return;
+      paintCarColourSwatches(hex);
+      setSwatch(root, "c-rowcolour", hex);
+      try {
+        await updateDoc(doc(db, "settings", state.ctx.companyId),
+          { companyId: state.ctx.companyId, plannerColours: arrayUnion(hex) });
+      } catch (err) { console.warn("Could not save the colour", err); }
+    });
+  }
 
   // Rate auto-calculation removed at the pilot's request (Aug 2026): typing a
   // daily rate used to fill weekly and monthly in automatically, and saving a
@@ -65,8 +74,7 @@ export function mount(container) {
     const btn = e.target.closest("button");
     if (btn) {
       const id = btn.dataset.id;
-      if (btn.dataset.act === "rent") openRentModal(id);
-      else if (btn.dataset.act === "editcar") openCarModal(id);
+      if (btn.dataset.act === "editcar") openCarModal(id);
       else if (btn.dataset.act === "remove") removeCar(id);
       return;
     }
@@ -88,6 +96,7 @@ export function mount(container) {
     const { id, field, kind } = inp.dataset;
     let value;
     if (kind === "date") value = inp.value || "";
+    else if (kind === "text") value = inp.value.trim();
     else if (kind === "numnull") {
       const n = parseFloat(inp.value);
       value = Number.isFinite(n) && n >= 0 && inp.value !== "" ? n : null;
@@ -157,6 +166,9 @@ export function render() {
     return `<div class="car-row${cls}"><span class="car-row-l">${label}</span>
       <input type="date" class="car-cell" data-id="${c.id}" data-field="${field}" data-kind="date" value="${esc(v)}"></div>`;
   };
+  const textCell = (c, field, ph) =>
+    `<input type="text" class="car-cell" data-id="${c.id}" data-field="${field}" data-kind="text"
+       value="${esc(c[field] || "")}" placeholder="${ph}">`;
   const numCell = (c, field, kind, ph) =>
     `<input type="number" min="0" class="car-cell car-cell-num" data-id="${c.id}" data-field="${field}" data-kind="${kind}"
        value="${typeof c[field] === "number" && (kind === "numnull" ? true : c[field] > 0) ? esc(c[field]) : ""}" placeholder="${ph}">`;
@@ -183,9 +195,10 @@ export function render() {
         <div class="car-row"><span class="car-row-l">Lease amount</span>${numCell(c, "leaseAmount", "numnull", "—")}</div>
         <div class="car-row"><span class="car-row-l">Purchase</span>${numCell(c, "purchaseAmount", "numnull", "—")}</div>
         <div class="car-row"><span class="car-row-l">Lease paid</span>${numCell(c, "totalLeasePaid", "numnull", "—")}</div>
+        <div class="car-row"><span class="car-row-l">GPS SIM</span>${textCell(c, "gpsSim", "—")}</div>
+        <div class="car-row"><span class="car-row-l">PSV no.</span>${textCell(c, "psvNumber", "—")}</div>
       </div>
       <div class="card-actions">
-        <button class="btn" data-act="rent" data-id="${c.id}">Rent out now</button>
         <button class="btn" data-act="editcar" data-id="${c.id}">Edit</button>
         <button class="btn danger" data-act="remove" data-id="${c.id}">Remove</button>
       </div>
@@ -450,11 +463,29 @@ function openCarModal(id) {
   setVal(root, "c-fitness-exp", c?.fitnessExpiry || "");
   setVal(root, "c-lease-exp", c?.leaseExpiry || "");
   setChecked(root, "c-automatic", c?.automatic === true);
+  paintCarColourSwatches(c?.rowColour || "");
   setSwatch(root, "c-rowcolour", c?.rowColour || "");
 
   // Treat an existing car's weekly/monthly figures as deliberate, so changing
   // the daily rate later will not silently overwrite them.
   openModal(root, "car-modal");
+}
+
+// Same company palette as booking colours — one set of colours, chosen by
+// the company, offered everywhere a colour is picked.
+function paintCarColourSwatches(selected) {
+  const row = el(root, "c-rowcolour");
+  if (!row) return;
+  const palette = Array.isArray(state.settings?.plannerColours)
+    ? state.settings.plannerColours.filter(x => /^#[0-9a-fA-F]{6}$/.test(String(x)))
+    : [];
+  const sel = String(selected || "");
+  const shown = palette.includes(sel) || !sel ? palette : [...palette, sel];
+  row.innerHTML =
+    `<button type="button" class="swatch auto" data-colour="" title="No colour">\u2014</button>` +
+    shown.map(x =>
+      `<button type="button" class="swatch" data-colour="${x}" style="background:${x}" title="${x}"></button>`).join("") +
+    `<button type="button" class="swatch swatch-add" title="Add a colour to the company palette">+</button>`;
 }
 
 async function saveCar() {
@@ -539,130 +570,9 @@ async function removeCar(id) {
   catch (e) { alert("Couldn't remove (" + (e.code || e.message) + ")."); setSync("error"); }
 }
 
-// ---------- Walk-in rental ----------
 // A walk-in starts now, so a same-day return needs a time later than now.
 // Adjust the return rather than making the user work the rule out from an error.
-function keepRentReturnAfterPickup() {
-  const today = todayStr();
-  const st = getTime(root, "r-start-time");
-  let ed = val(root, "r-date"), et = getTime(root, "r-end-time");
-  if (!st) return;
 
-  if (ed && ed < today) { setVal(root, "r-date", today); ed = today; }
-  if (!ed) return;
 
-  if (ed === today && et && et <= st) {
-    const [h, m] = st.split(":").map(Number);
-    const later = h + 2 <= 23 ? `${String(h + 2).padStart(2, "0")}:${String(m).padStart(2, "0")}` : "23:59";
-    setTime(root, "r-end-time", later);
-  }
-}
 
-function toggleRentNewCustomer() {
-  const isNew = el(root, "r-customer").value === "__new__";
-  el(root, "r-new-fields").style.display = isNew ? "block" : "none";
-}
-
-function openRentModal(carId) {
-  const car = state.cars.find(x => x.id === carId);
-  if (car && car.outOfService) {
-    alert("This car is out of service. Put it back in service on the Maintenance view before renting it out.");
-    return;
-  }
-  rentingCarId = carId;
-
-  const csel = el(root, "r-customer");
-  csel.innerHTML = state.customers
-    .slice().sort((a, b) => a.name.localeCompare(b.name))
-    .map(c => `<option value="${c.id}">${esc(c.name)}${c.phone ? " · " + esc(c.phone) : ""}</option>`)
-    .join("") + `<option value="__new__">+ New customer...</option>`;
-  csel.value = state.customers.length ? csel.options[0].value : "__new__";
-  toggleRentNewCustomer();
-
-  ["r-name", "r-phone", "r-email", "r-date", "r-pickup", "r-dropoff"].forEach(n => setVal(root, n, ""));
-  // A walk-in is happening now, so default the pick-up time to the current
-  // time rather than midday — this matters for same-day turnarounds.
-  const now = new Date();
-  // Round the current time down to the nearest five minutes so it matches the
-  // options offered in the dropdown.
-  const mins = Math.floor(now.getMinutes() / 5) * 5;
-  setTime(root, "r-start-time", `${String(now.getHours()).padStart(2,"0")}:${String(mins).padStart(2,"0")}`);
-  setTime(root, "r-end-time", "12:00");
-  showError(root, "rent-error", null);
-  openModal(root, "rent-modal");
-}
-
-async function confirmRent() {
-  if (!rentingCarId) return;
-  showError(root, "rent-error", null);
-
-  const startDate = todayStr();
-  const endDate = val(root, "r-date");
-  const choice = el(root, "r-customer").value;
-
-  let customerId, renter, phone, email;
-  if (choice === "__new__") {
-    renter = val(root, "r-name");
-    phone = val(root, "r-phone");
-    email = val(root, "r-email");
-    if (!renter) { showError(root, "rent-error", "Enter the customer's name."); return; }
-  } else {
-    const c = state.customers.find(x => x.id === choice);
-    if (!c) { showError(root, "rent-error", "Pick a customer."); return; }
-    customerId = c.id; renter = c.name; phone = c.phone || "";
-  }
-
-  if (!endDate) { showError(root, "rent-error", "Choose a return date."); return; }
-
-  const startTimeVal = getTime(root, "r-start-time") || "12:00";
-  const endTimeVal = getTime(root, "r-end-time") || "12:00";
-  const startAt = `${startDate}T${startTimeVal}`;
-  const endAt = `${endDate}T${endTimeVal}`;
-
-  if (endAt <= startAt) {
-    showError(root, "rent-error", startDate === endDate
-      ? `Same-day rental: the return time (${endTimeVal}) must be later than the pick-up time (${startTimeVal}).`
-      : "The return must be after the pick-up. Check the date and time.");
-    return;
-  }
-
-  const clash = findClash({ carId: rentingCarId, startAt, endAt });
-  if (clash) {
-    showError(root, "rent-error",
-      `This car is already out ${describeInterval(clash)} (${clash.renter}). ` +
-      `Choose an earlier return, or another car.`);
-    return;
-  }
-
-  const btn = el(root, "confirm-rent");
-  btn.disabled = true; btn.textContent = "Saving...";
-  setSync("saving");
-  try {
-    if (!customerId) {
-      const ref = await addDoc(collection(db, "customers"), {
-        companyId: state.ctx.companyId, name: renter, phone, email: email || "",
-        license: "", notes: "", createdAt: new Date().toISOString()
-      });
-      customerId = ref.id;
-    }
-    const car = state.cars.find(x => x.id === rentingCarId);
-    await addDoc(collection(db, "bookings"), {
-      companyId: state.ctx.companyId, carId: rentingCarId, customerId, renter, phone,
-      startDate, endDate, dailyRate: car?.dailyRate || 0, paid: false,
-      carName: car ? `${car.year || ""} ${car.make} ${car.model} (${car.plate || "no plate"})`.trim() : "",
-      // Walk-ins default to midday; times and locations can be refined on the
-      // Bookings view if the company needs them recorded precisely.
-      startTime: startTimeVal, endTime: endTimeVal,
-      pickupLocation: val(root, "r-pickup"), dropoffLocation: val(root, "r-dropoff"),
-      totalPrice: null, managedBy: "", deliveredBy: "", notes: "",
-      status: "open", createdAt: new Date().toISOString()
-    });
-    closeModal(root, "rent-modal");
-    rentingCarId = null;
-  } catch (e) {
-    showError(root, "rent-error", "Couldn't save the rental (" + (e.code || e.message) + ").");
-    setSync("error");
-  }
-  btn.disabled = false; btn.textContent = "Confirm rental";
-}
 
