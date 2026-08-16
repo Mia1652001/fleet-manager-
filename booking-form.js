@@ -162,34 +162,33 @@ export function mountBookingForm() {
   onTimeChange(root, "b-end-time", syncCardCharge);
 
   el(root, "b-colour").addEventListener("click", (e) => {
+    // The + is a label wrapping a real colour input: the click activates the
+    // native picker by itself. preventDefault here would kill exactly that,
+    // and a programmatic pick.click() is what browsers quietly refuse on a
+    // zero-size input — the original sin of this feature.
+    if (e.target.closest(".swatch-add")) return;
     const sw = e.target.closest(".swatch");
     if (!sw) return;
     e.preventDefault();
-    // The + square opens the browser's own colour wheel; a chosen colour is
-    // saved to the company palette and every future booking offers it.
-    if (sw.classList.contains("swatch-add")) {
-      const pick = el(root, "b-colour-pick");
-      if (pick) pick.click();
-      return;
-    }
     setSwatch(root, "b-colour", sw.dataset.colour);
   });
-  {
-    const pick = el(root, "b-colour-pick");
-    if (pick) pick.addEventListener("change", async () => {
-      const hex = String(pick.value || "").toLowerCase();
-      if (!/^#[0-9a-f]{6}$/.test(hex)) return;
-      paintColourSwatches(hex);
-      setSwatch(root, "b-colour", hex);
-      // Company-wide, written immediately: the palette belongs to everyone.
-      try {
-        await updateDoc(doc(db, "settings", state.ctx.companyId),
-          { companyId: state.ctx.companyId, plannerColours: arrayUnion(hex) });
-      } catch (err) {
-        console.warn("Could not save the colour to the palette", err);
-      }
-    });
-  }
+  // The palette row is rebuilt on every paint, so the picker's change event
+  // is caught here on the row, which survives every rebuild.
+  el(root, "b-colour").addEventListener("change", async (e) => {
+    const pick = e.target.closest(".swatch-pick");
+    if (!pick) return;
+    const hex = String(pick.value || "").toLowerCase();
+    if (!/^#[0-9a-f]{6}$/.test(hex)) return;
+    paintColourSwatches(hex);
+    setSwatch(root, "b-colour", hex);
+    // Company-wide, written immediately: the palette belongs to everyone.
+    try {
+      await updateDoc(doc(db, "settings", state.ctx.companyId),
+        { companyId: state.ctx.companyId, plannerColours: arrayUnion(hex) });
+    } catch (err) {
+      console.warn("Could not save the colour to the palette", err);
+    }
+  });
 
   root.querySelectorAll("[data-close]").forEach(b =>
     b.addEventListener("click", () => closeModal(root, b.dataset.close)));
@@ -688,7 +687,7 @@ function paintColourSwatches(selected) {
     `<button type="button" class="swatch auto" data-colour="" title="Automatic \u2014 colour by status">A</button>` +
     shown.map(c =>
       `<button type="button" class="swatch" data-colour="${c}" style="background:${c}" title="${c}"></button>`).join("") +
-    `<button type="button" class="swatch swatch-add" title="Add a colour to the company palette">+</button>`;
+    `<label class="swatch swatch-add" title="Add a colour to the company palette">+<input type="color" class="swatch-pick" data-el="b-colour-pick"></label>`;
 }
 
 function onInvoiceClicked() {

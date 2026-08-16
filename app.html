@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Fleet Manager</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#12203a">
@@ -231,7 +231,6 @@
           <div class="field">
             <label>Highlight on the planner</label>
             <div class="swatches" data-el="c-rowcolour"><button type="button" class="swatch auto selected" data-colour="" title="No colour">\u2014</button></div>
-            <input type="color" data-el="c-rowcolour-pick" style="position:absolute;width:0;height:0;opacity:0;border:0;padding:0;">
             <div style="font-size:11px;color:var(--muted);margin-top:6px;">
               Colours the car's name in the planner, for grouping vehicles however you like.
             </div>
@@ -1321,7 +1320,6 @@
       <div class="field">
         <label>Colour on the planner</label>
         <div class="swatches" data-el="b-colour"><button type="button" class="swatch auto selected" data-colour="" title="Automatic — colour by status">A</button></div>
-        <input type="color" data-el="b-colour-pick" style="position:absolute;width:0;height:0;opacity:0;border:0;padding:0;">
         <div style="font-size:11px;color:var(--muted);margin-top:6px;">
           "A" colours the booking by its status. Pick a colour to use your own code instead —
           overdue rentals stay outlined in red either way.

@@ -36,29 +36,26 @@ export function mount(container) {
   el(root, "save-car").addEventListener("click", saveCar);
 
   el(root, "c-rowcolour").addEventListener("click", (e) => {
+    // The + is a label wrapping a real colour input — the click itself opens
+    // the native picker. Same fix as the booking form, same original sin.
+    if (e.target.closest(".swatch-add")) return;
     const sw = e.target.closest(".swatch");
     if (!sw) return;
     e.preventDefault();
-    if (sw.classList.contains("swatch-add")) {
-      const pick = el(root, "c-rowcolour-pick");
-      if (pick) pick.click();
-      return;
-    }
     setSwatch(root, "c-rowcolour", sw.dataset.colour);
   });
-  {
-    const pick = el(root, "c-rowcolour-pick");
-    if (pick) pick.addEventListener("change", async () => {
-      const hex = String(pick.value || "").toLowerCase();
-      if (!/^#[0-9a-f]{6}$/.test(hex)) return;
-      paintCarColourSwatches(hex);
-      setSwatch(root, "c-rowcolour", hex);
-      try {
-        await updateDoc(doc(db, "settings", state.ctx.companyId),
-          { companyId: state.ctx.companyId, plannerColours: arrayUnion(hex) });
-      } catch (err) { console.warn("Could not save the colour", err); }
-    });
-  }
+  el(root, "c-rowcolour").addEventListener("change", async (e) => {
+    const pick = e.target.closest(".swatch-pick");
+    if (!pick) return;
+    const hex = String(pick.value || "").toLowerCase();
+    if (!/^#[0-9a-f]{6}$/.test(hex)) return;
+    paintCarColourSwatches(hex);
+    setSwatch(root, "c-rowcolour", hex);
+    try {
+      await updateDoc(doc(db, "settings", state.ctx.companyId),
+        { companyId: state.ctx.companyId, plannerColours: arrayUnion(hex) });
+    } catch (err) { console.warn("Could not save the colour", err); }
+  });
 
   // Rate auto-calculation removed at the pilot's request (Aug 2026): typing a
   // daily rate used to fill weekly and monthly in automatically, and saving a
@@ -485,7 +482,7 @@ function paintCarColourSwatches(selected) {
     `<button type="button" class="swatch auto" data-colour="" title="No colour">\u2014</button>` +
     shown.map(x =>
       `<button type="button" class="swatch" data-colour="${x}" style="background:${x}" title="${x}"></button>`).join("") +
-    `<button type="button" class="swatch swatch-add" title="Add a colour to the company palette">+</button>`;
+    `<label class="swatch swatch-add" title="Add a colour to the company palette">+<input type="color" class="swatch-pick" data-el="c-rowcolour-pick"></label>`;
 }
 
 async function saveCar() {
