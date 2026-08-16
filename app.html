@@ -693,12 +693,6 @@
           <div class="field">
             <label>House exchange rates</label>
             <div data-el="s-fxrates"></div>
-            <p class="settings-note">Your own rates for bookings taken in a
-              foreign currency — the rate you actually give at the desk, margin
-              included. When a rate is set, the booking form fills in the
-              converted amount automatically (still editable). Leave a currency
-              blank to type conversions by hand. Update these when the market
-              moves enough to matter.</p>
           </div>
 
           <div class="field">
@@ -718,12 +712,6 @@
             <label for="s-bankcharge">Bank charge on card payments (%)</label>
             <input type="number" id="s-bankcharge" data-el="s-bankcharge"
                    min="0" max="100" step="any" placeholder="e.g. 3" style="max-width:160px;">
-            <p class="settings-note">What your bank takes on a credit-card
-              payment, passed on to the client. This is only the default: it
-              fills in on a booking when "Paying by credit card" is ticked, and
-              can be changed there for a one-off. Bookings already saved keep
-              the rate they were agreed at, so changing this never alters an
-              invoice that has gone out. Leave blank if you never take cards.</p>
           </div>
 
           <div class="field">
@@ -831,11 +819,6 @@
             <label for="s-note">Message to customers</label>
             <textarea id="s-note" data-el="s-note" rows="3"
               placeholder="Leave blank to use the standard wording"></textarea>
-            <p class="settings-note">Added to the end of the email and WhatsApp
-              confirmations, and printed at the foot of the booking confirmation
-              document. Blank uses the standard lines about bringing a licence,
-              signing at hand-over and looking forward to welcoming them. What
-              you write here replaces those lines entirely — one per line.</p>
           </div>
 
           <div class="field">
@@ -1025,6 +1008,12 @@
         <div class="modal">
           <h2>Job detail</h2>
           <div class="jd-list" data-el="job-detail-body"></div>
+          <!-- The mobile answer to drag-and-drop: hand the task to someone
+               else right here. Shown for tasks only; saves immediately. -->
+          <div class="field" data-el="jd-assign-wrap" style="display:none;margin-top:12px;">
+            <label for="jd-assign">Assigned to</label>
+            <select id="jd-assign" data-el="jd-assign"></select>
+          </div>
           <div class="modal-actions">
             <div class="modal-actions-side">
               <button class="btn" data-el="job-detail-open" style="display:none;">Open booking</button>

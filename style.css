@@ -65,7 +65,7 @@ header h1 {
   line-height: 1;
 }
 
-header h1 em { font-style: italic; }
+header h1 em { font-style: normal; }
 
 .header-company {
   font-size: 11px;
@@ -284,7 +284,10 @@ input[type="number"] {
 .overlay { display: none; position: fixed; inset: 0; background: rgba(26,24,20,0.5); z-index: 100; align-items: center; justify-content: center; padding: 1rem; }
 .overlay.open { display: flex; }
 
-.modal { background: var(--surface); border-radius: 6px; border: 1px solid var(--border); padding: 2rem; width: 400px; max-width: 100%; max-height: 90vh; overflow-y: auto; }
+.modal { background: var(--surface); border-radius: 6px; border: 1px solid var(--border); padding: 2rem; padding-bottom: 2.75rem; width: 400px; max-width: 100%; max-height: 90vh; overflow-y: auto; }
+/* The pinned action bar reclaims 2rem of that padding; the extra 0.75rem is
+   the guaranteed daylight between the last field and the bar, in every popup,
+   at every size — the Add-task select was sitting flush against it. */
 /* The booking form carries far more fields than the other dialogs. On a
    desktop screen it gets the width to lay them out in rows and the full
    window height, so the whole form is visible without scrolling inside it.
@@ -381,7 +384,7 @@ input[type="number"] {
 }
 .login-note.show { display: block; }
 .login-card h1 { font-family: var(--font-display); font-size: 2rem; font-weight: 300; margin-bottom: 4px; }
-.login-card h1 em { font-style: italic; }
+.login-card h1 em { font-style: normal; }
 .login-sub { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2rem; }
 .login-card .btn-primary { width: 100%; margin-top: 6px; padding: 10px; }
 
@@ -2271,7 +2274,11 @@ input[type="number"] {
 /* Per-category totals on the Expenses page: a strip of small cards that
    always matches whatever the filters currently show. */
 .cat-total-strip {
-  display: flex;
+  /* A grid, so every box is the same width and every row the same height —
+     chips sized by their own text made a ragged shelf (pilot, Aug 16). The
+     phone keeps its one-line scroll strip via the mobile override below. */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   flex-wrap: wrap;
   gap: 8px;
   margin: 0 0 14px;
@@ -2790,4 +2797,18 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 .swatch-add .swatch-pick {
   position: absolute; inset: 0; width: 100%; height: 100%;
   min-height: 0; padding: 0; border: 0; opacity: 0; cursor: pointer;
+}
+
+
+/* ---------- Mobile header (≤640): the sign-out and export buttons live in
+   the top-right corner, on the brand's row — not on a second row brushing
+   against the tabs, where a thumb aiming for DASHBOARD kept signing the
+   pilot out. The Live label shrinks to its dot. ---------- */
+@media (max-width: 640px) {
+  .header-top { display: grid; grid-template-columns: 1fr auto; align-items: start; row-gap: 2px; }
+  .header-top > div:first-child { grid-column: 1; }
+  .header-right { grid-column: 2; display: flex; gap: 6px; align-items: center; justify-self: end; }
+  .header-right .btn-logout { padding: 6px 10px; font-size: 11px; min-height: 0; }
+  .sync-status #sync-label, .sync-status span { display: none; }
+  .sync-status { margin-right: 2px; }
 }

@@ -83,6 +83,22 @@ export function mount(container) {
     closeModal(root, "job-detail");
     if (id) openBookingModal(id);
   });
+  {
+    const sel = el(root, "jd-assign");
+    if (sel) sel.addEventListener("change", async () => {
+      const id = sel.dataset.task;
+      if (!id) return;
+      setSync("saving");
+      try {
+        await updateDoc(doc(db, "tasks", id), { staff: sel.value });
+        showToast(sel.value ? `Task handed to ${sel.value}` : "Task unassigned");
+        closeModal(root, "job-detail");
+      } catch (err) {
+        setSync("error");
+        alert("Couldn't reassign the task (" + (err.code || err.message) + ").");
+      }
+    });
+  }
   el(root, "job-detail-edit").addEventListener("click", (e) => {
     const id = e.currentTarget.dataset.task;
     closeModal(root, "job-detail");
@@ -827,6 +843,27 @@ function openJobDetail(jobId) {
   const editBtn = el(root, "job-detail-edit");
   editBtn.style.display = j.kind === "task" ? "inline-block" : "none";
   editBtn.dataset.task = j.taskId || "";
+
+  // Reassigning right here is the phone's drag-and-drop: pick a name, the
+  // task moves to their column the moment the board repaints. Tasks only —
+  // deliveries and collections follow their booking's staff.
+  const wrap = el(root, "jd-assign-wrap");
+  const sel = el(root, "jd-assign");
+  if (wrap && sel) {
+    if (j.kind === "task" && j.taskId) {
+      sel.innerHTML = [`<option value="">Unassigned</option>`,
+        ...staffNames().map(n => `<option value="${esc(n)}"${n === j.staff ? " selected" : ""}>${esc(n)}</option>`)
+      ].join("");
+      if (j.staff && !staffNames().includes(j.staff)) {
+        sel.insertAdjacentHTML("beforeend",
+          `<option value="${esc(j.staff)}" selected>${esc(j.staff)}</option>`);
+      }
+      sel.dataset.task = j.taskId;
+      wrap.style.display = "";
+    } else {
+      wrap.style.display = "none";
+    }
+  }
 
   openModal(root, "job-detail");
 }
