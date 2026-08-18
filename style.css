@@ -1843,8 +1843,16 @@ input[type="number"] {
   background: transparent;
   overflow: visible;
 }
-#view-tasks [data-el="board"],
+/* The expenses board is a spreadsheet: it scrolls BOTH axes inside itself,
+   so its sticky header cells freeze against its own scroll — the one
+   arrangement where position:sticky provably works here. Capped so the
+   controls above stay reachable. */
 #view-expenses [data-el="xboard"] {
+  overflow: auto;
+  max-height: calc(100dvh - 210px);
+  -webkit-overflow-scrolling: touch;
+}
+#view-tasks [data-el="board"] {
   border-top: none;
   border-radius: 0 0 4px 4px;
 }
@@ -2686,7 +2694,12 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 /* The last control row keeps the same distance from the content below it as
    the rows above keep from each other — it was sitting right on the first
    task (pilot, Aug 18). */
-.filter-row-last { margin-bottom: 20px; }
+/* Collapse-proof: the air lives as padding on the content, not as a margin
+   that can vanish into an adjacent one — which is how two attempts at this
+   gap produced nothing visible. */
+#view-tasks [data-el="list"] { padding-top: 16px; }
+#view-tasks .board-head-wrap { margin-top: 16px; }
+#view-tasks [data-el="board"] { margin-top: 0; }
 
 /* ---------- Mobile standard (≤640px) ----------
    One layout language for every page: the search bar is always full width on
