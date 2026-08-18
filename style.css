@@ -289,10 +289,19 @@ input[type="number"] {
 .overlay { display: none; position: fixed; inset: 0; background: rgba(26,24,20,0.5); z-index: 100; align-items: center; justify-content: center; padding: 1rem; }
 .overlay.open { display: flex; }
 
-.modal { background: var(--surface); border-radius: 6px; border: 1px solid var(--border); padding: 2rem; padding-bottom: 4rem; width: 400px; max-width: 100%; max-height: 90vh; overflow-y: auto; }
-/* The pinned action bar reclaims 2rem of that padding; the extra 0.75rem is
-   the guaranteed daylight between the last field and the bar, in every popup,
-   at every size — the Add-task select was sitting flush against it. */
+.modal {
+  background: var(--surface); border-radius: 6px; border: 1px solid var(--border);
+  width: 400px; max-width: 100%;
+  /* A column: the body scrolls, the action bar is the popup's own bottom
+     edge. No stickiness anywhere — the bar cannot detach from the popup,
+     and no browser can choose the wrong scroller for it. */
+  display: flex; flex-direction: column;
+  padding: 0; max-height: 90vh; max-height: 90dvh; overflow: hidden;
+}
+.modal-body {
+  overflow-y: auto; flex: 1 1 auto; min-height: 0;
+  padding: 2rem; padding-bottom: 1.5rem;
+}
 /* The booking form carries far more fields than the other dialogs. On a
    desktop screen it gets the width to lay them out in rows and the full
    window height, so the whole form is visible without scrolling inside it.
@@ -307,6 +316,8 @@ input[type="number"] {
    The negative bottom margin gives back the space it occupies, so titles sit
    exactly where they always did — they just keep clear of the corner. */
 .modal-x {
+  /* sticks within the scrolling body, so it stays reachable however far
+     down a long form has been scrolled */
   position: sticky;
   top: 6px;
   z-index: 30;
@@ -333,24 +344,12 @@ input[type="number"] {
   gap: 8px;
   justify-content: flex-end;
   align-items: center;
-  margin-top: 1.5rem;
-  /* Pinned to the bottom of the popup's scroll, so Save never has to be
-     scrolled to. Bleeds over the popup's 2rem padding on three sides so it
-     runs edge to edge, and paints a surface over whatever slides beneath. */
-  position: sticky;
-  bottom: 0;
-  z-index: 25;
-  margin-left: -2rem;
-  margin-right: -2rem;
-  margin-bottom: -2rem;
-  padding: 12px 2rem;
+  flex-shrink: 0;
+  padding: 12px 2rem calc(12px + env(safe-area-inset-bottom)) 2rem;
   background: var(--surface);
   border-top: 1px solid var(--border);
   border-radius: 0 0 6px 6px;
-  /* The first shadow paints solid surface below the bar, so nothing in the
-     form can ever peek through between the bar and the popup's bottom edge;
-     the second lifts the bar off the content sliding beneath it. */
-  box-shadow: 0 2rem 0 0 var(--surface), 0 -10px 14px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 -10px 14px -12px rgba(0, 0, 0, 0.18);
 }
 /* The document and send actions. margin-right: auto keeps them on the left and
    pushes Cancel and Save to the right, so the two you press most often are

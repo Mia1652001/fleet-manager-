@@ -711,7 +711,7 @@ export function paidPatch(b, paid) {
 // The version shown in Settings and on the wordmark's tooltip, bumped with
 // every package — so "did the upload deploy?" is answered by looking, not by
 // wondering. Format: date, then a word for what the build was about.
-export const APP_VERSION = "18 Aug 2026 \u00b7 batch-18";
+export const APP_VERSION = "18 Aug 2026 \u00b7 solid-bar";
 
 // ---------- Themes ----------
 // Per-company appearance, stored on the settings document so everyone who
@@ -1448,7 +1448,10 @@ export function openModal(root, name) {
   // its first field. (showError scrolls back to the top for the same reason.)
   const box = m.querySelector(".modal");
   if (box) {
-    box.scrollTop = 0;
+    // the scrolling part is the body since the bar became the popup's fixed
+    // bottom edge; the snapshot still covers the whole popup's fields
+    const scroller = box.querySelector(".modal-body") || box;
+    scroller.scrollTop = 0;
     modalSnapshots.set(box, formSnapshot(box));
   }
 }
@@ -1508,7 +1511,7 @@ export function showError(root, name, msg) {
   // Modals are long enough to scroll, so a message at the top can sit out of
   // sight while the user is looking at a field further down — which reads as
   // "nothing happened". Bring it into view and flash it.
-  const modal = e.closest(".modal");
+  const modal = e.closest(".modal-body") || e.closest(".modal");
   if (modal && modal.scrollTop > 0) {
     modal.scrollTo({ top: 0, behavior: "smooth" });
   }

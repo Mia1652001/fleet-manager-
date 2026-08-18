@@ -515,14 +515,31 @@ async function checkBackupDue() {
 function injectModalCloseButtons() {
   document.querySelectorAll(".overlay").forEach(o => {
     const m = o.querySelector(".modal");
-    if (!m || m.querySelector(".modal-x")) return;
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "modal-x";
-    b.setAttribute("aria-label", "Close");
-    b.innerHTML = "&times;";
-    b.addEventListener("click", () => o.classList.remove("open"));
-    m.prepend(b);
+    if (!m) return;
+    // Every popup becomes two parts: a body that scrolls, and the action bar
+    // as the popup's true bottom edge. Nothing can ever render below the bar
+    // again, on any browser — the previous sticky bar pinned itself to
+    // whichever container happened to be scrolling, and on some platforms
+    // that was the page, leaving the form visible underneath (pilot,
+    // repeatedly, Aug 2026).
+    if (!m.querySelector(".modal-body")) {
+      const body = document.createElement("div");
+      body.className = "modal-body";
+      const keep = [...m.childNodes].filter(n =>
+        !(n.nodeType === 1 && n.classList.contains("modal-actions")));
+      keep.forEach(n => body.appendChild(n));
+      m.insertBefore(body, m.firstChild);
+    }
+    const bodyEl = m.querySelector(".modal-body");
+    if (!m.querySelector(".modal-x")) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "modal-x";
+      b.setAttribute("aria-label", "Close");
+      b.innerHTML = "&times;";
+      b.addEventListener("click", () => o.classList.remove("open"));
+      bodyEl.prepend(b);
+    }
   });
 }
 
