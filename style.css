@@ -351,6 +351,10 @@ input[type="number"] {
   border-radius: 0 0 6px 6px;
   box-shadow: 0 -10px 14px -12px rgba(0, 0, 0, 0.18);
 }
+/* The primary action owns a full line of its own, on every screen — Cancel
+   and the document buttons share the row above it (pilot, Aug 18: "same as
+   on the phone"). order pushes it below whatever else the bar holds. */
+.modal-actions .btn-primary { flex: 1 1 100%; order: 99; padding: 13px 16px; }
 /* The document and send actions. margin-right: auto keeps them on the left and
    pushes Cancel and Save to the right, so the two you press most often are
    always in the same place however many of these are showing. */
@@ -2746,9 +2750,6 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
   .modal .field { width: 100%; }
   .modal .field input, .modal .field select, .modal .field textarea { width: 100%; }
   .modal-actions .btn { flex: 1 1 auto; }
-  /* The primary action takes a full line of its own, thumb-wide and centred —
-     the pattern the pilot pointed at from their other tools. */
-  .modal-actions .btn-primary { flex: 1 1 100%; order: 99; padding: 13px 16px; }
 }
 
 /* invoice numbers open the document */
