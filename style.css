@@ -1875,10 +1875,10 @@ input[type="number"] {
   }
   /* The strip's inner grid must not double the breakout shift */
   #view-tasks .board-head-wrap .staff-board { width: 100%; margin-left: 0; }
-  /* The expenses header must be exactly as wide as the board under it — its
-     columns are the board's columns. Forcing it to screen width compressed
-     the cells while the board kept its real widths (pilot, Aug 18). */
-  #view-expenses .board-head-wrap .staff-board { width: max-content; min-width: 100%; margin-left: 0; }
+  /* The expenses header's width is set in pixels by JS, measured from the
+     board itself (see syncHeadWidth) — CSS width rules on two separate grids
+     produced different column tracks on phones. */
+  #view-expenses .board-head-wrap .staff-board { min-width: 100%; margin-left: 0; }
 }
 
 /* A card jumped to from a planner. Marked briefly so it is obvious which of
@@ -2686,7 +2686,7 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 /* The last control row keeps the same distance from the content below it as
    the rows above keep from each other — it was sitting right on the first
    task (pilot, Aug 18). */
-.filter-row-last { margin-bottom: 14px; }
+.filter-row-last { margin-bottom: 20px; }
 
 /* ---------- Mobile standard (≤640px) ----------
    One layout language for every page: the search bar is always full width on

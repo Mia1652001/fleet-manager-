@@ -405,6 +405,25 @@ function renderBoard(items) {
     headGrid.innerHTML = head;
   }
   box.innerHTML = rows;
+  syncHeadWidth();
+}
+
+// The frozen header is a separate grid from the board, and two grids given
+// the same column spec but different available widths compute different
+// tracks — which is exactly what happened on phones (header cells narrower
+// than the board's, "DRIVER" arriving as "RIVER"). So the header's width is
+// not styled, it is MEASURED: the board's real scrollWidth, in pixels, after
+// every render and on every resize. Two grids, one measured width — they
+// cannot disagree.
+function syncHeadWidth() {
+  const box = el(root, "xboard");
+  const headGrid = el(root, "xhead");
+  if (!box || !headGrid) return;
+  requestAnimationFrame(() => {
+    if (box.scrollWidth > 0) headGrid.style.width = box.scrollWidth + "px";
+    const hw = el(root, "xhead-wrap");
+    if (hw) hw.scrollLeft = box.scrollLeft;
+  });
 }
 
 function wireBoard() {
@@ -414,6 +433,12 @@ function wireBoard() {
   // stay lined up while the strip stays pinned to the top of the page.
   const hw = el(root, "xhead-wrap");
   if (hw) box.addEventListener("scroll", () => { hw.scrollLeft = box.scrollLeft; });
+  // rotation and window changes re-measure the header against the board
+  let hwResize = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(hwResize);
+    hwResize = setTimeout(() => { if (root.classList.contains("active")) syncHeadWidth(); }, 120);
+  });
 
   box.addEventListener("click", async (e) => {
     const tick = e.target.closest("[data-tick]");
