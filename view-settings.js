@@ -225,6 +225,7 @@ export function render() {
   setVal(root, "s-vat-rate",
     (typeof s.vatRate === "number" && s.vatRate > 0) ? s.vatRate : "");
   setVal(root, "s-brn", s.brn || "");
+  setVal(root, "s-invoice-note", s.invoiceNote || "");
   // Show the matching preset rather than "Choose a currency…" next to a symbol
   // that is plainly already set — it reads as though nothing has been chosen.
   const preset = el(root, "s-currency-preset");
@@ -532,6 +533,9 @@ async function saveSettings() {
       return Number.isFinite(n) && n > 0 ? n : null;
     })(),
     brn: val(root, "s-brn"),
+    // Printed at the foot of every invoice — bank details for payment being
+    // the case that asked for it (pilot, Aug 2026).
+    invoiceNote: val(root, "s-invoice-note"),
     // Appearance — whatever is on screen right now is what Save keeps.
     themePreset: effectiveTheme().themePreset,
     themeBg: effectiveTheme().themeBg,

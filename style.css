@@ -289,7 +289,7 @@ input[type="number"] {
 .overlay { display: none; position: fixed; inset: 0; background: rgba(26,24,20,0.5); z-index: 100; align-items: center; justify-content: center; padding: 1rem; }
 .overlay.open { display: flex; }
 
-.modal { background: var(--surface); border-radius: 6px; border: 1px solid var(--border); padding: 2rem; padding-bottom: 2.75rem; width: 400px; max-width: 100%; max-height: 90vh; overflow-y: auto; }
+.modal { background: var(--surface); border-radius: 6px; border: 1px solid var(--border); padding: 2rem; padding-bottom: 4rem; width: 400px; max-width: 100%; max-height: 90vh; overflow-y: auto; }
 /* The pinned action bar reclaims 2rem of that padding; the extra 0.75rem is
    the guaranteed daylight between the last field and the bar, in every popup,
    at every size — the Add-task select was sitting flush against it. */
@@ -1871,8 +1871,11 @@ input[type="number"] {
     margin-left: calc(-1 * max(0px, (var(--board-w) - 100%) / 2));
   }
   /* The strip's inner grid must not double the breakout shift */
-  #view-tasks .board-head-wrap .staff-board,
-  #view-expenses .board-head-wrap .staff-board { width: 100%; margin-left: 0; }
+  #view-tasks .board-head-wrap .staff-board { width: 100%; margin-left: 0; }
+  /* The expenses header must be exactly as wide as the board under it — its
+     columns are the board's columns. Forcing it to screen width compressed
+     the cells while the board kept its real widths (pilot, Aug 18). */
+  #view-expenses .board-head-wrap .staff-board { width: max-content; min-width: 100%; margin-left: 0; }
 }
 
 /* A card jumped to from a planner. Marked briefly so it is obvious which of
@@ -2677,6 +2680,11 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 }
 
 
+/* The last control row keeps the same distance from the content below it as
+   the rows above keep from each other — it was sitting right on the first
+   task (pilot, Aug 18). */
+.filter-row-last { margin-bottom: 14px; }
+
 /* ---------- Mobile standard (≤640px) ----------
    One layout language for every page: the search bar is always full width on
    its own line, every other toolbar control shares a two-column grid of equal
@@ -2731,10 +2739,6 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
      the tick instead of squeezing them into a right-hand sliver */
   .modal .checkbox-field { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
 
-  /* the sticky action bar overlaps the last content row on iOS when the
-     scroll ends with zero slack — a rem of breathing room absorbs it */
-  .modal { padding-bottom: 3rem; }
-
   /* expenses category totals: collapsed behind one button until wanted */
   .cat-totals-toggle { display: block; width: 100%; margin-bottom: 6px; }
   .cat-totals:not(.open) .cat-total-strip { display: none !important; }
@@ -2742,7 +2746,10 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
   .modal .field-row, .modal .field-row.equal { flex-direction: column; gap: 0; }
   .modal .field { width: 100%; }
   .modal .field input, .modal .field select, .modal .field textarea { width: 100%; }
-  .modal-actions .btn, .modal-actions .btn-primary { flex: 1 1 auto; }
+  .modal-actions .btn { flex: 1 1 auto; }
+  /* The primary action takes a full line of its own, thumb-wide and centred —
+     the pattern the pilot pointed at from their other tools. */
+  .modal-actions .btn-primary { flex: 1 1 100%; order: 99; padding: 13px 16px; }
 }
 
 /* invoice numbers open the document */

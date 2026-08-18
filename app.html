@@ -778,6 +778,11 @@
             <label for="s-brn">Business Registration Number (BRN)</label>
             <input type="text" id="s-brn" data-el="s-brn" placeholder="printed on invoices when set">
           </div>
+          <div class="field">
+            <label for="s-invoice-note">Text on every invoice</label>
+            <textarea id="s-invoice-note" data-el="s-invoice-note" rows="3"
+              placeholder="e.g. bank details for payment&#10;MCB · Account 000123456789 · Oasis Car Rental Ltd"></textarea>
+          </div>
         </div>
 
 
@@ -989,7 +994,7 @@
               <option value="all">Everything ahead</option>
             </select>
           </div>
-          <div class="filter-row">
+          <div class="filter-row filter-row-last">
             <button class="tab" data-el="toggle-done">Show completed</button>
             <!-- Same jobs, two ways of reading them: the list to work through a
                  day and tick things off, the board to see across the team. -->

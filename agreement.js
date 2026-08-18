@@ -138,6 +138,8 @@ const DOC_STYLES = `<style>
   .ag-cols > div { flex: 1; }
 
   .ag-terms { white-space: pre-wrap; font-size: 9pt; color: #222; }
+  .ag-payline { margin-top: 18pt; padding: 8pt 10pt; border: 1px solid #ccc;
+    border-radius: 3pt; font-size: 9.5pt; color: #222; }
 
   /* Terms start their own sheet, always. They sit after the hand-over diagram
      so page one is the booking — details, charges, the car's condition — and
@@ -645,6 +647,8 @@ ${DOC_ACTIONS}
     ${settled > 0 ? `<tr><th>${b.paid ? "Settled in full" : "Advance received"}</th><td class="ag-num">${esc(formatAmount(settled))}</td></tr>` : ""}
     ${outstanding > 0 ? `<tr><th>Balance due</th><td class="ag-num">${esc(formatAmount(outstanding))}</td></tr>` : ""}
   </table>
+
+  ${s.invoiceNote ? `<div class="ag-payline">${esc(String(s.invoiceNote)).replace(/\n/g, "<br>")}</div>` : ""}
 
   ${docFoot(`${isVat ? "VAT invoice" : "Invoice"} ${serial || ref}${serial ? ` · booking ${ref}` : ""}`)}
 
