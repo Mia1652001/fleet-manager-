@@ -43,7 +43,8 @@ body {
 header {
   background: var(--accent);
   color: var(--accent-ink);
-  padding: 0.7rem 2rem 0;
+  /* horizontal insets: a phone held sideways puts a notch on one edge */
+  padding: 0.7rem calc(2rem + env(safe-area-inset-right)) 0 calc(2rem + env(safe-area-inset-left));
 }
 /* Wordmark and company logo on one line — the masthead earns its height back */
 .header-brand { display: flex; align-items: center; gap: 12px; }
@@ -133,7 +134,11 @@ nav a:hover { color: var(--bg); }
 nav a.active { background: var(--bg); color: var(--text); }
 
 /* ---------- Layout ---------- */
-.main { max-width: 1080px; margin: 0 auto; padding: 2rem 1.5rem; }
+.main { max-width: 1080px; margin: 0 auto;
+  padding: 2rem
+    calc(1.5rem + env(safe-area-inset-right))
+    calc(2rem + env(safe-area-inset-bottom))
+    calc(1.5rem + env(safe-area-inset-left)); }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 2rem; }
 
@@ -413,7 +418,11 @@ input[type="number"] {
   header { padding: 1rem 1rem 0; }
   /* Kept as a variable so the full-bleed grids at the foot of this file can
      cancel exactly this much padding and never drift out of step with it. */
-  .main { --main-pad-x: 0.9rem; padding: 1.25rem var(--main-pad-x); }
+  .main { --main-pad-x: 0.9rem;
+    padding: 1.25rem
+      calc(var(--main-pad-x) + env(safe-area-inset-right))
+      calc(1.25rem + env(safe-area-inset-bottom))
+      calc(var(--main-pad-x) + env(safe-area-inset-left)); }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   /* Stack the date range above the controls instead of squeezing both
@@ -2812,3 +2821,29 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
   .sync-status #sync-label, .sync-status span { display: none; }
   .sync-status { margin-right: 2px; }
 }
+
+
+/* ---------- Installed-app polish ----------
+   The things that make a home-screen install read as an app, not a page:
+   the phone's notch and home bar get real clearance, taps don't flash grey,
+   the page doesn't rubber-band, double-tap doesn't zoom, views fade in, and
+   launch shows the wordmark on cream instead of the word "Loading". */
+
+html { -webkit-tap-highlight-color: transparent; }
+body { overscroll-behavior-y: none; touch-action: manipulation; }
+
+/* the notch and the home indicator: the header owns the top inset (it is
+   dark, so the status bar melts into it), page + pinned bars own the bottom */
+header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
+
+/* a view arrives with a short fade — opacity only, so nothing that measures
+   or positions itself (planners, pinned bars) is ever affected */
+@keyframes view-in { from { opacity: 0.4; } to { opacity: 1; } }
+.view.active { animation: view-in 130ms ease-out; }
+
+/* launch: the wordmark on cream, with a small living dot beneath it */
+.boot { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-height: 100vh; }
+.boot-mark { font-family: var(--font-display); font-size: 1.8rem; color: var(--text); }
+.boot-mark em { font-style: normal; }
+.boot-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); animation: boot-pulse 1s ease-in-out infinite; }
+@keyframes boot-pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
