@@ -73,7 +73,7 @@ export function mount(container) {
   {
     const boardEl = el(root, "board");
     const headWrap = el(root, "board-head-wrap");
-    if (boardEl && headWrap) {
+    if (false && boardEl && headWrap) {
       boardEl.addEventListener("scroll", () => { headWrap.scrollLeft = boardEl.scrollLeft; });
     }
   }
@@ -209,7 +209,7 @@ function applyMode() {
   el(root, "list").style.display = mode === "list" ? "" : "none";
   el(root, "board").style.display = mode === "board" ? "" : "none";
   const bhw = el(root, "board-head-wrap");
-  if (bhw) bhw.style.display = mode === "board" ? "" : "none";
+  if (bhw) bhw.style.display = "none";   // retired: the header lives in the board
 }
 
 // ---------- Helpers ----------
@@ -946,15 +946,14 @@ function renderBoard(jobs, from, to) {
   const columnsSpec = phone
     ? `minmax(84px, 0.6fr) repeat(${columns.length}, minmax(180px, 1fr))`
     : `minmax(96px, 0.7fr) repeat(${columns.length}, minmax(120px, 1fr))`;
-  const headGrid = el(root, "board-head");
+  // One grid, like the expenses board: the staff row is the board's own
+  // first row, sticky against the board's internal scroll — the columns
+  // cannot mismatch and no viewport inset can slide the freeze under the
+  // phone's status bar (both happened with the two-grid strip).
   const headWrap = el(root, "board-head-wrap");
-  if (headWrap && mode === "board") headWrap.style.display = "";
+  if (headWrap) headWrap.style.display = "none";
   box.style.gridTemplateColumns = columnsSpec;
-  if (headGrid) {
-    headGrid.style.gridTemplateColumns = columnsSpec;
-    headGrid.innerHTML = head;
-  }
-  box.innerHTML = rows;
+  box.innerHTML = head + rows;
 }
 
 function jobRow(j) {
