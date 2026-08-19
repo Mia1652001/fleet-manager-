@@ -21,7 +21,7 @@ import {
   deliveryCost, insuranceCost, otherCost, invoiceTotal, extrasTotal, fxPair,
   bankCharge, bankChargePct, amountDue, receiptNo,
   invoiceNo, vatRatePct, vatSplit,
-  paidTotal, lastPaymentMethod, hasLedger
+  paidTotal, lastPaymentMethod, hasLedger, entityForBooking
 } from "./store.js";
 
 function line(label, value) {
@@ -30,15 +30,17 @@ function line(label, value) {
     : "";
 }
 
-function companyBlock(extraLines = []) {
-  const s = state.settings || {};
-  const bits = [s.address, s.phone, s.email, s.website].filter(Boolean);
+function companyBlock(ent, extraLines = []) {
+  // The issuing company: the car's entity for live documents, the snapshot
+  // for serialized ones. Single-company customers always get their main
+  // details here — this changes nothing for them.
+  const bits = [ent.addr, ent.phone, ent.email, ent.website].filter(Boolean);
   const extras = extraLines.filter(Boolean);
   return `
     <div class="ag-company">
-      ${s.logo ? `<img class="ag-logo" src="${s.logo}" alt="">` : ""}
+      ${ent.logo ? `<img class="ag-logo" src="${ent.logo}" alt="">` : ""}
       <div>
-        <div class="ag-name">${esc(companyName())}</div>
+        <div class="ag-name">${esc(ent.name)}</div>
         ${bits.length ? `<div class="ag-contact">${esc(bits.join(" · "))}</div>` : ""}
         ${extras.map(x => `<div class="ag-contact">${esc(x)}</div>`).join("")}
       </div>
@@ -52,9 +54,8 @@ function companyBlock(extraLines = []) {
 // dialog. No stylesheet can suppress that — it is the browser's, not ours —
 // which is all the more reason the document should end with the company rather
 // than with nothing.
-function docFoot(label, extra = "") {
-  const s = state.settings || {};
-  const bits = [companyName(), s.address, s.phone, s.email, s.website].filter(Boolean);
+function docFoot(ent, label, extra = "") {
+  const bits = [ent.name, ent.addr, ent.phone, ent.email, ent.website].filter(Boolean);
   return `
   <div class="ag-foot">
     <div>${esc(label)}${extra}</div>
@@ -225,6 +226,7 @@ const SELF_PRINT = `<script>
 
 function documentHtml(b) {
   const ref = bookingRef(b);
+  const ent = entityForBooking(b);   // agreement: live, follows the car's tag
   const customer = customerForBooking(b);
   const car = state.cars.find(c => c.id === b.carId);
   const terms = companyTerms();
@@ -238,7 +240,7 @@ ${DOC_STYLES}</head>
 ${DOC_ACTIONS}
 
   <div class="ag-head">
-    ${companyBlock()}
+    ${companyBlock(ent)}
     <div class="ag-title">
       <h1>Rental agreement</h1>
       <div class="ag-ref">${esc(ref)}</div>
@@ -329,11 +331,11 @@ ${DOC_ACTIONS}
     </div>
     <div>
       <div class="ag-rule">${b.signature ? `<img src="${b.signature}" alt="" style="height:40px;display:block;">` : ""}</div>
-      <div class="ag-cap">For ${esc(companyName())} — signature and date${b.signature && b.signedAt ? ` · signed ${esc(formatDate(String(b.signedAt).slice(0, 10)))}` : ""}</div>
+      <div class="ag-cap">For ${esc(ent.name)} — signature and date${b.signature && b.signedAt ? ` · signed ${esc(formatDate(String(b.signedAt).slice(0, 10)))}` : ""}</div>
     </div>
   </div>
 
-  ${docFoot(`Agreement ${ref}`,
+  ${docFoot(ent, `Agreement ${ref}`,
     `${b.broker ? ` · Broker ${esc(b.broker)}` : ""}${b.managedBy ? ` · Managed by ${esc(b.managedBy)}` : ""}`)}
 
 ${SELF_PRINT}
@@ -356,7 +358,7 @@ export const DEFAULT_MESSAGE_NOTE =
   "The rental agreement will be provided for signature at hand-over.";
 
 function confirmationText(b) {
-  const company = companyName() || "our team";
+  const company = entityForBooking(b).name || "our team";
   const s = state.settings || {};
   const days = rentalDays(b);
   const total = rentalTotal(b);
@@ -436,7 +438,7 @@ export function emailBooking(bookingId) {
     };
   }
 
-  const subject = `${companyName() || "Car rental"} — booking ${bookingRef(b)}`;
+  const subject = `${entityForBooking(b).name || "Car rental"} — booking ${bookingRef(b)}`;
   window.location.href =
     `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}` +
     `&body=${encodeURIComponent(confirmationText(b))}`;
@@ -571,6 +573,10 @@ export function openInvoice(bookingId, justIssuedNo, justKind) {
 }
 
 function invoiceHtml(b, justIssuedNo, justKind) {
+  // Serialized: the snapshot taken at issue decides who issued this invoice —
+  // re-tagging the car later can never rewrite an issued document. Invoices
+  // from before entities existed default to the main company.
+  const ent = entityForBooking(b, b.invoiceEntityId || "");
   const s = state.settings || {};
   const ref = bookingRef(b);
   const serial = String(justIssuedNo || invoiceNo(b) || "");
@@ -600,9 +606,9 @@ ${DOC_STYLES}
 ${DOC_ACTIONS}
 
   <div class="ag-head">
-    ${companyBlock([
-      s.brn ? `BRN ${s.brn}` : "",
-      isVat && s.vatNumber ? `VAT No ${s.vatNumber}` : ""
+    ${companyBlock(ent, [
+      ent.brn ? `BRN ${ent.brn}` : "",
+      isVat && ent.vatNumber ? `VAT No ${ent.vatNumber}` : ""
     ])}
     <div class="ag-title">
       <h1>${isVat ? "VAT invoice" : "Invoice"}</h1>
@@ -650,7 +656,7 @@ ${DOC_ACTIONS}
 
   ${s.invoiceNote ? `<div class="ag-payline">${esc(String(s.invoiceNote)).replace(/\n/g, "<br>")}</div>` : ""}
 
-  ${docFoot(`${isVat ? "VAT invoice" : "Invoice"} ${serial || ref}${serial ? ` · booking ${ref}` : ""}`)}
+  ${docFoot(ent, `${isVat ? "VAT invoice" : "Invoice"} ${serial || ref}${serial ? ` · booking ${ref}` : ""}`)}
 
   ${SELF_PRINT}
 
@@ -671,6 +677,7 @@ export function openReceipt(bookingId, justIssuedNo) {
 }
 
 function receiptHtml(b, justIssuedNo) {
+  const ent = entityForBooking(b, b.receiptEntityId || "");
   const ref = bookingRef(b);
   // The serial number the MRA expects. Old receipts issued before numbering
   // existed have none, and fall back to the booking reference so a reprint of
@@ -696,7 +703,7 @@ ${DOC_STYLES}
 ${DOC_ACTIONS}
 
   <div class="ag-head">
-    ${companyBlock()}
+    ${companyBlock(ent)}
     <div class="ag-title">
       <h1>Receipt</h1>
       <div class="ag-ref">${esc(serial || ref)}</div>
@@ -743,12 +750,12 @@ ${DOC_ACTIONS}
   <div class="ag-sign" style="margin-top:26px;">
     <div>
       <div class="ag-rule">${b.signature ? `<img src="${b.signature}" alt="" style="height:40px;display:block;">` : ""}</div>
-      <div class="ag-cap">For ${esc(companyName())} — received by</div>
+      <div class="ag-cap">For ${esc(ent.name)} — received by</div>
     </div>
     <div></div>
   </div>
 
-  ${docFoot(`Receipt ${serial || ref}${serial ? ` · booking ${ref}` : ""}`)}
+  ${docFoot(ent, `Receipt ${serial || ref}${serial ? ` · booking ${ref}` : ""}`)}
 
   ${SELF_PRINT}
 
@@ -756,6 +763,7 @@ ${DOC_ACTIONS}
 }
 
 function confirmationHtml(b) {
+  const ent = entityForBooking(b);
   const ref = bookingRef(b);
   const customer = customerForBooking(b);
 
@@ -768,7 +776,7 @@ ${DOC_STYLES}
 ${DOC_ACTIONS}
 
   <div class="ag-head">
-    ${companyBlock()}
+    ${companyBlock(ent)}
     <div class="ag-title">
       <h1>Booking confirmation</h1>
       <div class="ag-ref">${esc(ref)}</div>
@@ -828,7 +836,7 @@ ${DOC_ACTIONS}
       .map(l => `<p>${esc(l.trim())}</p>`).join("\n  ");
   })()}
 
-  ${docFoot(`Booking confirmation ${ref}`)}
+  ${docFoot(ent, `Booking confirmation ${ref}`)}
 
   ${SELF_PRINT}
 

@@ -211,6 +211,8 @@
               </datalist>
             </div>
             <div class="field"><label>Colour</label><input data-el="c-colour" placeholder="e.g. silver"></div>
+            <div class="field"><label>Rented under</label>
+              <select data-el="c-entity"></select></div>
           </div>
           <div class="field checkbox-field">
             <label><input type="checkbox" data-el="c-automatic"> Automatic transmission</label>
@@ -785,6 +787,16 @@
           </div>
         </div>
 
+        <div class="settings-card">
+          <h3>Trading companies</h3>
+          <p class="settings-note">Rent the fleet under more than one company:
+            tag each car on its Edit page, and that car's documents carry that
+            company's details and invoice numbers. Untagged cars use the main
+            company above.</p>
+          <div data-el="ent-list"></div>
+          <button type="button" class="btn" data-el="ent-add" style="margin-top:8px;">+ Add a company</button>
+        </div>
+
 
         <div class="settings-card">
           <h3>Lists</h3>
@@ -954,7 +966,47 @@
 
 
       </div>
-          <div class="app-version" id="app-version"></div>
+          <div class="overlay" data-el="ent-modal">
+        <div class="modal">
+          <h2 data-el="ent-title">Company</h2>
+          <div class="form-error" data-el="ent-error"></div>
+          <div class="field"><label for="ent-name">Company name</label>
+            <input type="text" id="ent-name" data-el="ent-name"></div>
+          <div class="field"><label for="ent-addr">Address</label>
+            <input type="text" id="ent-addr" data-el="ent-addr"></div>
+          <div class="field-row">
+            <div class="field"><label for="ent-phone">Phone</label>
+              <input type="text" id="ent-phone" data-el="ent-phone"></div>
+            <div class="field"><label for="ent-email">Email</label>
+              <input type="email" id="ent-email" data-el="ent-email"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="ent-brn">BRN</label>
+              <input type="text" id="ent-brn" data-el="ent-brn"></div>
+            <div class="field"><label for="ent-prefix">Invoice &amp; receipt prefix</label>
+              <input type="text" id="ent-prefix" data-el="ent-prefix" placeholder="e.g. IWL"></div>
+          </div>
+          <div class="field">
+            <label class="checkbox-field" style="text-transform:none;letter-spacing:0;">
+              <input type="checkbox" id="ent-vatreg" data-el="ent-vatreg">
+              VAT registered — this company issues VAT invoices
+            </label>
+          </div>
+          <div class="field"><label for="ent-vat">VAT number</label>
+            <input type="text" id="ent-vat" data-el="ent-vat"></div>
+          <div class="field"><label for="ent-logo">Logo (compressed automatically)</label>
+            <input type="file" id="ent-logo" data-el="ent-logo" accept="image/*">
+            <div data-el="ent-logo-now" style="font-size:11px;color:var(--muted);margin-top:4px;"></div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn danger" data-el="ent-remove" style="margin-right:auto;">Remove</button>
+            <button class="btn" data-close="ent-modal">Cancel</button>
+            <button class="btn-primary" data-el="ent-save">Save company</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-version" id="app-version"></div>
     </section>
     <section class="view" id="view-tasks">
 

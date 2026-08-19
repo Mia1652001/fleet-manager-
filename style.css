@@ -2872,3 +2872,11 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 .boot-mark em { font-style: normal; }
 .boot-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); animation: boot-pulse 1s ease-in-out infinite; }
 @keyframes boot-pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+
+/* ---------- Trading companies (Settings) and the fleet tag ---------- */
+.ent-row { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 9px 0; border-bottom: 1px dashed var(--border); }
+.ent-row:last-child { border-bottom: none; }
+.ent-row .ent-name { font-weight: 500; }
+.ent-row .ent-sub { font-size: 11px; color: var(--muted); }
+.car-ent { color: var(--muted); font-style: normal; }

@@ -9,7 +9,7 @@ import {
   orderedCars, getSwatch, setSwatch,
   el, val, setVal, checked, setChecked, openModal, closeModal, showError,
   takeFocus, carLimit, carDocsDue
-} from "./store.js";
+, allEntities, entityForCar } from "./store.js";
 
 let root = null;
 let editingCarId = null;
@@ -175,7 +175,7 @@ export function render() {
       <div class="card-top">
         <div>
           <div class="card-title">${esc(c.make)} ${esc(c.model)}</div>
-          <div class="card-sub">${esc(c.plate) || "no plate"}${c.category ? " · " + esc(c.category) : ""}${c.colour ? " · " + esc(c.colour) : ""}${c.automatic ? " · auto" : ""}</div>
+          <div class="card-sub">${esc(c.plate) || "no plate"}${c.category ? " · " + esc(c.category) : ""}${c.colour ? " · " + esc(c.colour) : ""}${c.automatic ? " · auto" : ""}${c.entityId ? ` · <span class="car-ent">${esc(entityForCar(c).name)}</span>` : ""}</div>
         </div>
         ${c.outOfService ? `<span class="badge overdue">Out of service</span>` : ""}
       </div>
@@ -453,6 +453,15 @@ function openCarModal(id) {
   setVal(root, "c-lease-paid", c?.totalLeasePaid ?? "");
   setVal(root, "c-category", c?.category || "");
   setVal(root, "c-colour", c?.colour || "");
+  // Which company this car is rented under — its documents follow this tag.
+  {
+    const entSel = el(root, "c-entity");
+    if (entSel) {
+      entSel.innerHTML = allEntities().map(e =>
+        `<option value="${esc(e.id)}">${esc(e.name)}${e.id ? "" : " (main)"}</option>`).join("");
+      entSel.value = c?.entityId || "";
+    }
+  }
   setVal(root, "c-regdate", c?.regDate || "");
   setVal(root, "c-licence-exp", c?.licenceExpiry || "");
   setVal(root, "c-roadtax-exp", c?.roadTaxExpiry || "");
@@ -525,18 +534,19 @@ async function saveCar() {
   };
   const automatic = checked(root, "c-automatic");
   const rowColour = getSwatch(root, "c-rowcolour");
+  const entityId = val(root, "c-entity") || "";
 
   const btn = el(root, "save-car");
   btn.disabled = true; btn.textContent = "Saving...";
   setSync("saving");
   try {
     if (editingCarId) {
-      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate, weeklyRate, monthlyRate, leaseAmount, purchaseAmount, totalLeasePaid, category, colour, automatic, rowColour, ...docDates });
+      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate, weeklyRate, monthlyRate, leaseAmount, purchaseAmount, totalLeasePaid, category, colour, automatic, rowColour, entityId, ...docDates });
     } else {
       await addDoc(collection(db, "cars"), {
         companyId: state.ctx.companyId, make, model, year, plate,
         dailyRate, weeklyRate, monthlyRate, leaseAmount, purchaseAmount, totalLeasePaid,
-        category, colour, automatic, rowColour, ...docDates
+        category, colour, automatic, rowColour, entityId, ...docDates
       });
     }
     closeModal(root, "car-modal");

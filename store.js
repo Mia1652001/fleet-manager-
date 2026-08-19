@@ -711,7 +711,7 @@ export function paidPatch(b, paid) {
 // The version shown in Settings and on the wordmark's tooltip, bumped with
 // every package — so "did the upload deploy?" is answered by looking, not by
 // wondering. Format: date, then a word for what the build was about.
-export const APP_VERSION = "19 Aug 2026 \u00b7 freeze-fix-b";
+export const APP_VERSION = "19 Aug 2026 \u00b7 companies";
 
 // ---------- Themes ----------
 // Per-company appearance, stored on the settings document so everyone who
@@ -803,6 +803,57 @@ export function applyTheme(s) {
   Object.entries(vars).forEach(([k, v]) => rootEl.style.setProperty(k, v));
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute("content", vars["--accent"]);
+}
+
+// ---------- Trading companies ----------
+// Some rental businesses rent one fleet under several legal entities, and the
+// paperwork must come from whichever entity owns the car (pilot, Aug 2026).
+// The main company IS the existing settings — zero migration, and a company
+// with one entity never sees any of this. Extra entities live in the
+// settings' entities array; each carries its own identity, VAT registration
+// and serial prefix, and counts its own invoice and receipt series under
+// suffixed counter fields, because each legal entity issuing documents
+// numbers its own.
+
+export function extraEntities() {
+  return Array.isArray(state.settings?.entities) ? state.settings.entities : [];
+}
+
+export function mainEntity() {
+  const s = state.settings || {};
+  return {
+    id: "", name: companyName(), addr: s.address || "", phone: s.phone || "",
+    email: s.email || "", website: s.website || "", logo: s.logo || "",
+    brn: s.brn || "", vatRegistered: !!s.vatRegistered, vatNumber: s.vatNumber || "",
+    prefix: receiptPrefix()
+  };
+}
+
+export function allEntities() { return [mainEntity(), ...extraEntities()]; }
+
+export function entityById(id) {
+  if (!id) return mainEntity();
+  return extraEntities().find(e => e.id === id) || mainEntity();
+}
+
+export function entityForCar(car) {
+  return entityById(car?.entityId || "");
+}
+
+// The entity a booking's documents come from. A serialized document (invoice,
+// receipt) passes the id snapshotted at issue, so re-tagging a car later can
+// never rewrite who issued an existing document; live documents (agreement,
+// confirmation) follow the car's current tag.
+export function entityForBooking(b, snappedId) {
+  if (snappedId !== undefined && snappedId !== null) return entityById(snappedId);
+  const car = state.cars.find(c => c.id === b?.carId);
+  return entityForCar(car);
+}
+
+// Counter field names: the main entity keeps the original fields so existing
+// numbering continues unbroken; extra entities count under suffixed fields.
+export function entitySeqField(base, entityId) {
+  return entityId ? `${base}_${entityId}` : base;
 }
 
 // ---------- Invoice numbers ----------

@@ -8,7 +8,7 @@
 
 import { db, setSync, auth, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "./firebase-init.js";
 import { doc, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES, THEME_LIST, themePresetOf, themeVars, applyTheme, FONT_LIST, themeFontOf } from "./store.js";
+import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES, THEME_LIST, themePresetOf, themeVars, applyTheme, FONT_LIST, themeFontOf, extraEntities, openModal, closeModal } from "./store.js";
 import {
   CATEGORIES, INTERVALS, backupPrefs, saveBackupPrefs, daysSinceBackup,
   runBackup, folderSupported, folderStatus, chooseFolder, forgetFolder
@@ -86,6 +86,125 @@ function paintThemeControls() {
 function previewTheme() {
   applyTheme(effectiveTheme());
   paintThemeControls();
+  paintEntities();
+}
+
+// ---------- Trading companies ----------
+let entEditingId = null;   // null = adding a new one
+let entLogoDraft = undefined;   // undefined = untouched, "" = removed, string = new data URL
+
+function paintEntities() {
+  const box = el(root, "ent-list");
+  if (!box) return;
+  const list = extraEntities();
+  box.innerHTML = list.length ? list.map(e => `
+    <div class="ent-row" data-ent="${esc(e.id)}">
+      <span class="ent-row-name">${esc(e.name || "(unnamed)")}</span>
+      <span class="ent-row-sub">${esc(e.prefix || "")}${e.vatRegistered ? " · VAT" : ""}</span>
+      <button type="button" class="btn" data-ent-edit="${esc(e.id)}">Edit</button>
+    </div>`).join("")
+    : `<div class="ent-row" style="color:var(--muted);">Only the main company so far.</div>`;
+}
+
+function openEntModal(id) {
+  entEditingId = id || null;
+  entLogoDraft = undefined;
+  const e = extraEntities().find(x => x.id === id) || {};
+  el(root, "ent-title").textContent = id ? "Edit company" : "New company";
+  showError(root, "ent-error", null);
+  setVal(root, "ent-name", e.name || "");
+  setVal(root, "ent-addr", e.addr || "");
+  setVal(root, "ent-phone", e.phone || "");
+  setVal(root, "ent-email", e.email || "");
+  setVal(root, "ent-brn", e.brn || "");
+  setVal(root, "ent-prefix", e.prefix || "");
+  setChecked(root, "ent-vatreg", !!e.vatRegistered);
+  setVal(root, "ent-vat", e.vatNumber || "");
+  el(root, "ent-logo").value = "";
+  el(root, "ent-logo-now").textContent = e.logo ? "Has a logo — choose a file to replace it." : "";
+  el(root, "ent-remove").style.display = id ? "" : "none";
+  openModal(root, "ent-modal");
+}
+
+// Logos print at most a few centimetres wide, so they are shrunk hard on the
+// way in — several of them must share the settings record's fixed size limit.
+function compressLogo(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, 320 / img.width, 160 / img.height);
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.width * scale));
+      c.height = Math.max(1, Math.round(img.height * scale));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      // PNG keeps transparency; fall to JPEG when PNG comes out heavy
+      let out = c.toDataURL("image/png");
+      if (out.length > 80000) out = c.toDataURL("image/jpeg", 0.82);
+      if (out.length > 120000) return reject(new Error("That image stays too large even compressed — try a simpler logo file."));
+      resolve(out);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("That file could not be read as an image.")); };
+    img.src = url;
+  });
+}
+
+async function saveEntity() {
+  const name = val(root, "ent-name").trim();
+  if (!name) { showError(root, "ent-error", "The company needs a name — it prints at the top of its documents."); return; }
+  const prefix = val(root, "ent-prefix").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
+  const btn = el(root, "ent-save");
+  btn.disabled = true;
+  setSync("saving");
+  try {
+    const list = extraEntities().map(e => ({ ...e }));
+    let e;
+    if (entEditingId) {
+      e = list.find(x => x.id === entEditingId);
+      if (!e) throw new Error("not-found");
+    } else {
+      e = { id: "e" + Date.now().toString(36) };
+      list.push(e);
+    }
+    Object.assign(e, {
+      name, addr: val(root, "ent-addr"), phone: val(root, "ent-phone"),
+      email: val(root, "ent-email"), brn: val(root, "ent-brn"), prefix,
+      vatRegistered: checked(root, "ent-vatreg"), vatNumber: val(root, "ent-vat")
+    });
+    if (entLogoDraft !== undefined) e.logo = entLogoDraft;
+    await setDoc(doc(db, "settings", state.ctx.companyId),
+      { companyId: state.ctx.companyId, entities: list }, { merge: true });
+    setSync("live");
+    closeModal(root, "ent-modal");
+    showToast(`${name} saved`);
+  } catch (err) {
+    setSync("error");
+    showError(root, "ent-error", "Couldn't save the company (" + (err.code || err.message) + ").");
+  }
+  btn.disabled = false;
+}
+
+async function removeEntity() {
+  if (!entEditingId) return;
+  const e = extraEntities().find(x => x.id === entEditingId);
+  const used = state.cars.filter(c => c.entityId === entEditingId).length;
+  const msg = used
+    ? `Remove ${e?.name || "this company"}? ${used} car${used === 1 ? " is" : "s are"} tagged to it — they will fall back to the main company on their documents.`
+    : `Remove ${e?.name || "this company"}?`;
+  if (!confirm(msg)) return;
+  setSync("saving");
+  try {
+    const list = extraEntities().filter(x => x.id !== entEditingId);
+    await setDoc(doc(db, "settings", state.ctx.companyId),
+      { companyId: state.ctx.companyId, entities: list }, { merge: true });
+    setSync("live");
+    closeModal(root, "ent-modal");
+    showToast("Company removed — tagged cars fall back to the main company");
+  } catch (err) {
+    setSync("error");
+    showError(root, "ent-error", "Couldn't remove it (" + (err.code || err.message) + ").");
+  }
 }
 
 export function mount(container) {
@@ -150,6 +269,25 @@ export function mount(container) {
   if (tHk) tHk.addEventListener("input", () => { themeDraft.headInk = tHk.value; previewTheme(); });
   const tHkClear = el(root, "s-theme-headink-clear");
   if (tHkClear) tHkClear.addEventListener("click", () => { themeDraft.headInk = ""; previewTheme(); });
+
+  el(root, "ent-add").addEventListener("click", () => openEntModal(null));
+  el(root, "ent-list").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-ent-edit]");
+    if (b) openEntModal(b.dataset.entEdit);
+  });
+  el(root, "ent-save").addEventListener("click", saveEntity);
+  el(root, "ent-remove").addEventListener("click", removeEntity);
+  el(root, "ent-logo").addEventListener("change", async () => {
+    const f = el(root, "ent-logo").files?.[0];
+    if (!f) return;
+    try {
+      entLogoDraft = await compressLogo(f);
+      el(root, "ent-logo-now").textContent = "New logo ready — Save company keeps it.";
+    } catch (err) {
+      showError(root, "ent-error", err.message);
+      el(root, "ent-logo").value = "";
+    }
+  });
   el(root, "s-logo-file").addEventListener("change", onLogoPicked);
   el(root, "s-logo-clear").addEventListener("click", () => {
     logoData = null; logoTouched = true; paintLogo();

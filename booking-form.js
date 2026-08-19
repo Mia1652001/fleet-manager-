@@ -14,7 +14,7 @@ import {
   rentalDays, formatAmount, defaultBankChargePct,
   receiptPrefix, formatReceiptNo, receiptNo, hasReceiptNo, receiptNoTaken,
   invoiceKindFor, vatRatePct, formatInvoiceNo, invoiceNo, hasInvoiceNo, amountDue,
-  paidTotal,
+  paidTotal, entityForBooking, entitySeqField,
   invoiceNoTaken, invoiceSeqField,
   startTime, endTime,
   fillTimeOptions, getTime, setTime, onTimeChange,
@@ -462,8 +462,10 @@ function onReceiptClicked() {
 
   showError(root, "receipt-error", null);
   const year = receiptYear();
-  const next = (Number(state.settings?.receiptSeq?.[year]) || 0) + 1;
-  setVal(root, "receipt-no", formatReceiptNo(next, year));
+  const entR = issuingEntity();
+  const seqFieldR = entitySeqField("receiptSeq", entR.id);
+  const next = (Number(state.settings?.[seqFieldR]?.[year]) || 0) + 1;
+  setVal(root, "receipt-no", formatReceiptNo(next, year, entR.prefix));
   const hint = el(root, "receipt-hint");
   if (hint) {
     hint.textContent =
@@ -473,6 +475,23 @@ function onReceiptClicked() {
   openModal(root, "receipt-modal");
   const box = el(root, "receipt-no");
   if (box) setTimeout(() => { box.focus(); box.select(); }, 30);
+}
+
+// The company issuing this booking's serialized documents — the tagged
+// entity of its car, or the main company. Numbering, prefix and VAT kind all
+// follow it; the id is snapshotted onto the booking at issue.
+function issuingEntity() {
+  const b = state.bookings.find(x => x.id === editingBookingId);
+  return entityForBooking(b || {});
+}
+// Transaction-safe prefix: the main company's comes from the settings doc as
+// read inside the transaction; an extra entity's from its row in that same
+// doc — same sanitising as always.
+function entityPrefixFrom(data, ent) {
+  const raw = ent.id
+    ? String(((data.entities || []).find(e => e.id === ent.id) || ent).prefix || "")
+    : String(data.receiptPrefix || "");
+  return raw.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
 }
 
 async function issueReceipt() {
@@ -500,7 +519,9 @@ async function issueReceipt() {
   setSync("saving");
 
   const year = receiptYear();
-  const auto = formatReceiptNo((Number(state.settings?.receiptSeq?.[year]) || 0) + 1, year);
+  const ent = issuingEntity();
+  const seqField = entitySeqField("receiptSeq", ent.id);
+  const auto = formatReceiptNo((Number(state.settings?.[seqField]?.[year]) || 0) + 1, year, ent.prefix);
 
   try {
     const settingsRef = doc(db, "settings", state.ctx.companyId);
@@ -517,10 +538,9 @@ async function issueReceipt() {
       if (already) return already;
 
       const data = snap.exists() ? snap.data() : {};
-      const seqMap = (data.receiptSeq && typeof data.receiptSeq === "object") ? { ...data.receiptSeq } : {};
+      const seqMap = (data[seqField] && typeof data[seqField] === "object") ? { ...data[seqField] } : {};
       const used = Number(seqMap[year]) || 0;
-      const prefix = String(data.receiptPrefix || "")
-        .toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
+      const prefix = entityPrefixFrom(data, ent);
 
       // Taking the suggested number is what advances the counter. A number
       // typed by hand does not: it usually continues a paper book, and moving
@@ -530,11 +550,12 @@ async function issueReceipt() {
         const next = used + 1;
         seqMap[year] = next;
         number = formatReceiptNo(next, year, prefix);
-        tx.set(settingsRef, { companyId: state.ctx.companyId, receiptSeq: seqMap }, { merge: true });
+        tx.set(settingsRef, { companyId: state.ctx.companyId, [seqField]: seqMap }, { merge: true });
       }
 
       tx.update(bookingRefDoc, {
         receiptNo: number,
+        receiptEntityId: ent.id,
         receiptIssuedAt: new Date().toISOString(),
         receiptIssuedBy: state.ctx?.user?.email || ""
       });
@@ -703,10 +724,14 @@ function onInvoiceClicked() {
   }
 
   showError(root, "invoice-error", null);
-  const kind = invoiceKindFor();
+  // The kind follows the issuing company: a VAT-registered entity issues VAT
+  // invoices, one that is not issues regular ones — per car, per document.
+  const entI = issuingEntity();
+  const kind = entI.vatRegistered ? "vat" : "normal";
   const year = receiptYear();
-  const next = (Number(state.settings?.[invoiceSeqField(kind)]?.[year]) || 0) + 1;
-  setVal(root, "invoice-no", formatInvoiceNo(next, year, kind));
+  const seqFieldI = entitySeqField(invoiceSeqField(kind), entI.id);
+  const next = (Number(state.settings?.[seqFieldI]?.[year]) || 0) + 1;
+  setVal(root, "invoice-no", formatInvoiceNo(next, year, kind, entI.prefix));
   const title = el(root, "invoice-title");
   if (title) title.textContent = kind === "vat"
     ? `VAT invoice number (${vatRatePct()}%)` : "Invoice number";
@@ -739,10 +764,11 @@ async function issueInvoice() {
   btn.textContent = "Issuing...";
   setSync("saving");
 
-  const kind = invoiceKindFor();
-  const seqField = invoiceSeqField(kind);
+  const ent = issuingEntity();
+  const kind = ent.vatRegistered ? "vat" : "normal";
+  const seqField = entitySeqField(invoiceSeqField(kind), ent.id);
   const year = receiptYear();
-  const auto = formatInvoiceNo((Number(state.settings?.[seqField]?.[year]) || 0) + 1, year, kind);
+  const auto = formatInvoiceNo((Number(state.settings?.[seqField]?.[year]) || 0) + 1, year, kind, ent.prefix);
 
   try {
     const settingsRef = doc(db, "settings", state.ctx.companyId);
@@ -758,8 +784,7 @@ async function issueInvoice() {
       const data = snap.exists() ? snap.data() : {};
       const seqMap = (data[seqField] && typeof data[seqField] === "object") ? { ...data[seqField] } : {};
       const used = Number(seqMap[year]) || 0;
-      const prefix = String(data.receiptPrefix || "")
-        .toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
+      const prefix = entityPrefixFrom(data, ent);
 
       // Taking the suggested number advances the counter; a hand-typed one
       // does not — same rule as receipts, same reason.
@@ -774,6 +799,7 @@ async function issueInvoice() {
       tx.update(bookingRefDoc, {
         invoiceNo: number,
         invoiceKind: kind,
+        invoiceEntityId: ent.id,
         invoiceVatPct: kind === "vat" ? vatRatePct() : null,
         // The total as invoiced, frozen — the reports list shows this figure
         // even if the booking's price is edited later, matching the reprint.
