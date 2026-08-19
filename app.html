@@ -1337,13 +1337,16 @@
              an agreement needs a reference number, and there is nothing to send
              about a form that has not been saved. -->
         <div class="modal-actions-side">
+          <!-- Order fixed by the pilot (19 Aug 2026): destructive first and
+               isolated, then the working documents in the order a rental
+               actually uses them, sending last. -->
           <button class="btn danger" data-el="delete-booking" style="display:none;">Delete booking</button>
+          <button class="btn" data-el="print-confirmation" style="display:none;">Booking confirmation</button>
           <button class="btn" data-el="damage-btn" style="display:none;">Damage diagram</button>
           <button class="btn" data-el="sign-btn" style="display:none;">Signature</button>
-          <button class="btn" data-el="print-confirmation" style="display:none;">Booking confirmation</button>
-          <button class="btn" data-el="print-receipt" style="display:none;">Receipt</button>
-          <button class="btn" data-el="print-invoice" style="display:none;">Invoice</button>
           <button class="btn" data-el="print-agreement" style="display:none;">Rental agreement</button>
+          <button class="btn" data-el="print-invoice" style="display:none;">Invoice</button>
+          <button class="btn" data-el="print-receipt" style="display:none;">Receipt</button>
           <button class="btn" data-el="email-booking" style="display:none;">Email customer</button>
           <button class="btn" data-el="whatsapp-booking" style="display:none;">WhatsApp</button>
         </div>
