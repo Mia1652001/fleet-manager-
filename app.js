@@ -115,7 +115,26 @@ onAuthStateChanged(auth, async (user) => {
       location.reload();
       return;
     }
-    showLogin("Signed in, but couldn't load your profile (" + (e.code || e.message) + ").");
+    // Firestore's local database can be left corrupted by a mid-session
+    // cache wipe (Safari, 20 Aug 2026). That is repairable: delete our own
+    // IndexedDB and reload — once, guarded, so a genuine server error can
+    // never cause a reload loop.
+    const msg = String(e && (e.code || e.message) || "");
+    if (/INTERNAL ASSERTION/i.test(msg) && !sessionStorage.getItem("fsRepaired")) {
+      sessionStorage.setItem("fsRepaired", "1");
+      try {
+        const dbs = (indexedDB.databases ? await indexedDB.databases() : []) || [];
+        await Promise.all(dbs
+          .filter(d => /firestore/i.test(d.name || ""))
+          .map(d => new Promise(res => {
+            const rq = indexedDB.deleteDatabase(d.name);
+            rq.onsuccess = rq.onerror = rq.onblocked = () => res();
+          })));
+      } catch (_) { /* the reload is the repair; deletion is best-effort */ }
+      location.reload();
+      return;
+    }
+    showLogin("Signed in, but couldn't load your profile (" + msg + ").");
   }
 });
 

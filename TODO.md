@@ -120,3 +120,10 @@ account and on GitHub; get every pilot company to run its first backup.
 ## Fleet import note
 - gpsSim / psvNumber are on the car record but NOT in the Excel importer's
   recognised columns. Add mappings when a client file actually carries them.
+
+## From the pilot, 20 Aug 2026 (parked, in his words)
+- Export the bookings page to Excel "in the same format as on screen" (planner grid, not a list).
+- Per-company filter on Bookings (and maybe other pages): all by default, filter to one company when needed. Agreed "can do later".
+- Custom fields: users defining their own extra fields, e.g. two more on Fleet.
+- Revenue by broker in Reports — possibly a filter on the existing report.
+- Demo company for his sales demos (console task: create a fresh company + login, no code).

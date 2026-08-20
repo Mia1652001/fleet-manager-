@@ -86,7 +86,6 @@ function paintThemeControls() {
 function previewTheme() {
   applyTheme(effectiveTheme());
   paintThemeControls();
-  paintEntities();
 }
 
 // ---------- Trading companies ----------
@@ -324,6 +323,11 @@ export function mount(container) {
 export function render() {
   if (!root) return;
   const s = state.settings || {};
+
+  // The trading-companies list follows the data. (Its one call previously sat
+  // inside previewTheme — companies saved to the server but never appeared
+  // unless the person happened to touch the theme controls. Pilot, 20 Aug.)
+  paintEntities();
 
   // Whose password the card changes — filled before the focus check below, so
   // it is right even when the rest of the form is skipped mid-edit.

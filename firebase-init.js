@@ -6,7 +6,7 @@ import {
   sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  initializeFirestore, persistentLocalCache, persistentMultipleTabManager
+  initializeFirestore, persistentLocalCache
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -26,7 +26,11 @@ export const auth = getAuth(app);
 let _db;
 try {
   _db = initializeFirestore(app, {
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    // Single-tab persistence. The multi-tab manager is the combination with a
+    // documented history of "INTERNAL ASSERTION FAILED" on Safari (seen here
+    // 20 Aug 2026 after a mid-session cache wipe); the installed iPhone app is
+    // one tab by nature, so multi-tab coordination bought nothing but risk.
+    localCache: persistentLocalCache(),
     experimentalForceLongPolling: true,
     useFetchStreams: false
   });
