@@ -171,7 +171,7 @@ export function mount(container) {
     root, "bookingsShowLegend", "toggle-legend", "hide-legend", "Legend", !isNarrowScreen());
   el(root, "toggle-list").addEventListener("click", () => togglePanel("list"));
 
-  el(root, "search").addEventListener("input", render);   // redraws planner and list
+  el(root, "search").addEventListener("input", () => { jumpToSearchMatch(); render(); });
 
 
   const zoomEl = el(root, "zoom");
@@ -999,6 +999,38 @@ function updateToggleLabels() {
 }
 
 
+
+// When a search matches bookings that are entirely outside the visible
+// window, the window goes to them — the pilot searched a renter whose rental
+// was in November while the planner sat on August, and the "result" was an
+// invisible success. Rules: a match already on screen never moves the view;
+// the target is the soonest upcoming match, or the most recent past one for
+// customers whose rentals are behind us; the window opens two days early for
+// context. Matching is on booking text (renter, locations) — a car-name match
+// filters rows but shouldn't move the calendar.
+function jumpToSearchMatch() {
+  const q = el(root, "search").value.trim().toLowerCase();
+  if (!q || !timelineAnchor) return;
+  const matches = state.bookings.filter(b =>
+    `${b.renter || ""} ${b.pickupLocation || ""} ${b.dropoffLocation || ""}`
+      .toLowerCase().includes(q) && b.startDate && b.endDate);
+  if (!matches.length) return;
+
+  const pad = n => String(n).padStart(2, "0");
+  const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const last = new Date(timelineAnchor);
+  last.setDate(last.getDate() + timelineDays() - 1);
+  const visFirst = ymd(timelineAnchor), visLast = ymd(last);
+  if (matches.some(b => b.startDate <= visLast && b.endDate >= visFirst)) return;
+
+  const t = todayStr();
+  const upcoming = matches.filter(b => b.endDate >= t)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const target = upcoming[0] ||
+    matches.slice().sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+  const [y, m, d] = target.startDate.split("-").map(Number);
+  timelineAnchor = new Date(y, m - 1, d - 2);
+}
 
 // ---------- Timeline / fleet planner ----------
 // Cars down the left, days across the top, one bar per rental.

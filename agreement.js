@@ -654,7 +654,7 @@ ${DOC_ACTIONS}
     ${outstanding > 0 ? `<tr><th>Balance due</th><td class="ag-num">${esc(formatAmount(outstanding))}</td></tr>` : ""}
   </table>
 
-  ${s.invoiceNote ? `<div class="ag-payline">${esc(String(s.invoiceNote)).replace(/\n/g, "<br>")}</div>` : ""}
+  ${ent.invoiceNote ? `<div class="ag-payline">${esc(String(ent.invoiceNote)).replace(/\n/g, "<br>")}</div>` : ""}
 
   ${docFoot(ent, `${isVat ? "VAT invoice" : "Invoice"} ${serial || ref}${serial ? ` · booking ${ref}` : ""}`)}
 

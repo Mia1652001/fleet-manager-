@@ -2885,3 +2885,6 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 .ent-row .ent-name { font-weight: 500; }
 .ent-row .ent-sub { font-size: 11px; color: var(--muted); }
 .car-ent { color: var(--muted); font-style: normal; }
+
+/* the day's line total, under the Total header at the board's right edge */
+.board-day-total { font-weight: 500; text-align: right; align-content: start; font-variant-numeric: tabular-nums; }

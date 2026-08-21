@@ -391,7 +391,10 @@ function renderBoard(items) {
             <span class="board-chip-main"><strong>${esc(formatAmount(x.amount))}</strong>${x.staff ? ` ${esc(x.staff)}` : ""}${x.note ? ` · ${esc(x.note)}` : ""}</span>
           </div>`).join("")}${add}</div>`;
     }).join("");
-    return `<div class="board-cell board-day">${esc(formatDate(ds))}</div>${cells}<div class="board-cell"></div>`;
+    // the trailing cell under the Total header carries the day's line total
+    const dayTotal = items.filter(x => x.date === ds)
+      .reduce((a, x) => a + (Number(x.amount) || 0), 0);
+    return `<div class="board-cell board-day">${esc(formatDate(ds))}</div>${cells}<div class="board-cell board-day-total">${dayTotal > 0 ? esc(formatAmount(dayTotal)) : ""}</div>`;
   }).join("");
 
   // The header lives in its own strip pinned above the board (same pattern
@@ -462,6 +465,16 @@ function wireBoard() {
 }
 
 function openExpenseModal(id, preset) {
+  // The suggestion lists are shared datalists that the booking form happens
+  // to fill — so in a session that opened Add expense first, Spent by looked
+  // like plain free text (pilot, 21 Aug). This dialog now fills what it uses.
+  const put = (dlId, names) => {
+    const d = document.getElementById(dlId);
+    if (d) d.innerHTML = names.map(n => `<option value="${esc(n)}">`).join("");
+  };
+  put("dl-staff", staffNames());
+  put("dl-expense-categories", expenseCategoryNames());
+
   editingId = id;
   const x = id ? state.expenses.find(v => v.id === id) : null;
   el(root, "expense-title").textContent = x ? "Edit expense" : "Add expense";

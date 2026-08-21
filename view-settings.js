@@ -119,6 +119,7 @@ function openEntModal(id) {
   setVal(root, "ent-prefix", e.prefix || "");
   setChecked(root, "ent-vatreg", !!e.vatRegistered);
   setVal(root, "ent-vat", e.vatNumber || "");
+  setVal(root, "ent-invnote", e.invoiceNote || "");
   el(root, "ent-logo").value = "";
   el(root, "ent-logo-now").textContent = e.logo ? "Has a logo — choose a file to replace it." : "";
   el(root, "ent-remove").style.display = id ? "" : "none";
@@ -169,7 +170,8 @@ async function saveEntity() {
     Object.assign(e, {
       name, addr: val(root, "ent-addr"), phone: val(root, "ent-phone"),
       email: val(root, "ent-email"), brn: val(root, "ent-brn"), prefix,
-      vatRegistered: checked(root, "ent-vatreg"), vatNumber: val(root, "ent-vat")
+      vatRegistered: checked(root, "ent-vatreg"), vatNumber: val(root, "ent-vat"),
+      invoiceNote: val(root, "ent-invnote")
     });
     if (entLogoDraft !== undefined) e.logo = entLogoDraft;
     await setDoc(doc(db, "settings", state.ctx.companyId),

@@ -711,7 +711,7 @@ export function paidPatch(b, paid) {
 // The version shown in Settings and on the wordmark's tooltip, bumped with
 // every package — so "did the upload deploy?" is answered by looking, not by
 // wondering. Format: date, then a word for what the build was about.
-export const APP_VERSION = "21 Aug 2026 \u00b7 companies-d";
+export const APP_VERSION = "21 Aug 2026 \u00b7 search-jump";
 
 // ---------- Themes ----------
 // Per-company appearance, stored on the settings document so everyone who
@@ -824,6 +824,7 @@ export function mainEntity() {
   return {
     id: "", name: companyName(), addr: s.address || "", phone: s.phone || "",
     email: s.email || "", website: s.website || "", logo: s.logo || "",
+    invoiceNote: s.invoiceNote || "",
     brn: s.brn || "", vatRegistered: !!s.vatRegistered, vatNumber: s.vatNumber || "",
     prefix: receiptPrefix()
   };
