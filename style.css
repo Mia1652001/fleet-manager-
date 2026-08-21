@@ -2677,9 +2677,7 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 /* On a phone the filter row pins to the top while the register scrolls —
    dates, kind filter and Export stay reachable at row 200 as at row 1. */
 @media (max-width: 640px) {
-  .inv-controls { position: sticky; top: 0; z-index: 45; background: var(--bg);
-    padding: calc(8px + env(safe-area-inset-top, 0px)) 2px 8px;
-    margin: calc(-1 * env(safe-area-inset-top, 0px)) 0 8px; }
+  .inv-controls { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 45; background: var(--bg); padding: 8px 2px; margin: 0 0 8px; }
 }
 .inv-controls label { display: flex; gap: 6px; align-items: center; }
 
@@ -2741,10 +2739,8 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 
   /* the invoice filters stay visible while the register scrolls */
   #view-reports [data-el="rep-controls"] {
-    position: sticky; top: 0; z-index: 35;
-    background: var(--bg);
-    padding: calc(6px + env(safe-area-inset-top, 0px)) 0 6px;
-    margin-top: calc(-1 * env(safe-area-inset-top, 0px));
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 35;
+    background: var(--bg); padding: 6px 0;
   }
 
   /* boards scroll inside themselves, never the page */
