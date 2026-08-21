@@ -2874,8 +2874,13 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 @keyframes boot-pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
 
 /* ---------- Trading companies (Settings) and the fleet tag ---------- */
-.ent-row { display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  padding: 9px 0; border-bottom: 1px dashed var(--border); }
+.ent-row {
+  /* three columns, the middle one fixed — so every prefix starts at the
+     same x and the list reads as a table (pilot, 21 Aug) */
+  display: grid; grid-template-columns: 1fr 120px auto;
+  align-items: center; gap: 10px;
+  padding: 9px 0; border-bottom: 1px dashed var(--border);
+}
 .ent-row:last-child { border-bottom: none; }
 .ent-row .ent-name { font-weight: 500; }
 .ent-row .ent-sub { font-size: 11px; color: var(--muted); }

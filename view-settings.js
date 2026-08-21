@@ -269,6 +269,12 @@ export function mount(container) {
   const tHkClear = el(root, "s-theme-headink-clear");
   if (tHkClear) tHkClear.addEventListener("click", () => { themeDraft.headInk = ""; previewTheme(); });
 
+  // Settings had no popups before the entity modal, so the standard
+  // data-close wiring every other view does in mount was missing here —
+  // which is why Cancel did nothing (pilot, 21 Aug).
+  root.querySelectorAll("[data-close]").forEach(b =>
+    b.addEventListener("click", () => closeModal(root, b.dataset.close)));
+
   el(root, "ent-add").addEventListener("click", () => openEntModal(null));
   el(root, "ent-list").addEventListener("click", (e) => {
     const b = e.target.closest("[data-ent-edit]");
