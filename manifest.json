@@ -1,6 +1,6 @@
 {
-  "name": "Fleetmate",
-  "short_name": "Fleetmate",
+  "name": "FleetMate",
+  "short_name": "FleetMate",
   "description": "Car rental fleet, bookings, customers, billing and maintenance.",
   "start_url": "./app.html",
   "scope": "./",

@@ -1,4 +1,4 @@
-// Fleetmate — Firebase connection, created once for the whole app.
+// FleetMate — Firebase connection, created once for the whole app.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {

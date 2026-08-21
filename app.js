@@ -1,4 +1,4 @@
-// Fleetmate — main controller.
+// FleetMate — main controller.
 // Signs the user in, loads all company data once, keeps it live, and switches
 // between views without ever reloading the page.
 
@@ -255,7 +255,7 @@ function startApp() {
       // pixels: the sign-in screen and the next person start on the factory
       // cream, not the previous company's colours.
       applyTheme(null);
-      document.title = "Fleetmate";
+      document.title = "FleetMate";
       const logo = document.getElementById("company-logo");
       if (logo) { logo.innerHTML = ""; logo.style.display = "none"; }
     });
@@ -277,10 +277,10 @@ function startApp() {
     // the console logs it, the wordmark's tooltip carries it.
     {
       const v = document.getElementById("app-version");
-      if (v) v.textContent = "Fleetmate " + APP_VERSION;
+      if (v) v.textContent = "FleetMate " + APP_VERSION;
       const h1 = document.querySelector("header h1");
       if (h1) h1.title = APP_VERSION;
-      console.log("Fleetmate", APP_VERSION);
+      console.log("FleetMate", APP_VERSION);
     }
     wireBackupBanner();
     applyTabOrder();
@@ -377,7 +377,7 @@ function applyCompanyIdentity() {
     slot.innerHTML = s.logo ? `<img src="${s.logo}" alt="">` : "";
     slot.style.display = s.logo ? "block" : "none";
   }
-  if (s.companyName) document.title = `${s.companyName} — Fleetmate`;
+  if (s.companyName) document.title = `${s.companyName} — FleetMate`;
 }
 
 function stopListeners() {
