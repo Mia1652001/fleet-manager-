@@ -473,9 +473,10 @@ input[type="number"] {
 .tl-corner,
 .tl-daynum {
   position: sticky;
-  /* below the iPhone status bar — content extends under it since the
-     app-feel build, and top:0 pinned these beneath the clock */
-  top: env(safe-area-inset-top, 0px);
+  /* vertical pinning belongs to .tl-head-wrap, which owns the status-bar
+     strip via its safe-area padding — these stay at 0 so there is exactly
+     one place that handles the inset */
+  top: 0;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   z-index: 3;
@@ -1212,7 +1213,9 @@ input[type="number"] {
    always line up. */
 #view-bookings .tl-head-wrap {
   position: sticky;
-  top: env(safe-area-inset-top, 0px);
+  top: 0;
+  padding-top: env(safe-area-inset-top, 0px);
+  margin-top: calc(-1 * env(safe-area-inset-top, 0px));
   z-index: 20;
   overflow-x: hidden;
   background: var(--bg);
@@ -2674,7 +2677,9 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 /* On a phone the filter row pins to the top while the register scrolls —
    dates, kind filter and Export stay reachable at row 200 as at row 1. */
 @media (max-width: 640px) {
-  .inv-controls { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 45; background: var(--bg); padding: 8px 2px; margin: 0 0 8px; }
+  .inv-controls { position: sticky; top: 0; z-index: 45; background: var(--bg);
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 2px 8px;
+    margin: calc(-1 * env(safe-area-inset-top, 0px)) 0 8px; }
 }
 .inv-controls label { display: flex; gap: 6px; align-items: center; }
 
@@ -2736,8 +2741,10 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 
   /* the invoice filters stay visible while the register scrolls */
   #view-reports [data-el="rep-controls"] {
-    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 35;
-    background: var(--bg); padding: 6px 0;
+    position: sticky; top: 0; z-index: 35;
+    background: var(--bg);
+    padding: calc(6px + env(safe-area-inset-top, 0px)) 0 6px;
+    margin-top: calc(-1 * env(safe-area-inset-top, 0px));
   }
 
   /* boards scroll inside themselves, never the page */
