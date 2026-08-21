@@ -1017,6 +1017,13 @@ async function toggleDone(jobId, kind, ref) {
 }
 
 function openTaskModal(id, presetDate, presetStaff) {
+  // The staff suggestions fill here, when the dialog opens — a shared
+  // datalist filled only by another dialog looks like plain free text in any
+  // session that comes here first (same fix as the expenses form, 21 Aug).
+  {
+    const d = document.getElementById("dl-staff");
+    if (d) d.innerHTML = staffNames().map(n => `<option value="${esc(n)}">`).join("");
+  }
   editingTaskId = id || null;
   const t = id ? state.tasks.find(x => x.id === id) : null;
   el(root, "task-modal-title").textContent = t ? "Edit task" : "Add task";
