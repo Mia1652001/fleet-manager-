@@ -218,14 +218,29 @@ function rowInCompany(r) {
   return carEntityId(r.carId) === repEntity;
 }
 
+// Filtering a car report means rebuilding its aggregate, not just dropping
+// rows — the month footer, grand total and average must describe exactly the
+// rows on screen, or the report earns the fate the store's own comment
+// promises for totals that don't match. (The first version called .filter on
+// the report OBJECT — a TypeError that blanked the whole page, 22 Aug.)
+function filterReport(data) {
+  if (repEntity === "*") return data;
+  const rows = data.rows.filter(rowInCompany);
+  const totals = Array.from({ length: 12 }, (_, m) =>
+    Math.round(rows.reduce((s, r) => s + (Number(r.months[m]) || 0), 0) * 100) / 100);
+  const grandTotal = Math.round(totals.reduce((s, v) => s + v, 0) * 100) / 100;
+  const busy = totals.filter(v => v > 0).length;
+  return { ...data, rows, totals, grandTotal, average: busy ? grandTotal / busy : 0 };
+}
+
 export function render() {
   if (!root) return;
   refreshYearOptions();
   paintTabs();
   paintEntityFilter();
 
-  const rev = revenueByCarMonth(year).filter(rowInCompany);
-  const exp = expensesByCarMonth(year).filter(rowInCompany);
+  const rev = filterReport(revenueByCarMonth(year));
+  const exp = filterReport(expensesByCarMonth(year));
   const mon = monthlySummary(year);
 
   if (current === "invoices") {
