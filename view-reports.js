@@ -13,6 +13,7 @@ import {
   revenueByCarMonth, expensesByCarMonth, monthlySummary,
   bookingYears, companyName, bookingCarLabel, bookingRef,
   amountDue, vatSplit, balanceFor, paidPatch, paidTotal, hasLedger, hasStarted,
+  extraEntities, mainEntity,
   loadPref, savePref, el
 } from "./store.js";
 import { loadXlsx, downloadBlob } from "./backup.js";
@@ -90,7 +91,10 @@ function issuedInvoices() {
                status: b.paid ? "Paid" : hasStarted(b) ? "Owed" : "Upcoming" };
     })
     .filter(r => r.at && (!invFrom || r.at >= invFrom) && (!invTo || r.at <= invTo)
-      && (everything || !invKind || (invKind === "vat") === r.isVat))
+      && (everything || !invKind || (invKind === "vat") === r.isVat)
+      && (repEntity === "*"
+        || (r.no ? (r.b.invoiceEntityId || "") === repEntity
+                 : carEntityId(r.b.carId) === repEntity)))
     .sort((a, c) => a.at.localeCompare(c.at) || a.no.localeCompare(c.no));
 }
 
@@ -123,6 +127,10 @@ export function mount(container) {
   root = container;
   wireTabs();
 
+  el(root, "rep-entity").addEventListener("change", () => {
+    repEntity = el(root, "rep-entity").value;
+    render();
+  });
   el(root, "rep-year").addEventListener("change", () => {
     year = el(root, "rep-year").value;
     render();
@@ -185,13 +193,39 @@ function refreshYearOptions() {
   sel.value = year;
 }
 
+let repEntity = "*";   // "*" = all companies, "" = main, otherwise entity id
+
+// The company filter appears only when trading companies exist — the
+// single-company customer never sees it (pilot, 21 Aug: "filter by Company").
+function paintEntityFilter() {
+  const sel = el(root, "rep-entity");
+  if (!sel) return;
+  const extras = extraEntities();
+  if (!extras.length) { sel.style.display = "none"; repEntity = "*"; return; }
+  sel.style.display = "";
+  const opts = [["*", "All companies"], ["", mainEntity().name || "Main company"],
+    ...extras.map(e => [e.id, e.name])];
+  sel.innerHTML = opts.map(([v, n]) =>
+    `<option value="${esc(v)}"${repEntity === v ? " selected" : ""}>${esc(n)}</option>`).join("");
+}
+
+function carEntityId(carId) {
+  return (state.cars.find(c => c.id === carId)?.entityId) || "";
+}
+function rowInCompany(r) {
+  if (repEntity === "*") return true;
+  if (!r.carId) return false;             // "cars no longer in the fleet" can't be attributed
+  return carEntityId(r.carId) === repEntity;
+}
+
 export function render() {
   if (!root) return;
   refreshYearOptions();
   paintTabs();
+  paintEntityFilter();
 
-  const rev = revenueByCarMonth(year);
-  const exp = expensesByCarMonth(year);
+  const rev = revenueByCarMonth(year).filter(rowInCompany);
+  const exp = expensesByCarMonth(year).filter(rowInCompany);
   const mon = monthlySummary(year);
 
   if (current === "invoices") {
@@ -205,7 +239,17 @@ export function render() {
   if (current === "revenue") renderCarGrid(rev, "earned", "revenue");
   else if (current === "expenses") renderCarGrid(exp, "spent", "expenses");
   else if (current === "invoices") renderInvoices();
-  else renderMonthly(mon);
+  else {
+    renderMonthly(mon);
+    // this tab sums bookings and expenses whole — a per-company split of it
+    // is a later build; say so rather than showing unfiltered numbers under
+    // a filter that looks applied
+    if (repEntity !== "*") {
+      const out = el(root, "rep-table");
+      if (out) out.insertAdjacentHTML("afterbegin",
+        `<div class="rep-note">Month by month always shows all companies \u2014 the company filter applies to the other tabs.</div>`);
+    }
+  }
 }
 
 

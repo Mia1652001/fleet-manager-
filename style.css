@@ -2545,7 +2545,12 @@ input[type="number"] {
 .rep-title { font-family: var(--font-display); font-size: 1.05rem; font-weight: 400; margin: 0 8px 0 0; }
 
 .rep-wrap {
-  overflow-x: auto;
+  /* Both axes scroll inside the wrap, so the sticky month header freezes
+     against the wrap's own scroll — the same one-scroller pattern as the
+     boards. A wrap that only scrolled sideways captured the stickiness and
+     the header rode away with the page (pilot, 21 Aug). */
+  overflow: auto;
+  max-height: calc(100dvh - 250px);
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -2891,3 +2896,7 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 
 /* the day's line total, under the Total header at the board's right edge */
 .board-day-total { font-weight: 500; text-align: right; align-content: start; font-variant-numeric: tabular-nums; }
+
+/* The car column's right edge is a drag handle (planner) */
+.tl-car { cursor: default; }
+.tl-car::after { content: ""; position: absolute; right: -3px; top: 0; bottom: 0; width: 7px; cursor: col-resize; }

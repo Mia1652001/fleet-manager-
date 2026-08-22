@@ -127,3 +127,8 @@ account and on GitHub; get every pilot company to run its first backup.
 - Custom fields: users defining their own extra fields, e.g. two more on Fleet.
 - Revenue by broker in Reports — possibly a filter on the existing report.
 - Demo company for his sales demos (console task: create a fresh company + login, no code).
+
+## Parked from the 22 Aug punch list (need their own builds)
+- Custom fields (user-defined extra fields, e.g. two more on Fleet) — real feature: define, store, display, export.
+- Bookings planner exported to Excel "same format as on screen" — grid layout doable, colours are not (library limit); needs a design decision.
+- Merge Customer + Name-on-booking into one autocomplete field — surgery on the booking form; build alone, warn the pilot first.

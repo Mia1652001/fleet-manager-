@@ -625,6 +625,7 @@ ${DOC_ACTIONS}
         ${line("Name", b.renter)}
         ${line("Phone", customer?.phone || b.phone)}
         ${line("Email", customer?.email || b.email)}
+        ${line("Broker", b.broker)}
       </table>
     </div>
     <div>
@@ -736,7 +737,9 @@ ${DOC_ACTIONS}
 
   <h2>Amount</h2>
   <table class="ag-table">
-    <tr><th>Total charges</th><td class="ag-num">${esc(formatAmount(invoiceTotal(b)))}</td></tr>
+    <tr><th>Total charges</th><td class="ag-num">${esc(formatAmount(invoiceTotal(b)))}${
+      b.fxCurrency && Number(b.fxTotal) > 0
+        ? ` (${esc(b.fxCurrency)} ${Number(b.fxTotal).toLocaleString("en-US", { maximumFractionDigits: 2 })})` : ""}</td></tr>
     ${bankCharge(b) > 0
       ? `<tr><th>Bank charge (${esc(String(bankChargePct(b)))}% — card payment)</th><td class="ag-num">${esc(formatAmount(bankCharge(b)))}</td></tr>`
       : ""}

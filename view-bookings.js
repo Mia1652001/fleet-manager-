@@ -1008,6 +1008,56 @@ function updateToggleLabels() {
 // customers whose rentals are behind us; the window opens two days early for
 // context. Matching is on booking text (renter, locations) — a car-name match
 // filters rows but shouldn't move the calendar.
+// Drag the car column's right edge to make room for long car names — the
+// pilot's ask (21 Aug). Pointer events cover mouse and touch; the width
+// applies live to both grids (the frozen date row shares the columns) and
+// saves on release. Double-click on the edge resets to the zoom default.
+function wireCarColumnDrag(grid) {
+  if (grid.dataset.dragWired) return;
+  grid.dataset.dragWired = "1";
+  const EDGE = 8;
+  let dragging = null;
+
+  grid.addEventListener("pointerdown", (e) => {
+    const car = e.target.closest(".tl-car");
+    if (!car) return;
+    const r = car.getBoundingClientRect();
+    if (e.clientX < r.right - EDGE) return;
+    dragging = { startX: e.clientX, startW: r.width };
+    grid.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  grid.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const w = Math.round(Math.min(420, Math.max(110, dragging.startW + e.clientX - dragging.startX)));
+    applyCarWidth(w);
+  });
+  const finish = () => {
+    if (!dragging) return;
+    dragging = null;
+    const w = parseInt(el(root, "timeline").style.gridTemplateColumns) || 0;
+    if (w) savePref("plannerCarW", w);
+  };
+  grid.addEventListener("pointerup", finish);
+  grid.addEventListener("pointercancel", finish);
+  grid.addEventListener("dblclick", (e) => {
+    const car = e.target.closest(".tl-car");
+    if (!car) return;
+    const r = car.getBoundingClientRect();
+    if (e.clientX < r.right - EDGE) return;
+    savePref("plannerCarW", 0);
+    render();
+  });
+}
+
+function applyCarWidth(w) {
+  const grid = el(root, "timeline");
+  const head = el(root, "timeline-head");
+  const rest = grid.style.gridTemplateColumns.replace(/^[\d.]+px/, w + "px");
+  grid.style.gridTemplateColumns = rest;
+  if (head) head.style.gridTemplateColumns = rest;
+}
+
 function jumpToSearchMatch() {
   const q = el(root, "search").value.trim().toLowerCase();
   if (!q || !timelineAnchor) return;
@@ -1101,9 +1151,13 @@ function renderTimeline() {
   const headWrap = el(root, "timeline-head-wrap");
   const headGrid = el(root, "timeline-head");
   if (headWrap) headWrap.style.display = "";
-  const columnsSpec = `${cfg.label}px repeat(${DAYS * 2}, minmax(${cfg.half}px, 1fr))`;
+  // The car column's width: the person's own dragged width wins over the
+  // zoom preset. Dragged on the column's right edge, remembered per device.
+  const carW = Number(loadPref("plannerCarW", 0)) || cfg.label;
+  const columnsSpec = `${carW}px repeat(${DAYS * 2}, minmax(${cfg.half}px, 1fr))`;
   grid.style.gridTemplateColumns = columnsSpec;
   if (headGrid) headGrid.style.gridTemplateColumns = columnsSpec;
+  wireCarColumnDrag(grid);
 
   // Width comes from the zoom level, never from the content. Stating it outright
   // means a day column is the same width whatever bookings happen to be on
