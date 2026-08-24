@@ -2963,9 +2963,10 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 .tl-daynum.col-hl { background: var(--amber-bg); color: var(--amber-text); }
 .tl-cell.col-hl { background: var(--amber-bg); }
 
-/* The tasks page must never pan sideways as a whole on a phone — boards and
-   lists scroll inside themselves; the page itself stays put */
-#view-tasks { overflow-x: clip; }
+/* Page-level sideways panning is prevented globally (html/body overflow-x
+   clip). A clip on the SECTION itself amputated the boards' intended
+   edge-to-edge bleed — the strip it cut is exactly one page padding, the
+   "DAY"→"AY" clipping in the pilot's circled screenshot (24 Aug). */
 #view-tasks .planner-bar { max-width: 100%; }
 .licence-info { font-size: 13px; color: var(--text); display: grid; gap: 3px;
   background: var(--bg); border: 1px dashed var(--border); border-radius: 4px; padding: 10px 12px; }
