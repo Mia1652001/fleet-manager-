@@ -14,7 +14,7 @@ import {
   el,
   requestFocus,
   carDocsDue
-} from "./store.js";
+, monthlySummary } from "./store.js";
 
 let root = null;
 
@@ -55,6 +55,72 @@ export function mount(container) {
 }
 
 
+// ---------- The three charts the pilot picked (24 Aug) ----------
+// Hand-rolled SVG: no libraries to load, nothing to break offline, prints
+// like everything else. All three read monthlySummary, the same helper the
+// Month-by-month report uses — one source, so chart and report always agree.
+const M_LETTERS = ["J","F","M","A","M","J","J","A","S","O","N","D"];
+
+function chartRevenueBars(months) {
+  const vals = months.map(m => m.income);
+  const max = Math.max(...vals, 1);
+  const W = 300, H = 120, base = 100, bw = 18, gap = 6.5;
+  const bars = vals.map((v, i) => {
+    const h = Math.round((v / max) * 82);
+    const x = 4 + i * (bw + gap);
+    return `<g><title>${M_LETTERS[i]}: ${formatAmount(v)}</title>
+      <rect x="${x}" y="${base - h}" width="${bw}" height="${Math.max(h, v > 0 ? 2 : 0)}" rx="2" fill="var(--accent)" opacity="0.85"/>
+      <text x="${x + bw / 2}" y="${H - 6}" text-anchor="middle" class="ch-lbl">${M_LETTERS[i]}</text></g>`;
+  }).join("");
+  return `<div class="chart"><h4>Revenue per month</h4>
+    <svg viewBox="0 0 ${W} ${H}" role="img">${bars}</svg></div>`;
+}
+
+function chartOccupancy(months, fleetSize) {
+  const now = new Date();
+  const mi = now.getMonth();
+  const daysInMonth = new Date(now.getFullYear(), mi + 1, 0).getDate();
+  const capacity = fleetSize * daysInMonth;
+  const pct = capacity ? Math.round((months[mi].rentedDays / capacity) * 100) : 0;
+  const shown = Math.min(pct, 100);
+  return `<div class="chart"><h4>Occupancy this month</h4>
+    <div class="occ-num">${pct}%</div>
+    <div class="occ-track"><div class="occ-fill" style="width:${shown}%"></div></div>
+    <div class="ch-note">${months[mi].rentedDays} rented day${months[mi].rentedDays === 1 ? "" : "s"} of ${capacity} (${fleetSize} car${fleetSize === 1 ? "" : "s"} \u00d7 ${daysInMonth} days)</div>
+  </div>`;
+}
+
+function chartIncomeExpenses(months) {
+  const inc = months.map(m => m.income), exp = months.map(m => m.expenses);
+  const max = Math.max(...inc, ...exp, 1);
+  const W = 300, H = 120, base = 100;
+  const pt = (v, i) => `${8 + i * 25.8},${base - Math.round((v / max) * 82)}`;
+  const line = (vals, cls) => `<polyline points="${vals.map(pt).join(" ")}" class="${cls}" fill="none"/>`;
+  const dots = (vals, cls) => vals.map((v, i) =>
+    `<circle cx="${pt(v, i).split(",")[0]}" cy="${pt(v, i).split(",")[1]}" r="2.4" class="${cls}"><title>${M_LETTERS[i]}: ${formatAmount(v)}</title></circle>`).join("");
+  const lbls = M_LETTERS.map((l, i) => `<text x="${8 + i * 25.8}" y="${H - 6}" text-anchor="middle" class="ch-lbl">${l}</text>`).join("");
+  return `<div class="chart"><h4>Income vs expenses</h4>
+    <svg viewBox="0 0 ${W} ${H}" role="img">
+      ${line(inc, "ch-line-inc")}${dots(inc, "ch-dot-inc")}
+      ${line(exp, "ch-line-exp")}${dots(exp, "ch-dot-exp")}${lbls}
+    </svg>
+    <div class="ch-note"><span class="ch-key ch-key-inc"></span> income \u2003 <span class="ch-key ch-key-exp"></span> expenses</div>
+  </div>`;
+}
+
+function renderCharts() {
+  const box = el(root, "dash-charts");
+  if (!box) return;
+  const y = new Date().getFullYear();
+  const yr = el(root, "charts-year");
+  if (yr) yr.textContent = String(y);
+  const months = monthlySummary(y).months;
+  box.innerHTML =
+    chartRevenueBars(months) +
+    chartOccupancy(months, state.cars.length) +
+    chartIncomeExpenses(months);
+}
+
 function figure(label, value, tone, goto, sub) {
   // The sub-line states each figure's population — the three counted
   // DIFFERENT sets of bookings by design, and three bare numbers side by
@@ -68,6 +134,7 @@ function figure(label, value, tone, goto, sub) {
 
 export function render() {
   if (!root) return;
+  renderCharts();
   const t = todayStr();
 
   renderAlerts(t);

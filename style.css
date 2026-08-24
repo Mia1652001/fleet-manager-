@@ -2974,3 +2974,21 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
 .linked-chip [data-unlink] { margin-left: auto; }
+
+/* ---------- Dashboard charts ---------- */
+.dash-charts-card { grid-column: 1 / -1; }
+.dash-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+.chart h4 { margin: 0 0 8px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.chart svg { width: 100%; height: auto; }
+.ch-lbl { font-family: var(--font-ui); font-size: 9px; fill: var(--muted); }
+.ch-line-inc { stroke: var(--green-text); stroke-width: 2; }
+.ch-line-exp { stroke: #b0483a; stroke-width: 2; stroke-dasharray: 4 3; }
+.ch-dot-inc { fill: var(--green-text); }
+.ch-dot-exp { fill: #b0483a; }
+.ch-note { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.ch-key { display: inline-block; width: 14px; height: 3px; vertical-align: middle; border-radius: 2px; }
+.ch-key-inc { background: var(--green-text); }
+.ch-key-exp { background: #b0483a; }
+.occ-num { font-family: var(--font-display); font-size: 2rem; margin: 6px 0 8px; }
+.occ-track { height: 10px; border-radius: 5px; background: var(--border); overflow: hidden; }
+.occ-fill { height: 100%; background: var(--green-text); border-radius: 5px; }
