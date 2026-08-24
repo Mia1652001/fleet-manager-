@@ -960,11 +960,17 @@ function renderBoard(jobs, from, to) {
   if (headWrap) headWrap.style.display = "";
   if (headGrid) {
     headGrid.style.gridTemplateColumns = columnsSpec;
+    // 100% so few columns stretch to fill the page exactly like the board's
+    // do; the min pixel floor so many columns lock both grids to the same
+    // width. The board itself must NOT carry the floor: it is its own
+    // scroller, and widening a scroller to its content leaves nothing to
+    // scroll — the sideways-scroll outage of 24 Aug, one property long.
+    headGrid.style.width = "100%";
     headGrid.style.minWidth = gridWidth + "px";
     headGrid.innerHTML = head;
   }
   box.style.gridTemplateColumns = columnsSpec;
-  box.style.minWidth = gridWidth + "px";
+  box.style.minWidth = "";
   box.innerHTML = rows;
   if (headWrap && !box.dataset.mirrorWired) {
     box.dataset.mirrorWired = "1";

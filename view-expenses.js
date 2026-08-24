@@ -409,10 +409,11 @@ function renderBoard(items) {
   if (headWrap) headWrap.style.display = "";
   if (headGrid) {
     headGrid.style.gridTemplateColumns = columnsSpec;
+    headGrid.style.width = "100%";
     headGrid.style.minWidth = gridWidth + "px";
     headGrid.innerHTML = head;
   }
-  box.style.minWidth = gridWidth + "px";
+  box.style.minWidth = "";
   box.innerHTML = rows;
   if (headWrap && !box.dataset.mirrorWired) {
     box.dataset.mirrorWired = "1";
