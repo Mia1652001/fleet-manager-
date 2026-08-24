@@ -174,6 +174,19 @@ export function mount(container) {
   el(root, "search").addEventListener("input", () => { jumpToSearchMatch(); render(); });
   el(root, "planner-xls").addEventListener("click", exportPlannerXls);
 
+  // The date strip's status-bar mask applies only while pinned: a 1px
+  // sentinel above it leaves the viewport exactly when the strip reaches the
+  // top, and the class follows. At rest there is no mask and no dead space.
+  {
+    const sentinel = el(root, "tl-pin-sentinel");
+    const wrap = el(root, "timeline-head-wrap");
+    if (sentinel && wrap && "IntersectionObserver" in window) {
+      new IntersectionObserver(([e]) =>
+        wrap.classList.toggle("hdr-pinned", !e.isIntersecting && e.boundingClientRect.top < 0)
+      ).observe(sentinel);
+    }
+  }
+
 
   const zoomEl = el(root, "zoom");
   zoomEl.value = String(zoom);

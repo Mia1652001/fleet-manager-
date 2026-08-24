@@ -305,6 +305,7 @@
         </div>
       </div>
       </div>
+      <div data-el="tl-pin-sentinel" style="height:1px;"></div>
       <div class="tl-head-wrap" data-el="timeline-head-wrap">
         <div class="timeline" data-el="timeline-head"></div>
       </div>
@@ -1056,7 +1057,6 @@
             <option value="task">Manual tasks only</option>
             <option value="service">Servicing only</option>
           </select>
-          <button class="btn-primary" data-el="add-task">+ Add task</button>
           <div class="filter-row" data-el="filters" style="margin-left:18px;">
             <select class="tab tab-select" data-el="range-past" title="Look back">
               <option value="">Past…</option>
@@ -1073,6 +1073,7 @@
             </select>
           </div>
           <div class="filter-row filter-row-last">
+            <button class="btn-primary" data-el="add-task">+ Add task</button>
             <button class="tab" data-el="toggle-done">Show completed</button>
             <!-- Same jobs, two ways of reading them: the list to work through a
                  day and tick things off, the board to see across the team. -->

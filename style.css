@@ -402,8 +402,7 @@ input[type="number"] {
    is the sacrificial strip it covers — without it, the overhang sliced the
    month-jump and Prev/Today/Next controls in half (pilot's screenshot,
    24 Aug). Zero in every browser. */
-.cal-header {
-  padding-bottom: env(safe-area-inset-top, 0px); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 1rem; }
+.cal-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 1rem; }
 .cal-title { font-family: var(--font-display); font-size: 1.3rem; font-weight: 400; white-space: nowrap; }
 .cal-nav { display: flex; gap: 6px; flex-wrap: wrap; }
 
@@ -1220,8 +1219,6 @@ input[type="number"] {
 #view-bookings .tl-head-wrap {
   position: sticky;
   top: 0;
-  padding-top: env(safe-area-inset-top, 0px);
-  margin-top: calc(-1 * env(safe-area-inset-top, 0px));
   z-index: 20;
   overflow-x: hidden;
   background: var(--bg);
@@ -3003,3 +3000,32 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 .occ-track { height: 10px; border-radius: 5px; background: var(--border); overflow: hidden; }
 .occ-fill { height: 100%; background: var(--green-text); border-radius: 5px; }
 
+
+
+/* ---------- Tasks toolbar, phone (pilot's sketch, 24 Aug) ----------
+   Search, then the staff/jobs pickers, then FOUR compact buttons in the
+   middle — Add task, Show completed, List, Board — and the Past/Today/Ahead
+   range row at the bottom, closest to the board it filters. */
+@media (max-width: 640px) {
+  /* Both control rows are children of .toolbar, so the ordering lives there:
+     search, the two pickers, then the four-button row, and the Past/Today/
+     Ahead ranges LAST — at the bottom, closest to the board they filter. */
+  #view-tasks .toolbar { display: flex; flex-direction: column; }
+  #view-tasks .toolbar > input[data-el="search"] { order: 1; }
+  #view-tasks .toolbar > .multi-pick { order: 2; }
+  #view-tasks .toolbar > select { order: 3; }
+  #view-tasks .toolbar > .filter-row-last { order: 4; display: flex; gap: 6px; }
+  #view-tasks .toolbar > [data-el="filters"] { order: 5; margin-left: 0 !important; }
+  #view-tasks .filter-row-last .btn-primary,
+  #view-tasks .filter-row-last .tab {
+    flex: 1 1 0; min-width: 0; padding: 9px 4px; font-size: 11px; white-space: nowrap;
+  }
+}
+
+
+/* The status-bar mask, applied ONLY while the date strip is actually pinned
+   (a sentinel observer toggles the class). The always-on padding technique
+   cost ~75px of dead space at rest — the pilot's circled gap (24 Aug). */
+#view-bookings .tl-head-wrap.hdr-pinned {
+  padding-top: env(safe-area-inset-top, 0px);
+}
