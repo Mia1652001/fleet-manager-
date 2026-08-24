@@ -1890,7 +1890,7 @@ input[type="number"] {
    than the window. Self-limiting, so a phone is unaffected — there the board is
    already as wide as the column and it scrolls sideways instead. */
 @media (min-width: 641px) {
-  #view-tasks .staff-board,
+  #view-tasks [data-el="board"],
   #view-tasks .board-head-wrap,
   #view-expenses .board-head-wrap {
     --board-w: min(100vw - 2rem, 2600px);
@@ -2285,7 +2285,7 @@ input[type="number"] {
     width: var(--exp-w);
     margin-left: calc(-1 * max(0px, (var(--exp-w) - 100%) / 2));
   }
-  #view-expenses .staff-board {
+  #view-expenses [data-el="xboard"] {
     --board-w: min(100vw - 2rem, 2600px);
     width: var(--board-w);
     margin-left: calc(-1 * max(0px, (var(--board-w) - 100%) / 2));
@@ -2485,11 +2485,18 @@ input[type="number"] {
    keeps the normal margin, so the controls stay in line with the rest of the
    app and only the grid itself widens. */
 @media (max-width: 640px) {
+  /* Full-bleed belongs to SCROLLERS and page-pinned WRAPS only — named by
+     data-el so the head grids inside the wraps (which share the .staff-board
+     class) can never inherit it. The generic .staff-board selector bled the
+     inner grids a second time: dates clipped off the left of the screen and
+     the expenses header sat a page-padding away from its own columns
+     (pilot's circled screenshots, 24 Aug). */
   #view-bookings .tl-head-wrap,
   #view-bookings .timeline-wrap,
   #view-tasks .board-head-wrap,
-  #view-tasks .staff-board,
-  #view-expenses .staff-board,
+  #view-expenses .board-head-wrap,
+  #view-tasks [data-el="board"],
+  #view-expenses [data-el="xboard"],
   #view-reports .rep-wrap {
     width: calc(100% + 2 * var(--main-pad-x, 0.9rem));
     margin-left: calc(-1 * var(--main-pad-x, 0.9rem));
@@ -2501,7 +2508,7 @@ input[type="number"] {
   /* The frozen date/name strip holds its own copy of the grid. It must fill
      that strip and not shift again, or the two would sit a padding apart and
      the columns would stop lining up. */
-  #view-tasks .board-head-wrap .staff-board {
+  .board-head-wrap .staff-board {
     width: 100%;
     margin-left: 0;
   }

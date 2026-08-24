@@ -952,8 +952,10 @@ function renderBoard(jobs, from, to) {
   // Two grids agree here for the same reason the planner's do: BOTH get the
   // same column spec AND the same explicit min pixel width, so the track
   // arithmetic is identical by construction, not by hope.
-  const dayMin = phone ? 84 : 96;
-  const colMin = phone ? 180 : 120;
+  // Phone minimums sized so a day column and two staff fit the screen with
+  // nothing to scroll — the common case; more staff scroll, dates pinned.
+  const dayMin = phone ? 64 : 96;
+  const colMin = phone ? 150 : 120;
   const gridWidth = dayMin + columns.length * colMin;
   const headWrap = el(root, "board-head-wrap");
   const headGrid = el(root, "board-head");
