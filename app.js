@@ -91,7 +91,10 @@ onAuthStateChanged(auth, async (user) => {
     state.ctx = {
       user,
       companyId: snap.data().companyId,
-      companyName: snap.data().companyName || snap.data().companyId
+      companyName: snap.data().companyName || snap.data().companyId,
+      // access level, set per login in the console. Missing = admin, so every
+      // existing login keeps exactly the access it has today.
+      role: snap.data().role || "admin"
     };
     startApp();
   } catch (e) {
@@ -234,6 +237,9 @@ function startApp() {
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("company-label").textContent = state.ctx.companyName;
+  applyRoleNav();
+  { const allowed = ROLE_TABS[state.ctx?.role] ?? null;
+    if (allowed && !allowed.includes(currentViewFromHash())) showView(allowed[0]); }
 
   if (!wired) {
     wired = true;
@@ -406,7 +412,27 @@ function wireNav() {
   window.addEventListener("hashchange", () => showView(currentViewFromHash()));
 }
 
+// Which tabs each access level sees. Interface-level in this version — it
+// hides screens and blocks navigation; data rules underneath come as stage
+// two. Admin is the default so existing logins change nothing.
+const ROLE_TABS = {
+  staff: ["tasks"],
+  manager: ["dashboard", "bookings", "tasks", "expenses", "fleet", "customers", "billing", "reports", "maintenance"],
+  admin: null   // everything
+};
+function allowedTabs() {
+  return ROLE_TABS[state.ctx?.role] ?? null;
+}
+export function applyRoleNav() {
+  const allowed = allowedTabs();
+  document.querySelectorAll("#main-nav a").forEach(a => {
+    a.style.display = (!allowed || allowed.includes(a.dataset.view)) ? "" : "none";
+  });
+}
+
 function showView(name) {
+  const allowed = allowedTabs();
+  if (allowed && !allowed.includes(name)) name = allowed[0];
   document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
   document.getElementById("view-" + name).classList.add("active");
 

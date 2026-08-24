@@ -397,7 +397,13 @@ input[type="number"] {
 .login-card .btn-primary { width: 100%; margin-top: 6px; padding: 10px; }
 
 /* ---------- Calendar ---------- */
-.cal-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 1rem; }
+/* In the installed app the planner's frozen header paints one status-bar
+   height ABOVE its resting place (the standalone-pin technique). This padding
+   is the sacrificial strip it covers — without it, the overhang sliced the
+   month-jump and Prev/Today/Next controls in half (pilot's screenshot,
+   24 Aug). Zero in every browser. */
+.cal-header {
+  padding-bottom: env(safe-area-inset-top, 0px); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 1rem; }
 .cal-title { font-family: var(--font-display); font-size: 1.3rem; font-weight: 400; white-space: nowrap; }
 .cal-nav { display: flex; gap: 6px; flex-wrap: wrap; }
 
@@ -2901,6 +2907,11 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 .tl-car { cursor: default; }
 .tl-car::after { content: ""; position: absolute; right: -3px; top: 0; bottom: 0; width: 7px; cursor: col-resize; }
 
+/* In the installed app the planner's frozen header paints into the safe-area
+   strip above its resting place — the stepper row above it donates padding of
+   the same height, so the overhang eats air instead of buttons (pilot, 24 Aug) */
+#view-bookings .cal-nav { padding-bottom: env(safe-area-inset-top, 0px); }
+
 /* The car-column resize grip: lives in the frozen corner so it is always on
    screen; touch-action none means a finger on it drags width, never scrolls */
 .tl-corner { position: relative; }
@@ -2949,3 +2960,8 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 #view-tasks .planner-bar { max-width: 100%; }
 .licence-info { font-size: 13px; color: var(--text); display: grid; gap: 3px;
   background: var(--bg); border: 1px dashed var(--border); border-radius: 4px; padding: 10px 12px; }
+
+/* Voided rows in the invoice register */
+.inv-void { opacity: 0.62; }
+.inv-void th, .inv-void td { text-decoration: none; }
+.pay-chip.void { background: #f3e3e3; color: #9c2f2f; border: 1px solid #d9b3b3; }

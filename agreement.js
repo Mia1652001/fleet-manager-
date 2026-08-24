@@ -572,6 +572,48 @@ export function openInvoice(bookingId, justIssuedNo, justKind) {
   return openPrintable(invoiceHtml(b, justIssuedNo, justKind));
 }
 
+// A voided invoice, reprinted for the file: the entity that issued it, the
+// number, the figures as recorded at void time, and an unmissable VOID stamp.
+// The register keeps the number forever; this is its paper face.
+export function openVoidedInvoice(bookingId, no) {
+  const b = state.bookings.find(x => x.id === bookingId);
+  const v = b && (b.voidedInvoices || []).find(x => x.no === no);
+  if (!b || !v) { alert("Voided invoice not found."); return { ok: false }; }
+  const ent = entityForBooking(b, v.entityId || "");
+  const isVat = v.kind === "vat";
+  const w = window.open("", "_blank");
+  if (!w) return { ok: false, reason: "Pop-up blocked" };
+  w.document.write(`<!DOCTYPE html><html><head><title>${isVat ? "VAT invoice" : "Invoice"} ${esc(v.no)} (VOID)</title>
+${DOC_STYLES}
+<style>
+  .void-stamp { position: fixed; top: 34%; left: 8%; right: 8%; text-align: center;
+    font-family: var(--font-display, serif); font-size: 96px; letter-spacing: 0.2em;
+    color: rgba(180, 40, 40, 0.28); border: 6px solid rgba(180, 40, 40, 0.28);
+    border-radius: 10px; transform: rotate(-14deg); padding: 12px 0; pointer-events: none; }
+</style></head><body>
+${DOC_ACTIONS}
+<div class="void-stamp">VOID</div>
+<div class="ag-head">
+  ${companyBlock(ent)}
+  <div class="ag-title">
+    <h1>${isVat ? "VAT invoice" : "Invoice"}</h1>
+    <div class="ag-ref">${esc(v.no)}</div>
+    <div class="ag-issued">Issued ${esc(formatDate(String(v.issuedAt || "").slice(0, 10)))}</div>
+    <div class="ag-issued"><strong>VOIDED ${esc(formatDate(String(v.voidedAt || "").slice(0, 10)))}</strong></div>
+  </div>
+</div>
+<p>This document was voided and is kept for the records. It is not a request for payment.
+A replacement, if issued, carries its own number.</p>
+<h2>Amount as invoiced</h2>
+<table class="ag-table">
+  <tr class="ag-total"><th>Total</th><td class="ag-num">${esc(formatAmount(Number(v.total) || 0))}</td></tr>
+</table>
+${docFoot(ent, `${isVat ? "VAT invoice" : "Invoice"} ${esc(v.no)} \u2014 VOID`)}
+</body></html>`);
+  w.document.close();
+  return { ok: true };
+}
+
 function invoiceHtml(b, justIssuedNo, justKind) {
   // Serialized: the snapshot taken at issue decides who issued this invoice —
   // re-tagging the car later can never rewrite an issued document. Invoices

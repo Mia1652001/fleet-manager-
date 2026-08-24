@@ -6,7 +6,7 @@
 
 import { db, setSync } from "./firebase-init.js";
 import { openAgreement, openConfirmation, openReceipt, openInvoice, emailBooking, whatsappBooking, CAR_OUTLINE } from "./agreement.js";
-import { collection, addDoc, updateDoc, deleteDoc, doc, arrayUnion, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, updateDoc, deleteDoc, doc, arrayUnion, deleteField, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
   makeBookingRef, bookingRef, showToast,
@@ -192,6 +192,9 @@ export function mountBookingForm() {
 
   root.querySelectorAll("[data-close]").forEach(b =>
     b.addEventListener("click", () => closeModal(root, b.dataset.close)));
+
+  el(root, "void-invoice").addEventListener("click", () => voidDocument("invoice"));
+  el(root, "void-receipt").addEventListener("click", () => voidDocument("receipt"));
 
   // The pinned "✓ Paid" pill mirrors the Marked-as-paid checkbox both
   // ways — one state, two handles, the second reachable without scrolling to
@@ -508,6 +511,49 @@ function entityPrefixFrom(data, ent) {
     ? String(((data.entities || []).find(e => e.id === ent.id) || ent).prefix || "")
     : String(data.receiptPrefix || "");
   return raw.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
+}
+
+// Void a serialized document, the accountant's way (pilot, 24 Aug): the
+// number stays in the records marked VOID — never deleted, never reused —
+// and a fresh document can then be issued under the NEXT number. The record
+// keeps enough to reprint a VOID-stamped copy for the file.
+async function voidDocument(which) {
+  const b = state.bookings.find(x => x.id === editingBookingId);
+  if (!b) return;
+  const inv = which === "invoice";
+  const no = inv ? b.invoiceNo : b.receiptNo;
+  if (!no) return;
+  const ok = confirm(
+    `Void ${inv ? "invoice" : "receipt"} ${no}?\n\nIts number stays in the records marked VOID, ` +
+    `and a new ${inv ? "invoice" : "receipt"} can then be issued with the next number.`);
+  if (!ok) return;
+  const rec = inv ? {
+    no, kind: b.invoiceKind || "normal", entityId: b.invoiceEntityId || "",
+    total: typeof b.invoiceTotalAt === "number" ? b.invoiceTotalAt : amountDue(b),
+    vatPct: typeof b.invoiceVatPct === "number" ? b.invoiceVatPct : 0,
+    issuedAt: b.invoiceIssuedAt || "", voidedAt: new Date().toISOString(),
+    voidedBy: state.ctx?.user?.email || ""
+  } : {
+    no, entityId: b.receiptEntityId || "",
+    total: paidTotal(b),
+    issuedAt: b.receiptIssuedAt || "", voidedAt: new Date().toISOString(),
+    voidedBy: state.ctx?.user?.email || ""
+  };
+  try {
+    const patch = inv ? {
+      voidedInvoices: arrayUnion(rec),
+      invoiceNo: deleteField(), invoiceKind: deleteField(), invoiceIssuedAt: deleteField(),
+      invoiceTotalAt: deleteField(), invoiceEntityId: deleteField(), invoiceVatPct: deleteField()
+    } : {
+      voidedReceipts: arrayUnion(rec),
+      receiptNo: deleteField(), receiptIssuedAt: deleteField(),
+      receiptIssuedBy: deleteField(), receiptEntityId: deleteField()
+    };
+    await updateDoc(doc(db, "bookings", b.id), patch);
+    showToast(`${inv ? "Invoice" : "Receipt"} ${no} voided`);
+  } catch (err) {
+    showError(root, "booking-error", "Couldn't void (" + (err.code || err.message) + ")");
+  }
 }
 
 async function issueReceipt() {
@@ -1201,6 +1247,10 @@ export function openBookingModal(bookingId, preset) {
       ib.textContent = editing && hasInvoiceNo(editing)
         ? `Invoice ${invoiceNo(editing)}` : "Invoice";
     }
+    { const vb = el(root, "void-invoice");
+      if (vb) vb.style.display = editing && hasInvoiceNo(editing) ? "inline-block" : "none"; }
+    { const vr = el(root, "void-receipt");
+      if (vr) vr.style.display = editing && hasReceiptNo(editing) ? "inline-block" : "none"; }
     const db2 = el(root, "damage-btn");
     if (db2) db2.style.display = editing ? "inline-block" : "none";
     const sb = el(root, "sign-btn");

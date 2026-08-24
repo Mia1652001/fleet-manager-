@@ -12,13 +12,13 @@ import {
   state, onDataChange, esc, formatAmount, formatDate, todayStr,
   revenueByCarMonth, expensesByCarMonth, monthlySummary,
   bookingYears, companyName, bookingCarLabel, bookingRef,
-  amountDue, vatSplit, balanceFor, paidPatch, paidTotal, hasLedger, hasStarted,
+  invoiceTotal, amountDue, vatSplit, balanceFor, paidPatch, paidTotal, hasLedger, hasStarted,
   extraEntities, mainEntity,
   revenueByBrokerMonth,
   loadPref, savePref, el
 } from "./store.js";
 import { loadXlsx, downloadBlob } from "./backup.js";
-import { openInvoice } from "./agreement.js";
+import { openVoidedInvoice, openInvoice } from "./agreement.js";
 import { openPayModal, openDepositModal } from "./view-billing.js";
 import { openBookingModal } from "./booking-form.js";
 import { db, setSync } from "./firebase-init.js";
@@ -73,7 +73,14 @@ function issuedInvoices() {
   // nothing can hide from the money page by never having been invoiced. An
   // uninvoiced booking files under its start date instead of an issue date.
   const everything = invKind === "everything";
-  return state.bookings
+  const voidRows = [];
+  state.bookings.forEach(b => (b.voidedInvoices || []).forEach(v => voidRows.push({
+    b, no: String(v.no || ""), at: String(v.issuedAt || "").slice(0, 10),
+    total: Number(v.total) || 0, isVat: v.kind === "vat", split: null,
+    entityId: v.entityId || "", received: 0, balance: 0, status: "VOID",
+    voided: true, voidedAt: String(v.voidedAt || "").slice(0, 10)
+  })));
+  const live = state.bookings
     .filter(b => everything || b.invoiceNo)
     .map(b => {
       const at = String(b.invoiceIssuedAt || "").slice(0, 10)
@@ -96,6 +103,14 @@ function issuedInvoices() {
       && (repEntity === "*"
         || (r.no ? (r.b.invoiceEntityId || "") === repEntity
                  : carEntityId(r.b.carId) === repEntity)))
+    ;
+  // voided numbers obey the same range, kind and company filters as live
+  // ones — a register where VOID rows ignore the filters is just noise
+  const okVoid = v =>
+    v.at && (!invFrom || v.at >= invFrom) && (!invTo || v.at <= invTo)
+    && (everything || !invKind || (invKind === "vat") === v.isVat)
+    && (repEntity === "*" || (v.entityId || "") === repEntity);
+  return live.concat(voidRows.filter(okVoid))
     .sort((a, c) => a.at.localeCompare(c.at) || a.no.localeCompare(c.no));
 }
 
@@ -157,6 +172,8 @@ export function mount(container) {
   el(root, "rep-table").addEventListener("click", (e) => {
     // The number itself opens the document — a real click, so no pop-up
     // blocker has anything to say about it.
+    const voidBtn = e.target.closest("[data-print-void]");
+    if (voidBtn) { openVoidedInvoice(voidBtn.dataset.printVoid, voidBtn.dataset.voidNo); return; }
     const openBtn = e.target.closest("[data-open-invoice]");
     if (openBtn) {
       const r = openInvoice(openBtn.dataset.openInvoice);
@@ -195,6 +212,8 @@ function refreshYearOptions() {
 }
 
 let repEntity = "*";   // "*" = all companies, "" = main, otherwise entity id
+let billStatus = "all";      // all | paid | unpaid | upcoming
+let billBroker = "*";        // "*" = everyone
 
 // The company filter appears only when trading companies exist — the
 // single-company customer never sees it (pilot, 21 Aug: "filter by Company").
@@ -253,6 +272,7 @@ export function render() {
   }
 
   if (current === "revenue") renderCarGrid(rev, "earned", "revenue");
+  else if (current === "billing") renderBillingReport();
   else if (current === "broker") {
     // brokers can't be attributed to a trading company without guessing —
     // the same honest note as month-by-month when the filter is active
@@ -282,6 +302,69 @@ export function render() {
 // ---------- The two car grids ----------
 // One function for both: a report that totalled its rows differently from its
 // sibling would be a bug waiting to be argued about in a meeting.
+// The Billing page as a table with filters — his words: "just convert the
+// Billing tab in tabular form" with Unpaid / not started / brokers (24 Aug).
+// Same category rule as Billing (paid wins; else started = unpaid, else
+// upcoming), same money helpers, so the two screens can never disagree.
+function renderBillingReport() {
+  const box = el(root, "rep-table");
+  const note = el(root, "rep-note");
+  const ctrl = el(root, "rep-controls");
+  const y = String(year);
+  const catOf = b => b.paid ? "paid" : hasStarted(b) ? "unpaid" : "upcoming";
+
+  let rows = state.bookings.filter(b => String(b.startDate || "").slice(0, 4) === y);
+  if (repEntity !== "*") rows = rows.filter(b => carEntityId(b.carId) === repEntity);
+  const brokers = [...new Set(rows.map(b => (b.broker || "").trim()).filter(Boolean))].sort();
+  if (billBroker !== "*") rows = rows.filter(b => (b.broker || "").trim() === billBroker);
+  if (billStatus !== "all") rows = rows.filter(b => catOf(b) === billStatus);
+  rows.sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)));
+
+  ctrl.innerHTML = `<div class="filter-row" style="margin-bottom:8px;">
+      <select data-el="bill-status">
+        ${[["all", "All bookings"], ["paid", "Paid"], ["unpaid", "Unpaid"], ["upcoming", "Not started"]]
+          .map(([v, n]) => `<option value="${v}"${billStatus === v ? " selected" : ""}>${n}</option>`).join("")}
+      </select>
+      <select data-el="bill-broker">
+        <option value="*">All brokers</option>
+        ${brokers.map(n => `<option value="${esc(n)}"${billBroker === n ? " selected" : ""}>${esc(n)}</option>`).join("")}
+      </select>
+    </div>`;
+  ctrl.querySelector('[data-el="bill-status"]').addEventListener("change", (e) => { billStatus = e.target.value; render(); });
+  ctrl.querySelector('[data-el="bill-broker"]').addEventListener("change", (e) => { billBroker = e.target.value; render(); });
+
+  if (!rows.length) {
+    box.innerHTML = `<div class="empty">No bookings match in ${esc(y)}.</div>`;
+    note.textContent = "";
+    return;
+  }
+  const BADGE = { paid: "Paid", unpaid: "Unpaid", upcoming: "Not started" };
+  const totals = rows.reduce((a, b) => {
+    a.total += invoiceTotal(b); a.recv += paidTotal(b);
+    if (catOf(b) === "unpaid") a.owed += balanceFor(b);
+    return a;
+  }, { total: 0, recv: 0, owed: 0 });
+
+  box.innerHTML = `<table class="rep-table">
+    <thead><tr><th>Booking</th><th>Renter</th><th>Car</th><th>From</th><th>To</th><th>Broker</th>
+      <th class="rep-num">Total</th><th class="rep-num">Received</th><th class="rep-num">Balance</th><th>Status</th></tr></thead>
+    <tbody>
+      ${rows.map(b => `<tr>
+        <td>${esc(bookingRef(b))}</td><td>${esc(b.renter || "")}</td><td>${esc(bookingCarLabel(b))}</td>
+        <td>${esc(formatDate(b.startDate))}</td><td>${esc(formatDate(b.endDate))}</td><td>${esc(b.broker || "\u2014")}</td>
+        <td class="rep-num">${esc(formatAmount(invoiceTotal(b)))}</td>
+        <td class="rep-num">${esc(formatAmount(paidTotal(b)))}</td>
+        <td class="rep-num">${esc(formatAmount(balanceFor(b)))}</td>
+        <td>${BADGE[catOf(b)]}</td></tr>`).join("")}
+    </tbody>
+    <tfoot><tr><th colspan="6">${rows.length} booking${rows.length === 1 ? "" : "s"}</th>
+      <th class="rep-num">${esc(formatAmount(totals.total))}</th>
+      <th class="rep-num">${esc(formatAmount(totals.recv))}</th>
+      <th class="rep-num">${esc(formatAmount(totals.owed))}</th><th></th></tr></tfoot>
+  </table>`;
+  note.textContent = "Balance column sums only unpaid, started bookings \u2014 the same rule as the Billing page.";
+}
+
 function renderCarGrid(data, verb, which) {
   const box = el(root, "rep-table");
   const note = el(root, "rep-note");
@@ -483,7 +566,20 @@ function renderInvoices() {
         </tr>
       </thead>
       <tbody>
-        ${rows.map(r => `
+        ${rows.map(r => r.voided ? `
+          <tr class="inv-void">
+            <th class="rep-car"><button type="button" class="inv-open" data-print-void="${r.b.id}" data-void-no="${esc(r.no)}">${esc(r.no)}</button>
+              <span class="rep-model">${r.isVat ? "VAT invoice" : "Invoice"} · <span class="pay-chip void">VOID</span></span></th>
+            <td>${esc(formatDate(r.at))}</td>
+            <td>${esc(r.b.renter || "")}</td>
+            <td>${esc(bookingCarLabel(r.b))}</td>
+            <td class="rep-num"><span class="rep-zero">\u2014</span></td>
+            <td class="rep-num"><span class="rep-zero">\u2014</span></td>
+            <td class="rep-num">${esc(money(r.total))}</td>
+            <td class="rep-num"><span class="rep-zero">\u2014</span></td>
+            <td class="rep-num">voided ${esc(formatDate(r.voidedAt))}</td>
+            <td class="inv-actions"></td>
+          </tr>` : `
           <tr>
             <th class="rep-car"><button type="button" class="inv-open" data-open-invoice="${r.b.id}">${esc(r.no)}</button>
               <span class="rep-model">${r.isVat ? `VAT invoice · ${esc(String(r.pct))}%` : "Invoice"}</span></th>
