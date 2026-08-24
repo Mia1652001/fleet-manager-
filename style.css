@@ -2965,3 +2965,12 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 .inv-void { opacity: 0.62; }
 .inv-void th, .inv-void td { text-decoration: none; }
 .pay-chip.void { background: #f3e3e3; color: #9c2f2f; border: 1px solid #d9b3b3; }
+
+/* The linked-customer chip under Name on booking */
+.linked-chip {
+  margin-top: 6px; font-size: 12px; color: var(--green-text);
+  background: var(--green-bg); border: 1px solid var(--green-text);
+  border-radius: 4px; padding: 6px 10px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.linked-chip [data-unlink] { margin-left: auto; }

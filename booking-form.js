@@ -72,7 +72,15 @@ export function mountBookingForm() {
     const r = whatsappBooking(editingBookingId);
     if (!r.ok) showError(root, "booking-error", r.reason);
   });
-  el(root, "b-customer").addEventListener("change", toggleNewCustomer);
+  // The Name-on-booking field links itself to the customer register as the
+  // person types — the pilot's thrice-asked merge (spec: exact match links
+  // and fills the contact; anything else stays free text, unregistered).
+  el(root, "b-quickname").addEventListener("input", tryLinkFromName);
+  el(root, "b-linked").addEventListener("click", (e) => {
+    if (!e.target.closest("[data-unlink]")) return;
+    linkedCustomerId = null;
+    paintLinked();
+  });
   el(root, "b-currency").addEventListener("change", syncCurrencyFields);
   // The reverse of Billing's "View booking": from the booking straight to its
   // invoice. Only for saved bookings — a form not yet saved has no invoice.
@@ -247,49 +255,50 @@ function keepReturnAfterPickup() {
   syncMoneyBlock();
 }
 
-function toggleNewCustomer() {
-  const v = el(root, "b-customer").value;
-  el(root, "b-new-fields").style.display = v === "__new__" ? "block" : "none";
-  el(root, "b-quick-fields").style.display = v === "__quick__" ? "block" : "none";
-  showSavedContact(v);
+// ---------- Name-to-customer linking ----------
+let linkedCustomerId = null;
+
+function fillCustomerDatalist() {
+  const d = document.getElementById("dl-customers");
+  if (d) d.innerHTML = state.customers.slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(c => `<option value="${esc(c.name)}">`).join("");
 }
 
-// For a saved customer the details belong to their record rather than to this
-// booking, so they are shown rather than offered for editing — two editable
-// copies of one phone number is how a customer ends up with two of them. A
-// missing number is called out here, before someone presses WhatsApp and finds
-// out the hard way.
-function showSavedContact(choice) {
-  const box = el(root, "b-contact-box");
-  if (!box) return;
-
-  const c = (choice && choice !== "__new__" && choice !== "__quick__")
-    ? state.customers.find(x => x.id === choice)
-    : null;
-
-  contactCustomerId = c ? c.id : null;
-  if (!c) { box.style.display = "none"; return; }
-
-  const bits = [];
-  if (c.phone) bits.push(`Phone ${c.phone}`);
-  if (c.email) bits.push(c.email);
-
-  box.style.display = "block";
-  const note = el(root, "b-contact-note");
-  note.classList.toggle("warn", !c.phone);
-  note.textContent = bits.length
-    ? `${bits.join(" · ")} — from ${c.name}'s record`
-    : `No phone or email saved for ${c.name} — a confirmation cannot be sent`;
-
-  el(root, "b-contact-toggle").textContent = bits.length
-    ? "Change phone or email" : "+ Add phone or email";
-
-  // Closed each time the form opens, so it never appears mid-edit from a
-  // previous booking.
-  el(root, "b-contact-edit").style.display = "none";
-  setVal(root, "b-cust-phone", c.phone || "");
-  setVal(root, "b-cust-email", c.email || "");
+function paintLinked() {
+  const chip = el(root, "b-linked");
+  const phone = el(root, "b-quickphone");
+  const email = el(root, "b-quickemail");
+  const c = linkedCustomerId ? state.customers.find(x => x.id === linkedCustomerId) : null;
+  if (!c) {
+    linkedCustomerId = null;
+    if (chip) chip.style.display = "none";
+    if (phone) phone.readOnly = false;
+    if (email) email.readOnly = false;
+    return;
+  }
+  if (chip) {
+    chip.style.display = "";
+    chip.innerHTML = `Linked to <strong>${esc(c.name)}</strong>${c.phone ? " \u00b7 " + esc(c.phone) : ""}
+      in the customer register <button type="button" class="btn btn-small" data-unlink>Unlink</button>`;
+  }
+  // The record owns the contact while linked — two editable copies of one
+  // phone number is how a customer ends up with two of them (the old saved-
+  // customer rule, carried over).
+  if (phone) { phone.value = c.phone || ""; phone.readOnly = true; }
+  if (email) { email.value = c.email || ""; email.readOnly = true; }
 }
+
+function tryLinkFromName() {
+  const typed = val(root, "b-quickname").trim().toLowerCase();
+  const c = typed ? state.customers.find(x => (x.name || "").trim().toLowerCase() === typed) : null;
+  const next = c ? c.id : null;
+  if (next === linkedCustomerId) return;
+  linkedCustomerId = next;
+  paintLinked();
+}
+
+
 
 // Saved straight to the customer, not held until the booking is saved: it is a
 // different record, and pressing Cancel on a booking should not throw away a
@@ -307,7 +316,7 @@ async function saveCustomerContact() {
     showToast("Saved to the customer record");
     // state.customers has already been updated by the listener, so this redraws
     // the line with the new details rather than the old ones.
-    showSavedContact(el(root, "b-customer").value);
+    paintLinked();
   } catch (e) {
     showError(root, "booking-error", "Couldn't save the contact details (" + (e.code || e.message) + ").");
     setSync("error");
@@ -1113,16 +1122,8 @@ export function openBookingModal(bookingId, preset) {
   fillSuggestions();
   fillCurrencyOptions();
 
-  const csel = el(root, "b-customer");
-  csel.innerHTML = state.customers.slice()
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map(c => `<option value="${c.id}">${esc(c.name)}${c.phone ? " · " + esc(c.phone) : ""}</option>`)
-    .join("")
-    + `<option value="__new__">+ New customer (adds to the register)</option>`
-    + `<option value="__quick__">Just this booking (not added to the register)</option>`;
-  // They mostly take a name rather than creating a customer record, so this
-  // is the default; picking a saved customer is still one click away.
-  csel.value = "__quick__";
+  fillCustomerDatalist();
+  linkedCustomerId = null;
 
   ["b-name","b-phone","b-email","b-quickname","b-quickphone","b-quickemail","b-start","b-end",
    "b-pickup","b-dropoff","b-total","b-delivery","b-insurance","b-other","b-passport","b-licence",
@@ -1203,10 +1204,12 @@ export function openBookingModal(bookingId, preset) {
         ? editing.bankChargePct : "");
     paintColourSwatches(editing.barColour || "");
     setSwatch(root, "b-colour", editing.barColour || "");
-    if (editing.customerId && state.customers.some(c => c.id === editing.customerId)) {
-      csel.value = editing.customerId;
+    const linkedC = editing.customerId ? state.customers.find(c => c.id === editing.customerId) : null;
+    if (linkedC) {
+      linkedCustomerId = linkedC.id;
+      setVal(root, "b-quickname", linkedC.name || editing.renter || "");
     } else {
-      csel.value = "__quick__";
+      linkedCustomerId = null;
       setVal(root, "b-quickname", editing.renter || "");
       setVal(root, "b-quickphone", editing.phone || "");
       setVal(root, "b-quickemail", editing.email || "");
@@ -1259,7 +1262,7 @@ export function openBookingModal(bookingId, preset) {
   el(root, "email-booking").style.display = editing ? "inline-block" : "none";
   el(root, "whatsapp-booking").style.display = editing ? "inline-block" : "none";
 
-  toggleNewCustomer();
+  paintLinked();
   syncCardCharge();
   showError(root, "booking-error", null);
   syncMoneyBlock();
@@ -1294,31 +1297,22 @@ async function saveBooking() {
   showError(root, "booking-error", null);
 
   const carId = el(root, "b-car").value;
-  const choice = el(root, "b-customer").value;
   const startDate = val(root, "b-start");
   const endDate = val(root, "b-end");
 
+  // One field, two outcomes: a name that matched the register saves as that
+  // customer (contact from their record); any other name stays free text on
+  // the booking itself, unregistered — the pilot's spec, word for word.
   let customerId, renter, phone, email;
-  if (choice === "__quick__") {
-    // No customer record is created or looked up, but the contact details are
-    // still kept on the booking itself — otherwise there is nothing to send a
-    // confirmation to, and this is the path most walk-ins are booked through.
+  const linked = linkedCustomerId ? state.customers.find(x => x.id === linkedCustomerId) : null;
+  if (linked) {
+    customerId = linked.id; renter = linked.name;
+    phone = linked.phone || ""; email = linked.email || "";
+  } else {
     renter = val(root, "b-quickname");
     phone = val(root, "b-quickphone");
     email = val(root, "b-quickemail");
     if (!renter) { showError(root, "booking-error", "Enter a name for this booking."); return; }
-  } else if (choice === "__new__") {
-    renter = val(root, "b-name");
-    phone = val(root, "b-phone");
-    email = val(root, "b-email");
-    if (!renter) { showError(root, "booking-error", "Enter the new customer's name."); return; }
-  } else {
-    const c = state.customers.find(x => x.id === choice);
-    if (!c) { showError(root, "booking-error", "Pick a customer."); return; }
-    // Email is copied the same way the phone is. Leaving it out meant saving
-    // an edit wrote email: "" onto the booking — harmless for sending (which
-    // falls back to the customer record) but needlessly asymmetric.
-    customerId = c.id; renter = c.name; phone = c.phone || ""; email = c.email || "";
   }
 
   if (!carId || !startDate || !endDate) {
@@ -1352,15 +1346,7 @@ async function saveBooking() {
   try {
     // Only the "New customer" option adds to the register. The quick option used
     // to create a record too, despite saying it would not — which is why names
-    // like "Blocked" and "customer 1" ended up in the customer list. The contact
-    // details live on the booking instead, so a confirmation can still be sent.
-    if (!customerId && choice === "__new__") {
-      const ref = await addDoc(collection(db, "customers"), {
-        companyId: state.ctx.companyId, name: renter, phone, email: email || "",
-        license: "", notes: "", createdAt: new Date().toISOString()
-      });
-      customerId = ref.id;
-    }
+
 
     const car = state.cars.find(x => x.id === carId);
     // The daily rate is snapshotted when the booking is created and then kept
