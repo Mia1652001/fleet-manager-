@@ -116,11 +116,17 @@ export function mount(container) {
     }
   });
 
-  el(root, "fleet-focus").addEventListener("click", (e) => {
-    if (!e.target.closest("[data-el='fleet-focus-clear']")) return;
-    fleetFocus = null;
-    render();
-  });
+  {
+    // guarded: a missing banner must degrade to a missing feature, never to
+    // a boot crash on the login screen (24 Aug — misplaced markup did exactly
+    // that; the guard makes the whole class impossible)
+    const ff = el(root, "fleet-focus");
+    if (ff) ff.addEventListener("click", (e) => {
+      if (!e.target.closest("[data-el='fleet-focus-clear']")) return;
+      fleetFocus = null;
+      render();
+    });
+  }
 
   onDataChange(() => { if (root.classList.contains("active")) render(); });
 }
