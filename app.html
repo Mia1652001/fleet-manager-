@@ -211,6 +211,7 @@
               </datalist>
             </div>
             <div class="field"><label>Colour</label><input data-el="c-colour" placeholder="e.g. silver"></div>
+            <div data-el="c-customs"></div>
             <div class="field"><label>Rented under</label>
               <select data-el="c-entity"></select></div>
           </div>
@@ -271,6 +272,7 @@
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search booking by car or renter...">
         <button class="btn" data-el="check-avail" title="Enter dates and see every free car">Check availability</button>
+        <button class="btn" data-el="planner-xls" title="Download the visible planner window as Excel, colours included">Excel</button>
       </div>
       <div class="cal-header">
         <div class="cal-title" data-el="cal-title">—</div>
@@ -528,6 +530,7 @@
         <button class="tab active" data-rep="revenue">Revenue by car</button>
         <button class="tab" data-rep="expenses">Expenses by car</button>
         <button class="tab" data-rep="monthly">Month by month</button>
+        <button class="tab" data-rep="broker">By broker</button>
         <button class="tab" data-rep="invoices">Invoices</button>
       </div>
 
@@ -780,6 +783,11 @@
           <div class="field">
             <label for="s-brn">Business Registration Number (BRN)</label>
             <input type="text" id="s-brn" data-el="s-brn" placeholder="printed on invoices when set">
+          </div>
+          <div class="field">
+            <label>Custom fields on Fleet <span class="settings-note-inline">shown on every car's Edit dialog</span></label>
+            <div data-el="cf-list"></div>
+            <button type="button" class="btn" data-el="cf-add">+ Add a field</button>
           </div>
           <div class="field">
             <label for="s-invoice-note">Text on every invoice</label>

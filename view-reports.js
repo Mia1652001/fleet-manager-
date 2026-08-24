@@ -14,6 +14,7 @@ import {
   bookingYears, companyName, bookingCarLabel, bookingRef,
   amountDue, vatSplit, balanceFor, paidPatch, paidTotal, hasLedger, hasStarted,
   extraEntities, mainEntity,
+  revenueByBrokerMonth,
   loadPref, savePref, el
 } from "./store.js";
 import { loadXlsx, downloadBlob } from "./backup.js";
@@ -252,6 +253,16 @@ export function render() {
   }
 
   if (current === "revenue") renderCarGrid(rev, "earned", "revenue");
+  else if (current === "broker") {
+    // brokers can't be attributed to a trading company without guessing —
+    // the same honest note as month-by-month when the filter is active
+    renderCarGrid(revenueByBrokerMonth(year), "earned", "broker");
+    if (repEntity !== "*") {
+      const out = el(root, "rep-table");
+      if (out) out.insertAdjacentHTML("afterbegin",
+        `<div class="rep-note">By broker always shows all companies \u2014 the company filter applies to the other tabs.</div>`);
+    }
+  }
   else if (current === "expenses") renderCarGrid(exp, "spent", "expenses");
   else if (current === "invoices") renderInvoices();
   else {

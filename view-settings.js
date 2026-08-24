@@ -8,7 +8,7 @@
 
 import { db, setSync, auth, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "./firebase-init.js";
 import { doc, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES, THEME_LIST, themePresetOf, themeVars, applyTheme, FONT_LIST, themeFontOf, extraEntities, openModal, closeModal } from "./store.js";
+import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES, THEME_LIST, themePresetOf, themeVars, applyTheme, FONT_LIST, themeFontOf, extraEntities, openModal, closeModal, carCustomFields } from "./store.js";
 import {
   CATEGORIES, INTERVALS, backupPrefs, saveBackupPrefs, daysSinceBackup,
   runBackup, folderSupported, folderStatus, chooseFolder, forgetFolder
@@ -91,6 +91,31 @@ function previewTheme() {
 // ---------- Trading companies ----------
 let entEditingId = null;   // null = adding a new one
 let entLogoDraft = undefined;   // undefined = untouched, "" = removed, string = new data URL
+
+// ---------- Custom fields on Fleet ----------
+// Labels only — values live on each car. Removing a label hides the values
+// (they stay on the cars, harmless), so this needs no scary confirmation.
+function paintCustomFields() {
+  const box = el(root, "cf-list");
+  if (!box) return;
+  const list = carCustomFields();
+  box.innerHTML = list.length
+    ? list.map(f => `
+      <div class="ent-row" style="grid-template-columns: 1fr auto;">
+        <span>${esc(f.label)}</span>
+        <button type="button" class="btn btn-small" data-cf-del="${esc(f.id)}">Remove</button>
+      </div>`).join("")
+    : `<div class="settings-note">None yet — e.g. "Tracker IMEI", "Key box code".</div>`;
+}
+
+async function saveCustomFields(list) {
+  try {
+    await setDoc(doc(db, "settings", state.ctx.companyId),
+      { companyId: state.ctx.companyId, carCustomFields: list }, { merge: true });
+  } catch (err) {
+    showToast("Couldn't save the field (" + (err.code || err.message) + ")");
+  }
+}
 
 function paintEntities() {
   const box = el(root, "ent-list");
@@ -277,6 +302,19 @@ export function mount(container) {
   root.querySelectorAll("[data-close]").forEach(b =>
     b.addEventListener("click", () => closeModal(root, b.dataset.close)));
 
+  el(root, "cf-add").addEventListener("click", async () => {
+    const label = prompt("Name of the new field (shown on every car):");
+    if (!label || !label.trim()) return;
+    const list = [...carCustomFields(), { id: "f" + Date.now().toString(36), label: label.trim().slice(0, 40) }];
+    if (list.length > 6) { showToast("Up to six custom fields"); return; }
+    await saveCustomFields(list);
+  });
+  el(root, "cf-list").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-cf-del]");
+    if (!b) return;
+    await saveCustomFields(carCustomFields().filter(f => f.id !== b.dataset.cfDel));
+  });
+
   el(root, "ent-add").addEventListener("click", () => openEntModal(null));
   el(root, "ent-list").addEventListener("click", (e) => {
     const b = e.target.closest("[data-ent-edit]");
@@ -336,6 +374,7 @@ export function render() {
   // inside previewTheme — companies saved to the server but never appeared
   // unless the person happened to touch the theme controls. Pilot, 20 Aug.)
   paintEntities();
+  paintCustomFields();
 
   // Whose password the card changes — filled before the focus check below, so
   // it is right even when the rest of the form is skipped mid-edit.

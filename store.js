@@ -711,7 +711,7 @@ export function paidPatch(b, paid) {
 // The version shown in Settings and on the wordmark's tooltip, bumped with
 // every package — so "did the upload deploy?" is answered by looking, not by
 // wondering. Format: date, then a word for what the build was about.
-export const APP_VERSION = "22 Aug 2026 \u00b7 batch-22b";
+export const APP_VERSION = "24 Aug 2026 \u00b7 batch-24";
 
 // ---------- Themes ----------
 // Per-company appearance, stored on the settings document so everyone who
@@ -1289,6 +1289,36 @@ export function revenueByCarMonth(year) {
 
   const out = rows.slice();
   if (gone.months.some(v => v > 0)) out.push(gone);
+  return finishGrid(y, out);
+}
+
+// Who brought the business. Same grid, same attribution as revenue-by-car
+// (whole booking under its start month, invoiceTotal) — the two reports MUST
+// agree in total or neither is trusted. Bookings without a broker file under
+// "Direct / no broker" rather than being dropped, for the same reason cars
+// no longer in the fleet keep their row above.
+// The company's own extra fields for cars — labels defined in Settings,
+// values typed per car. Capped so the car dialog stays a dialog.
+export function carCustomFields() {
+  const list = Array.isArray(state.settings?.carCustomFields) ? state.settings.carCustomFields : [];
+  return list.filter(f => f && f.id && f.label).slice(0, 6);
+}
+
+export function revenueByBrokerMonth(year) {
+  const y = String(year);
+  const map = new Map();
+  const rowFor = (name) => {
+    if (!map.has(name)) map.set(name, { carId: "", broker: name, label: name, plate: "", months: blankYear() });
+    return map.get(name);
+  };
+  state.bookings.forEach(b => {
+    const d = String(b.startDate || "");
+    if (d.slice(0, 4) !== y) return;
+    const m = Number(d.slice(5, 7)) - 1;
+    if (!(m >= 0 && m < 12)) return;
+    rowFor((b.broker || "").trim() || "Direct / no broker").months[m] += invoiceTotal(b);
+  });
+  const out = [...map.values()].sort((a, b2) => a.label.localeCompare(b2.label));
   return finishGrid(y, out);
 }
 

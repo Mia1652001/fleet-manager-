@@ -2900,3 +2900,15 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 /* The car column's right edge is a drag handle (planner) */
 .tl-car { cursor: default; }
 .tl-car::after { content: ""; position: absolute; right: -3px; top: 0; bottom: 0; width: 7px; cursor: col-resize; }
+
+/* The car-column resize grip: lives in the frozen corner so it is always on
+   screen; touch-action none means a finger on it drags width, never scrolls */
+.tl-corner { position: relative; }
+.tl-colgrip {
+  position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
+  padding: 6px 5px; font-size: 11px; letter-spacing: -1px; line-height: 1;
+  color: var(--muted); cursor: col-resize; touch-action: none;
+  border: 1px solid var(--border); border-radius: 4px; background: var(--surface);
+  user-select: none; -webkit-user-select: none;
+}
+.tl-colgrip:active { color: var(--text); border-color: var(--text); }

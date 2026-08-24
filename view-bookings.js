@@ -172,6 +172,7 @@ export function mount(container) {
   el(root, "toggle-list").addEventListener("click", () => togglePanel("list"));
 
   el(root, "search").addEventListener("input", () => { jumpToSearchMatch(); render(); });
+  el(root, "planner-xls").addEventListener("click", exportPlannerXls);
 
 
   const zoomEl = el(root, "zoom");
@@ -1012,6 +1013,48 @@ function updateToggleLabels() {
 // pilot's ask (21 Aug). Pointer events cover mouse and touch; the width
 // applies live to both grids (the frozen date row shares the columns) and
 // saves on release. Double-click on the edge resets to the zoom default.
+// The planner window as Excel — his "same format as on screen" (spreadsheet
+// row, 24 Aug). The one format that carries CELL COLOURS without any new
+// library is an HTML table saved as .xls: Excel and Google Sheets both open
+// it, colours and all. Cars down the side, the visible days across, each
+// booked day painted the chip's colour with the renter's name at its start.
+function exportPlannerXls() {
+  const days = [];
+  for (let i = 0; i < timelineDays(); i++) {
+    const d = new Date(timelineAnchor);
+    d.setDate(d.getDate() + i);
+    days.push(d);
+  }
+  const pad = n => String(n).padStart(2, "0");
+  const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const cars = orderedCars().filter(c => !c.hidden);
+  const esc2 = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  let html = `<table border="1"><tr><th>Car</th>` +
+    days.map(d => `<th>${pad(d.getDate())}/${pad(d.getMonth() + 1)}</th>`).join("") + `</tr>`;
+  cars.forEach(c => {
+    html += `<tr><td><b>${esc2(bookingCarLabel({ carId: c.id }) || (c.make + " " + c.model))}</b> ${esc2(c.plate || "")}</td>`;
+    days.forEach(d => {
+      const ds = ymd(d);
+      const b = state.bookings.find(x => x.carId === c.id && x.startDate <= ds && x.endDate >= ds);
+      if (!b) { html += `<td></td>`; return; }
+      const colour = b.colour || "#f5a623";
+      const label = ds === b.startDate ? esc2(b.renter || "") : "";
+      html += `<td style="background:${esc2(colour)};">${label}</td>`;
+    });
+    html += `</tr>`;
+  });
+  html += `</table>`;
+
+  const blob = new Blob([`\ufeff<html><head><meta charset="UTF-8"></head><body>${html}</body></html>`],
+    { type: "application/vnd.ms-excel" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `planner-${ymd(days[0])}.xls`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 function wireCarColumnDrag(grid) {
   if (grid.dataset.dragWired) return;
   grid.dataset.dragWired = "1";
@@ -1027,6 +1070,7 @@ function wireCarColumnDrag(grid) {
     grid.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
+
   grid.addEventListener("pointermove", (e) => {
     if (!dragging) return;
     const w = Math.round(Math.min(420, Math.max(110, dragging.startW + e.clientX - dragging.startX)));
@@ -1040,6 +1084,33 @@ function wireCarColumnDrag(grid) {
   };
   grid.addEventListener("pointerup", finish);
   grid.addEventListener("pointercancel", finish);
+
+  // The visible handle in the frozen corner — the phone's way in, since the
+  // column's bare edge loses every fight with touch scrolling (pilot, 22 Aug).
+  const head = el(root, "timeline-head");
+  if (head && !head.dataset.gripWired) {
+    head.dataset.gripWired = "1";
+    head.addEventListener("pointerdown", (e) => {
+      const grip = e.target.closest(".tl-colgrip");
+      if (!grip) return;
+      const corner = grip.closest(".tl-corner");
+      dragging = { startX: e.clientX, startW: corner.getBoundingClientRect().width };
+      head.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    head.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      const w = Math.round(Math.min(420, Math.max(110, dragging.startW + e.clientX - dragging.startX)));
+      applyCarWidth(w);
+    });
+    head.addEventListener("pointerup", finish);
+    head.addEventListener("pointercancel", finish);
+    head.addEventListener("dblclick", (e) => {
+      if (!e.target.closest(".tl-colgrip")) return;
+      savePref("plannerCarW", 0);
+      render();
+    });
+  }
   grid.addEventListener("dblclick", (e) => {
     const car = e.target.closest(".tl-car");
     if (!car) return;
@@ -1183,7 +1254,7 @@ function renderTimeline() {
   // the planner grid itself — that is what keeps it on screen while the page
   // scrolls down a long fleet. Same columns, same widths, so it always lines
   // up with the body beneath it.
-  let headHtml = `<div class="tl-corner" style="grid-row:1;grid-column:1;"><span class="tl-month"></span></div>`;
+  let headHtml = `<div class="tl-corner" style="grid-row:1;grid-column:1;"><span class="tl-month"></span><span class="tl-colgrip" title="Drag to resize the car column \u00b7 double-tap to reset">\u22ee\u22ee</span></div>`;
   days.forEach((d, i) => {
     const ds = dstr(d);
     const dow = d.getDay();

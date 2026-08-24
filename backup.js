@@ -16,7 +16,7 @@ import { state, bookingCarLabel, rentalDays, rateFor, rentalTotal,
          advancePaid, balanceFor, settledOn, bookingRef,
          deliveryCost, insuranceCost, otherCost, invoiceTotal,
          bankCharge, bankChargePct, amountDue,
-         loadPref, savePref , paidTotal, paymentsOf, lastPaymentMethod } from "./store.js";
+         loadPref, savePref , paidTotal, paymentsOf, lastPaymentMethod, carCustomFields } from "./store.js";
 
 export const CATEGORIES = [
   { key: "bookings",  label: "Bookings & invoices" },
@@ -129,10 +129,12 @@ function customerRows() {
 }
 
 function carRows() {
+  const customs = carCustomFields();
   return [
     ["Year","Make","Model","Plate","Category","Daily rate","Weekly rate","Monthly rate",
      "Mileage","Next service","Service at (km)","Out of service","Maintenance notes",
-     "Registration date","Licence expiry","Road tax expiry","Insurance expiry","Fitness expiry","Lease expiry"],
+     "Registration date","Licence expiry","Road tax expiry","Insurance expiry","Fitness expiry","Lease expiry",
+     ...customs.map(f => f.label)],
     ...state.cars.slice()
       .sort((a, b) => (a.make + a.model).localeCompare(b.make + b.model))
       .map(c => [
@@ -141,7 +143,8 @@ function carRows() {
         c.mileage || "", c.nextServiceDate || "", c.serviceMileage || "",
         c.outOfService ? "Yes" : "No", c.notes_maint || "",
         c.regDate || "", c.licenceExpiry || "", c.roadTaxExpiry || "",
-        c.insuranceExpiry || "", c.fitnessExpiry || "", c.leaseExpiry || ""
+        c.insuranceExpiry || "", c.fitnessExpiry || "", c.leaseExpiry || "",
+        ...customs.map(f => (c.customFields || {})[f.id] || "")
       ])
   ];
 }

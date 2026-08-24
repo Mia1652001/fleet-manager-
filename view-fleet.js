@@ -9,7 +9,7 @@ import {
   orderedCars, getSwatch, setSwatch,
   el, val, setVal, checked, setChecked, openModal, closeModal, showError,
   takeFocus, carLimit, carDocsDue
-, allEntities, entityForCar } from "./store.js";
+, allEntities, entityForCar, carCustomFields } from "./store.js";
 
 let root = null;
 let editingCarId = null;
@@ -175,7 +175,9 @@ export function render() {
       <div class="card-top">
         <div>
           <div class="card-title">${esc(c.make)} ${esc(c.model)}</div>
-          <div class="card-sub">${esc(c.plate) || "no plate"}${c.category ? " · " + esc(c.category) : ""}${c.colour ? " · " + esc(c.colour) : ""}${c.automatic ? " · auto" : ""}${c.entityId ? ` · <span class="car-ent">${esc(entityForCar(c).name)}</span>` : ""}</div>
+          <div class="card-sub">${esc(c.plate) || "no plate"}${c.category ? " · " + esc(c.category) : ""}${c.colour ? " · " + esc(c.colour) : ""}${c.automatic ? " · auto" : ""}${c.entityId ? ` · <span class="car-ent">${esc(entityForCar(c).name)}</span>` : ""}${
+  carCustomFields().map(f => (c.customFields || {})[f.id]
+    ? ` · <span class="car-ent">${esc(f.label)}: ${esc(c.customFields[f.id])}</span>` : "").join("")}</div>
         </div>
         ${c.outOfService ? `<span class="badge overdue">Out of service</span>` : ""}
       </div>
@@ -453,6 +455,13 @@ function openCarModal(id) {
   setVal(root, "c-lease-paid", c?.totalLeasePaid ?? "");
   setVal(root, "c-category", c?.category || "");
   setVal(root, "c-colour", c?.colour || "");
+  // the company's own fields, rendered from their Settings definitions
+  {
+    const slot = el(root, "c-customs");
+    if (slot) slot.innerHTML = carCustomFields().map(f => `
+      <div class="field"><label>${esc(f.label)}</label>
+        <input type="text" data-cf="${esc(f.id)}" value="${esc((c?.customFields || {})[f.id] || "")}"></div>`).join("");
+  }
   // Which company this car is rented under — its documents follow this tag.
   {
     const entSel = el(root, "c-entity");
@@ -535,18 +544,23 @@ async function saveCar() {
   const automatic = checked(root, "c-automatic");
   const rowColour = getSwatch(root, "c-rowcolour");
   const entityId = val(root, "c-entity") || "";
+  const customFields = {};
+  const cfSlot = el(root, "c-customs");
+  if (cfSlot) cfSlot.querySelectorAll("[data-cf]").forEach(i => {
+    customFields[i.dataset.cf] = i.value.trim();
+  });
 
   const btn = el(root, "save-car");
   btn.disabled = true; btn.textContent = "Saving...";
   setSync("saving");
   try {
     if (editingCarId) {
-      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate, weeklyRate, monthlyRate, leaseAmount, purchaseAmount, totalLeasePaid, category, colour, automatic, rowColour, entityId, ...docDates });
+      await updateDoc(doc(db, "cars", editingCarId), { make, model, year, plate, dailyRate, weeklyRate, monthlyRate, leaseAmount, purchaseAmount, totalLeasePaid, category, colour, automatic, rowColour, entityId, customFields, ...docDates });
     } else {
       await addDoc(collection(db, "cars"), {
         companyId: state.ctx.companyId, make, model, year, plate,
         dailyRate, weeklyRate, monthlyRate, leaseAmount, purchaseAmount, totalLeasePaid,
-        category, colour, automatic, rowColour, entityId, ...docDates
+        category, colour, automatic, rowColour, entityId, customFields, ...docDates
       });
     }
     closeModal(root, "car-modal");
