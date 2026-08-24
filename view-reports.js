@@ -304,7 +304,7 @@ function renderCarGrid(data, verb, which) {
     : `<td class="rep-num rep-zero">—</td>`;
 
   box.innerHTML = `
-    <table class="rep-table">
+    <table class="rep-table rep-cargrid">
       <thead>
         <tr>
           <th class="rep-car">Car</th>

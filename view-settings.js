@@ -8,7 +8,7 @@
 
 import { db, setSync, auth, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "./firebase-init.js";
 import { doc, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES, THEME_LIST, themePresetOf, themeVars, applyTheme, FONT_LIST, themeFontOf, extraEntities, openModal, closeModal, carCustomFields } from "./store.js";
+import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES, THEME_LIST, themePresetOf, themeVars, applyTheme, FONT_LIST, themeFontOf, extraEntities, openModal, closeModal, carCustomFields, formatDate } from "./store.js";
 import {
   CATEGORIES, INTERVALS, backupPrefs, saveBackupPrefs, daysSinceBackup,
   runBackup, folderSupported, folderStatus, chooseFolder, forgetFolder
@@ -375,6 +375,20 @@ export function render() {
   // unless the person happened to touch the theme controls. Pilot, 20 Aug.)
   paintEntities();
   paintCustomFields();
+  {
+    // Read-only by design: the licence is what the subscription grants, so
+    // the app states it rather than offering it for editing (pilot, 23 Aug).
+    const box = el(root, "s-licence-info");
+    if (box) {
+      const limit = Number(s.carLimit) || 0;
+      const bits = [
+        `Fleet: ${state.cars.length} car${state.cars.length === 1 ? "" : "s"}${limit ? ` of ${limit} licensed` : ""}`,
+        s.licenceNo ? `Licence ${s.licenceNo}` : "",
+        (s.licenceFrom || s.licenceTo) ? `Valid ${formatDate(s.licenceFrom) || "\u2026"} \u2013 ${formatDate(s.licenceTo) || "\u2026"}` : ""
+      ].filter(Boolean);
+      box.innerHTML = bits.map(b => `<div>${esc(b)}</div>`).join("");
+    }
+  }
 
   // Whose password the card changes — filled before the focus check below, so
   // it is right even when the rest of the form is skipped mid-edit.

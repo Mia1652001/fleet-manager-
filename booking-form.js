@@ -192,6 +192,22 @@ export function mountBookingForm() {
 
   root.querySelectorAll("[data-close]").forEach(b =>
     b.addEventListener("click", () => closeModal(root, b.dataset.close)));
+
+  // The pinned "✓ Paid" pill mirrors the Marked-as-paid checkbox both
+  // ways — one state, two handles, the second reachable without scrolling to
+  // the money section (pilot's sheet, 23 Aug).
+  {
+    const quick = el(root, "b-paid-quick");
+    const box = el(root, "b-paid");
+    if (quick && box) {
+      quick.addEventListener("click", () => {
+        box.checked = !box.checked;
+        box.dispatchEvent(new Event("change", { bubbles: true }));
+        quick.classList.toggle("on", box.checked);
+      });
+      box.addEventListener("change", () => quick.classList.toggle("on", box.checked));
+    }
+  }
   // Clicking the dark surround closes a dialog. That is the usual way out of
   // one and, on a form this long, the usual way to lose a quarter of an hour
   // of typing to a stray click beside it. A dialog nobody has typed in still
@@ -1070,6 +1086,7 @@ export function openBookingModal(bookingId, preset) {
   setVal(root, "b-fxtotal", "");
   syncCurrencyFields();
   setChecked(root, "b-paid", false);
+  { const q = el(root, "b-paid-quick"); if (q) q.classList.toggle("on", checked(root, "b-paid")); }
   setChecked(root, "b-card", false);
   setVal(root, "b-card-pct", "");
   paintColourSwatches("");
@@ -1131,6 +1148,7 @@ export function openBookingModal(bookingId, preset) {
     }
     setVal(root, "b-notes", editing.notes || "");
     setChecked(root, "b-paid", editing.paid === true);
+    { const q = el(root, "b-paid-quick"); if (q) q.classList.toggle("on", editing.paid === true); }
     // The rate the booking was agreed at, not today's company default — the
     // whole point of snapshotting it.
     setChecked(root, "b-card", editing.cardPayment === true);

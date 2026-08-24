@@ -1,6 +1,7 @@
 // Dashboard — the morning overview. Everything here is derived from data the
 // other views already load, so it costs no extra database reads, and every
 // figure links through to the screen where you would act on it.
+import { setFleetFocus } from "./view-fleet.js";
 import { openBookingModal } from "./booking-form.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr,
@@ -30,6 +31,7 @@ export function mount(container) {
   // 2026): the real planner is one tap away and this one repeated it worse.
   root.addEventListener("click", (e) => {
     const go = e.target.closest("[data-goto]");
+    if (go && go.dataset.focus) setFleetFocus(go.dataset.focus);
     if (go) { location.hash = "#" + go.dataset.goto; return; }
   });
 
@@ -53,10 +55,14 @@ export function mount(container) {
 }
 
 
-function figure(label, value, tone, goto) {
+function figure(label, value, tone, goto, sub) {
+  // The sub-line states each figure's population — the three counted
+  // DIFFERENT sets of bookings by design, and three bare numbers side by
+  // side invited the arithmetic that "didn't add up" (pilot, 23 Aug).
   return `<button class="dash-figure" data-goto="${goto}">
     <span class="dash-figure-val ${tone || ""}">${value}</span>
     <span class="dash-figure-label">${esc(label)}</span>
+    ${sub ? `<span class="dash-figure-sub">${esc(sub)}</span>` : ""}
   </button>`;
 }
 
@@ -124,11 +130,11 @@ function renderAlerts(t) {
     text: `${lateJobs.length} job${lateJobs.length === 1 ? "" : "s"} running late`
   });
   if (docsExpired.length) alerts.push({
-    tone: "red", goto: "fleet",
+    tone: "red", goto: "fleet", focus: "docs",
     text: `${docsExpired.length} car${docsExpired.length === 1 ? "" : "s"} with expired documents (licence, insurance, road tax…)`
   });
   if (docsSoon.length) alerts.push({
-    tone: "amber", goto: "fleet",
+    tone: "amber", goto: "fleet", focus: "docs",
     text: `${docsSoon.length} car${docsSoon.length === 1 ? "" : "s"} with documents expiring within 30 days`
   });
   if (dueService.length) alerts.push({
@@ -143,7 +149,7 @@ function renderAlerts(t) {
   el(root, "alerts").innerHTML = alerts.length === 0
     ? `<div class="dash-allclear">Nothing needs attention — no overdue rentals, late jobs or servicing due.</div>`
     : alerts.map(a =>
-        `<button class="dash-alert ${a.tone}" data-goto="${a.goto}">${esc(a.text)} →</button>`).join("");
+        `<button class="dash-alert ${a.tone}" data-goto="${a.goto}"${a.focus ? ` data-focus="${a.focus}"` : ""}>${esc(a.text)} →</button>`).join("");
 }
 
 // ---------- Today's deliveries and collections ----------
@@ -202,9 +208,9 @@ function renderMoney() {
   // office reads them in: what was sold, what came in, what is still owed, what
   // is only being held. Each figure answers the one before it.
   el(root, "money").innerHTML =
-    figure("Booked", formatAmount(m.booked), "", "bookings") +
-    figure("Received", formatAmount(m.received), "green", "billing") +
-    figure("Outstanding", formatAmount(m.outstanding), "red", "billing") +
+    figure("Booked", formatAmount(m.booked), "", "bookings", "rentals starting this month") +
+    figure("Received", formatAmount(m.received), "green", "billing", "cash arriving this month, any booking") +
+    figure("Outstanding", formatAmount(m.outstanding), "red", "billing", "unpaid rentals already started") +
     figure("Deposits held", formatAmount(m.deposits), "blue", "billing");
 }
 

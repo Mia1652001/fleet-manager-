@@ -431,8 +431,14 @@ function wireAvailability() {
     openModal(root, "avail-modal");
   });
 
-  ["av-start", "av-end"].forEach(name =>
-    el(root, name).addEventListener("change", renderAvailability));
+  el(root, "av-start").addEventListener("change", () => {
+    // picking a future start usually means checking that date onward — if the
+    // end is now behind it, follow to start+1 instead of showing an error
+    const s2 = val(root, "av-start");
+    if (s2 && val(root, "av-end") <= s2) setVal(root, "av-end", addDaysStr(s2, 1));
+    renderAvailability();
+  });
+  el(root, "av-end").addEventListener("change", renderAvailability);
   ["av-start-time-h", "av-start-time-m", "av-end-time-h", "av-end-time-m"].forEach(name =>
     el(root, name).addEventListener("change", renderAvailability));
 
@@ -1055,6 +1061,33 @@ function exportPlannerXls() {
   URL.revokeObjectURL(a.href);
 }
 
+// Tap a date in the header and its whole column tints — tap again (or tap
+// another date) to move or clear it. Survives redraws. (Pilot's sheet, 23 Aug.)
+let selectedDay = null;
+function applyDayHighlight() {
+  const grid = el(root, "timeline");
+  const head = el(root, "timeline-head");
+  [grid, head].forEach(g => g && g.querySelectorAll(".col-hl").forEach(n => n.classList.remove("col-hl")));
+  if (!selectedDay || !grid) return;
+  grid.querySelectorAll(`.tl-cell[data-add-date="${selectedDay}"]`).forEach(n => n.classList.add("col-hl"));
+  if (head) {
+    const dn = head.querySelector(`.tl-daynum[data-day="${selectedDay}"]`);
+    if (dn) dn.classList.add("col-hl");
+  }
+}
+function wireDayHighlight() {
+  const head = el(root, "timeline-head");
+  if (!head || head.dataset.dayWired) return;
+  head.dataset.dayWired = "1";
+  head.addEventListener("click", (e) => {
+    const dn = e.target.closest(".tl-daynum");
+    if (!dn || !dn.dataset.day) return;
+    if (e.target.closest(".tl-colgrip")) return;
+    selectedDay = selectedDay === dn.dataset.day ? null : dn.dataset.day;
+    applyDayHighlight();
+  });
+}
+
 function wireCarColumnDrag(grid) {
   if (grid.dataset.dragWired) return;
   grid.dataset.dragWired = "1";
@@ -1229,6 +1262,7 @@ function renderTimeline() {
   grid.style.gridTemplateColumns = columnsSpec;
   if (headGrid) headGrid.style.gridTemplateColumns = columnsSpec;
   wireCarColumnDrag(grid);
+  wireDayHighlight();
 
   // Width comes from the zoom level, never from the content. Stating it outright
   // means a day column is the same width whatever bookings happen to be on
@@ -1263,7 +1297,7 @@ function renderTimeline() {
     // the column carries a marker line — so 31 sitting next to 1 can never be
     // read as the same month again.
     const monthStart = d.getDate() === 1;
-    headHtml += `<div class="tl-daynum ${cls}${monthStart ? " month-start" : ""}" style="grid-row:1;grid-column:${i * 2 + 2} / span 2;">
+    headHtml += `<div class="tl-daynum ${cls}${monthStart ? " month-start" : ""}" data-day="${ds}" style="grid-row:1;grid-column:${i * 2 + 2} / span 2;">
       <span class="dow">${monthStart ? MONTH_NAMES[d.getMonth()] : dowShort[dow]}</span>${d.getDate()}</div>`;
   });
   if (headGrid) headGrid.innerHTML = headHtml;
@@ -1397,6 +1431,7 @@ function renderTimeline() {
   tlMonthHalf = cfg.half;
 
   grid.innerHTML = html;
+  applyDayHighlight();   // the selected date's tint survives redraws
   if (reanchored) {
     wrap.scrollLeft = 0;   // a new window, so start at its first day
     reanchored = false;

@@ -2912,3 +2912,40 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
   user-select: none; -webkit-user-select: none;
 }
 .tl-colgrip:active { color: var(--text); border-color: var(--text); }
+
+/* Dashboard money figures explain their populations; fleet focus banner */
+.dash-figure-sub { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+.fleet-focus { display: flex; gap: 10px; align-items: center; font-size: 13px;
+  background: var(--amber-bg); color: var(--amber-text); border: 1px solid #edd9a3;
+  border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; }
+
+/* Car grids in Reports: Total and Average ride pinned at the right while the
+   months scroll — no more scrolling to learn the answer (pilot, 23 Aug) */
+.rep-cargrid th:last-child, .rep-cargrid td:last-child {
+  position: sticky; right: 0; min-width: 92px; background: var(--surface); z-index: 2; }
+.rep-cargrid th:nth-last-child(2), .rep-cargrid td:nth-last-child(2) {
+  position: sticky; right: 92px; min-width: 104px; background: var(--surface); z-index: 2;
+  box-shadow: inset 10px 0 8px -10px rgba(0,0,0,0.25); }
+.rep-cargrid thead th:last-child, .rep-cargrid thead th:nth-last-child(2) { background: var(--bg); z-index: 6; }
+
+/* The quick Paid pill: pinned inside the booking dialog's top edge */
+.paid-quick {
+  position: sticky; top: 6px; float: right; z-index: 8;
+  font-family: var(--font-ui); font-size: 12px; padding: 6px 12px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface); color: var(--muted); cursor: pointer;
+  margin: 0 40px 0 12px;   /* clear of the × */
+}
+.paid-quick.on { background: var(--green-bg); color: var(--green-text); border-color: var(--green-text); }
+
+/* Tap a date header: its column tints (planner) */
+.tl-daynum { cursor: pointer; }
+.tl-daynum.col-hl { background: var(--amber-bg); color: var(--amber-text); }
+.tl-cell.col-hl { background: var(--amber-bg); }
+
+/* The tasks page must never pan sideways as a whole on a phone — boards and
+   lists scroll inside themselves; the page itself stays put */
+#view-tasks { overflow-x: clip; }
+#view-tasks .planner-bar { max-width: 100%; }
+.licence-info { font-size: 13px; color: var(--text); display: grid; gap: 3px;
+  background: var(--bg); border: 1px dashed var(--border); border-radius: 4px; padding: 10px 12px; }

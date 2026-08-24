@@ -785,6 +785,10 @@
             <input type="text" id="s-brn" data-el="s-brn" placeholder="printed on invoices when set">
           </div>
           <div class="field">
+            <label>Company licence <span class="settings-note-inline">set by FleetMate — contact us to change</span></label>
+            <div class="licence-info" data-el="s-licence-info"></div>
+          </div>
+          <div class="field">
             <label>Custom fields on Fleet <span class="settings-note-inline">shown on every car's Edit dialog</span></label>
             <div data-el="cf-list"></div>
             <button type="button" class="btn" data-el="cf-add">+ Add a field</button>
@@ -1252,7 +1256,8 @@
     <div class="overlay" data-el="booking-modal">
     <div class="modal">
       <h2 data-el="booking-modal-title">New booking</h2>
-      <div class="form-error" data-el="booking-error"></div>
+      <button type="button" class="paid-quick" data-el="b-paid-quick" title="Marked as paid — same switch as in the money section">✓ Paid</button>
+          <div class="form-error" data-el="booking-error"></div>
       <div class="field"><label>Car</label><select data-el="b-car"></select></div>
       <div class="field"><label>Customer</label><select data-el="b-customer"></select></div>
       <!-- With a saved customer chosen, neither block below is shown, so the
@@ -1436,6 +1441,7 @@
         <button class="btn" id="export-customers-csv">Customers (.csv) — opens in Excel</button>
         <button class="btn" id="export-cars-csv">Cars (.csv) — opens in Excel</button>
       </div>
+      <div class="fleet-focus" data-el="fleet-focus" style="display:none;"></div>
       <div class="modal-actions">
         <button class="btn" id="export-close">Close</button>
       </div>

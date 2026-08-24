@@ -12,6 +12,11 @@ import {
 , allEntities, entityForCar, carCustomFields } from "./store.js";
 
 let root = null;
+// A one-shot focus handed over from a Dashboard chip: "docs" shows only cars
+// with documents expired or expiring within 30 days; "service" only cars due.
+let fleetFocus = null;
+export function setFleetFocus(kind) { fleetFocus = kind || null; }
+
 let editingCarId = null;
 
 export function mount(container) {
@@ -111,6 +116,12 @@ export function mount(container) {
     }
   });
 
+  el(root, "fleet-focus").addEventListener("click", (e) => {
+    if (!e.target.closest("[data-el='fleet-focus-clear']")) return;
+    fleetFocus = null;
+    render();
+  });
+
   onDataChange(() => { if (root.classList.contains("active")) render(); });
 }
 
@@ -157,9 +168,10 @@ export function render() {
   // field is left — no Edit dialog for the numbers the office updates all
   // year (pilot request, Aug 2026). The Edit button remains for identity:
   // make, model, plate, colour, planner highlight.
-  const dateCell = (c, field, label) => {
+  const dateCell = (c, field, label, isExpiry = true) => {
     const v = c[field] || "";
-    const cls = !v ? "" : v < t ? " car-cell-red" : v <= soon ? " car-cell-amber" : "";
+    // Registered is history, not a deadline — it never colours (pilot, 23 Aug).
+    const cls = !isExpiry || !v ? "" : v < t ? " car-cell-red" : v <= soon ? " car-cell-amber" : "";
     return `<div class="car-row${cls}"><span class="car-row-l">${label}</span>
       <input type="date" class="car-cell" data-id="${c.id}" data-field="${field}" data-kind="date" value="${esc(v)}"></div>`;
   };
@@ -170,6 +182,25 @@ export function render() {
     `<input type="number" min="0" class="car-cell car-cell-num" data-id="${c.id}" data-field="${field}" data-kind="${kind}"
        value="${typeof c[field] === "number" && (kind === "numnull" ? true : c[field] > 0) ? esc(c[field]) : ""}" placeholder="${ph}">`;
 
+  {
+    const banner = el(root, "fleet-focus");
+    if (fleetFocus) {
+      const d2 = new Date(); d2.setDate(d2.getDate() + 30);
+      const soon2 = `${d2.getFullYear()}-${String(d2.getMonth() + 1).padStart(2, "0")}-${String(d2.getDate()).padStart(2, "0")}`;
+      const DOCS = ["licenceExpiry", "roadTaxExpiry", "insuranceExpiry", "fitnessExpiry", "leaseExpiry"];
+      if (fleetFocus === "docs") {
+        list = list.filter(c => DOCS.some(f => c[f] && c[f] <= soon2));
+      } else if (fleetFocus === "service") {
+        list = list.filter(c => serviceDue(c));
+      }
+      if (banner) {
+        banner.style.display = "";
+        banner.innerHTML = `Showing ${list.length} car${list.length === 1 ? "" : "s"} ${
+          fleetFocus === "docs" ? "with documents expired or expiring within 30 days" : "due a service"}
+          <button type="button" class="btn btn-small" data-el="fleet-focus-clear">Show all</button>`;
+      }
+    } else if (banner) { banner.style.display = "none"; }
+  }
   listEl.innerHTML = list.map(c => `
     <div class="item-card car-compact ${c.outOfService ? "overdue" : ""}" data-car-id="${c.id}">
       <div class="card-top">
@@ -185,7 +216,7 @@ export function render() {
       <div class="car-rows">
         <div class="car-row"><span class="car-row-l">Rates /d·/w·/m</span>
           <span class="car-rates">${numCell(c, "dailyRate", "num0", "day")}${numCell(c, "weeklyRate", "num0", "week")}${numCell(c, "monthlyRate", "num0", "month")}</span></div>
-        ${dateCell(c, "regDate", "Registered")}
+        ${dateCell(c, "regDate", "Registered", false)}
         ${dateCell(c, "licenceExpiry", "Licence exp.")}
         ${dateCell(c, "roadTaxExpiry", "Road tax exp.")}
         ${dateCell(c, "insuranceExpiry", "Insurance exp.")}
