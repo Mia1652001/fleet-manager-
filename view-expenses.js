@@ -397,16 +397,27 @@ function renderBoard(items) {
     return `<div class="board-cell board-day">${esc(formatDate(ds))}</div>${cells}<div class="board-cell board-day-total">${dayTotal > 0 ? esc(formatAmount(dayTotal)) : ""}</div>`;
   }).join("");
 
-  // The header lives in its own strip pinned above the board (same pattern
-  // as Tasks): a horizontally-scrolling container captures position:sticky,
-  // so the frozen copy must sit outside the scroller, sharing the exact
-  // column widths and mirroring the sideways scroll.
-  // One grid. The header is the board's own first row; its cells are sticky
-  // against the board's internal scroll, so the columns cannot mismatch —
-  // they are the same columns. The two-grid frozen strip died here after
-  // three failed attempts to make two grids agree about widths.
-  if (headWrap) headWrap.style.display = "none";
-  box.innerHTML = head + rows;
+  // The bookings pattern (pilot, 24 Aug): page scrolls vertically, board
+  // sideways only, header in a page-pinned strip. Both grids share the spec
+  // AND an explicit min pixel width — the planner's determinism trick, which
+  // is what the failed two-grid attempts were missing.
+  const dayMin = 84;
+  const colMin = phone ? 170 : 130;
+  const lastMin = phone ? 170 : 150;
+  const gridWidth = dayMin + cols.length * colMin + lastMin;
+  const headGrid = el(root, "xhead");
+  if (headWrap) headWrap.style.display = "";
+  if (headGrid) {
+    headGrid.style.gridTemplateColumns = columnsSpec;
+    headGrid.style.minWidth = gridWidth + "px";
+    headGrid.innerHTML = head;
+  }
+  box.style.minWidth = gridWidth + "px";
+  box.innerHTML = rows;
+  if (headWrap && !box.dataset.mirrorWired) {
+    box.dataset.mirrorWired = "1";
+    box.addEventListener("scroll", () => { headWrap.scrollLeft = box.scrollLeft; });
+  }
 }
 
 

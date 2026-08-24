@@ -209,7 +209,7 @@ function applyMode() {
   el(root, "list").style.display = mode === "list" ? "" : "none";
   el(root, "board").style.display = mode === "board" ? "" : "none";
   const bhw = el(root, "board-head-wrap");
-  if (bhw) bhw.style.display = "none";   // retired: the header lives in the board
+  if (bhw) bhw.style.display = mode === "board" ? "" : "none";
 }
 
 // ---------- Helpers ----------
@@ -946,14 +946,30 @@ function renderBoard(jobs, from, to) {
   const columnsSpec = phone
     ? `minmax(84px, 0.6fr) repeat(${columns.length}, minmax(180px, 1fr))`
     : `minmax(96px, 0.7fr) repeat(${columns.length}, minmax(120px, 1fr))`;
-  // One grid, like the expenses board: the staff row is the board's own
-  // first row, sticky against the board's internal scroll — the columns
-  // cannot mismatch and no viewport inset can slide the freeze under the
-  // phone's status bar (both happened with the two-grid strip).
+  // The bookings pattern, adopted at the pilot's ask (24 Aug): the page owns
+  // vertical scrolling — no window-in-a-window double scroll — the board
+  // scrolls sideways only, and the staff row lives in a page-pinned strip.
+  // Two grids agree here for the same reason the planner's do: BOTH get the
+  // same column spec AND the same explicit min pixel width, so the track
+  // arithmetic is identical by construction, not by hope.
+  const dayMin = phone ? 84 : 96;
+  const colMin = phone ? 180 : 120;
+  const gridWidth = dayMin + columns.length * colMin;
   const headWrap = el(root, "board-head-wrap");
-  if (headWrap) headWrap.style.display = "none";
+  const headGrid = el(root, "board-head");
+  if (headWrap) headWrap.style.display = "";
+  if (headGrid) {
+    headGrid.style.gridTemplateColumns = columnsSpec;
+    headGrid.style.minWidth = gridWidth + "px";
+    headGrid.innerHTML = head;
+  }
   box.style.gridTemplateColumns = columnsSpec;
-  box.innerHTML = head + rows;
+  box.style.minWidth = gridWidth + "px";
+  box.innerHTML = rows;
+  if (headWrap && !box.dataset.mirrorWired) {
+    box.dataset.mirrorWired = "1";
+    box.addEventListener("scroll", () => { headWrap.scrollLeft = box.scrollLeft; });
+  }
 }
 
 function jobRow(j) {

@@ -1859,13 +1859,15 @@ input[type="number"] {
    arrangement where position:sticky provably works here. Capped so the
    controls above stay reachable. */
 #view-expenses [data-el="xboard"] {
-  overflow: auto;
-  max-height: calc(100dvh - 210px);
+  /* Sideways only — the page owns vertical scrolling, like the planner.
+     The window-in-a-window double scroll was the pilot's complaint (24 Aug). */
+  overflow-x: auto;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
 }
 #view-tasks [data-el="board"] {
-  overflow: auto;
-  max-height: calc(100dvh - 220px);
+  overflow-x: auto;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
   border-top: none;
   border-radius: 0 0 4px 4px;
@@ -2551,12 +2553,12 @@ input[type="number"] {
 .rep-title { font-family: var(--font-display); font-size: 1.05rem; font-weight: 400; margin: 0 8px 0 0; }
 
 .rep-wrap {
-  /* Both axes scroll inside the wrap, so the sticky month header freezes
-     against the wrap's own scroll — the same one-scroller pattern as the
-     boards. A wrap that only scrolled sideways captured the stickiness and
-     the header rode away with the page (pilot, 21 Aug). */
-  overflow: auto;
-  max-height: calc(100dvh - 250px);
+  /* Sideways only — the vertical cap made a second scrollbar inside the
+     page, the double scroll the pilot asked to remove (24 Aug). The pinned
+     Total/Average columns survive (horizontal stickiness); the month header
+     now rides with the page — the accepted price of one scroll. */
+  overflow-x: auto;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -2992,3 +2994,4 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 .occ-num { font-family: var(--font-display); font-size: 2rem; margin: 6px 0 8px; }
 .occ-track { height: 10px; border-radius: 5px; background: var(--border); overflow: hidden; }
 .occ-fill { height: 100%; background: var(--green-text); border-radius: 5px; }
+
