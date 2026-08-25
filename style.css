@@ -3026,3 +3026,35 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 #view-bookings .tl-head-wrap.hdr-pinned {
   padding-top: env(safe-area-inset-top, 0px);
 }
+
+
+/* ---------- Reports on a phone (pilot's screenshots, 25 Aug) ----------
+   1. The pinned Total/Average columns are a desktop luxury: on a ~390px
+      screen the pinned pair swallowed the width and left a sliver for the
+      months. On a phone they unpin and scroll like ordinary columns.
+   2. The invoice controls are JS-rendered and never joined the shared
+      two-column toolbar grid — they free-styled their own sizes. Same grid,
+      same rhythm as every other toolbar now. */
+@media (max-width: 640px) {
+  .rep-cargrid th:last-child, .rep-cargrid td:last-child,
+  .rep-cargrid th:nth-last-child(2), .rep-cargrid td:nth-last-child(2) {
+    position: static;
+    min-width: 0;
+    box-shadow: none;
+  }
+
+  .inv-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    align-items: stretch;
+  }
+  .inv-controls > * { min-width: 0; margin: 0 !important; }
+  .inv-controls > select:first-child { grid-column: 1 / -1; }
+  .inv-controls label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--muted);
+  }
+  .inv-controls label input[type="date"] { flex: 1; min-width: 0; }
+  .inv-controls .btn { width: 100%; }
+}
