@@ -3069,3 +3069,39 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
     display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: 12px;
   }
 }
+
+
+/* ================= CONTROL STANDARD (25 Aug 2026) =================
+   THE rule for every current and future page. Do not invent per-page
+   control layouts; put controls in the standard containers and they
+   inherit the standard automatically.
+
+   MOBILE (reference: the Expenses page)
+   - Controls live in a .toolbar (or .one-line-tools): a 2-column grid,
+     6px gap. Text/search inputs span the full row; everything else fills
+     its half-width cell. Tab groups go in a .filter-row: full line,
+     items in half-width pairs.
+   - Every control is the same height (the variable below) — no control
+     may set its own height, padding or font on mobile.
+
+   DESKTOP (reference: the Tasks page)
+   - Controls flow inline in wrapping rows (the .planner-bar/.toolbar
+     flex layout): compact paddings, auto widths, search stretching.
+   - Sizes come from the base .btn/.tab/select/input rules only.
+
+   New page checklist: wrap controls in <div class="toolbar"> (+ 
+   .filter-row for tab groups), use .btn/.btn-primary/.tab/select/input
+   with NO inline sizing — and both layouts are already correct. */
+:root {
+  --ctl-h-mobile: 44px;     /* one tap-target height for every control */
+  --ctl-font-mobile: 14px;
+}
+@media (max-width: 640px) {
+  .toolbar .btn, .toolbar .btn-primary, .toolbar select,
+  .toolbar input[type="text"], .toolbar input[type="date"],
+  .filter-row .tab, .filter-row .btn, .filter-row .btn-primary, .filter-row select,
+  .inv-controls select, .inv-controls .btn, .inv-controls input[type="date"] {
+    min-height: var(--ctl-h-mobile);
+    font-size: var(--ctl-font-mobile);
+  }
+}
