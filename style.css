@@ -2941,6 +2941,37 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 .inv-void th, .inv-void td { text-decoration: none; }
 .pay-chip.void { background: #f3e3e3; color: #9c2f2f; border: 1px solid #d9b3b3; }
 
+/* ---------- Invoices: the breakdown under a row (25 Aug) ----------
+   Billing's card, opened beneath the invoice it belongs to. The detail row is
+   always in the table and shown by class, so opening one is a class flip —
+   nothing above it redraws or moves. */
+.inv-row { cursor: pointer; }
+.inv-row:hover td, .inv-row:hover th.rep-car { background: var(--bg); }
+.inv-chev {
+  display: inline-block; width: 12px; margin-right: 4px;
+  color: var(--muted); font-size: 10px;
+  transition: transform 0.15s ease;
+}
+.inv-chev-none { visibility: hidden; }
+.inv-row.open .inv-chev { transform: rotate(90deg); }
+.inv-detail { display: none; }
+.inv-detail.open { display: table-row; }
+.inv-detail > td { padding: 0 10px 10px; white-space: normal; background: var(--bg); }
+/* The breakdown holds its place on the left while the wide table scrolls
+   past — the same stickiness the car column already uses in this scroller. */
+.inv-detail-body {
+  position: sticky; left: 0;
+  max-width: calc(100vw - 2 * var(--main-pad-x, 0.9rem) - 20px);
+  padding: 4px 0 0;
+}
+.inv-detail-body .card-details { margin-top: 6px; padding-top: 8px; gap: 10px 22px; }
+.inv-detail-body .card-details:first-child { border-top: none; padding-top: 4px; margin-top: 0; }
+.inv-detail-actions { margin-top: 10px; }
+@media (max-width: 640px) {
+  .inv-detail-body { max-width: calc(100vw - 16px); }
+  .inv-detail-body .card-details { gap: 6px 14px; }
+}
+
 /* The linked-customer chip under Name on booking */
 .linked-chip {
   margin-top: 6px; font-size: 12px; color: var(--green-text);
@@ -3016,7 +3047,7 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
     align-items: stretch;
   }
   .inv-controls > * { min-width: 0; margin: 0 !important; }
-  .inv-controls > select:first-child { grid-column: 1 / -1; }
+  .inv-controls > input[type="text"] { grid-column: 1 / -1; }   /* the search spans the row, per the control standard */
   .inv-controls label {
     display: flex; align-items: center; gap: 6px;
     font-size: 11px; color: var(--muted);

@@ -13,13 +13,14 @@ import {
   revenueByCarMonth, expensesByCarMonth, monthlySummary,
   bookingYears, companyName, bookingCarLabel, bookingRef,
   invoiceTotal, amountDue, vatSplit, balanceFor, paidPatch, paidTotal, hasLedger, hasStarted,
+  customerForBooking,
   extraEntities, mainEntity,
   revenueByBrokerMonth,
   loadPref, savePref, el
 } from "./store.js";
 import { loadXlsx, downloadBlob } from "./backup.js";
 import { openVoidedInvoice, openInvoice } from "./agreement.js";
-import { openPayModal, openDepositModal } from "./view-billing.js";
+import { openPayModal, openDepositModal, invoiceDetailsHtml, contactByEmail, contactByWhatsApp } from "./view-billing.js";
 import { openBookingModal } from "./booking-form.js";
 import { db, setSync } from "./firebase-init.js";
 import { updateDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -61,6 +62,21 @@ let invFrom = "";
 let invTo = "";
 let invKind = "";   // "" all · "vat" · "normal"
 let invScope = "issued";   // "issued" (by issue date) · "all" (every booking, by start date)
+// The Billing page's own filters, carried over so Invoices can replace it
+// (pilot barely opens Billing, 25 Aug): a search, the paid / unpaid / not
+// started split, and a broker. All three work in both scopes.
+let invQ = "";             // customer, car or invoice number
+let invStatus = "all";     // all · unpaid · paid · upcoming
+let invBroker = "*";       // "*" = every broker
+// Rows whose breakdown is open under them. Module-level so a redraw after
+// recording a payment leaves the row the person was working on still open.
+const invOpen = new Set();
+
+// Same three-way split as Billing: paid wins, else started = owed now, else
+// nothing due yet. One rule, so the counts here match its tabs to the penny.
+function invCategory(b) {
+  return b.paid ? "paid" : hasStarted(b) ? "unpaid" : "upcoming";
+}
 
 function quarterStart(t) {
   const m = Number(t.slice(5, 7));
@@ -160,11 +176,24 @@ export function mount(container) {
   el(root, "rep-controls").addEventListener("change", (e) => {
     const inp = e.target.closest("input[data-inv], select[data-inv]");
     if (!inp) return;
+    if (inp.dataset.inv === "q") return;   // the search box has its own live handler below
     if (inp.dataset.inv === "from") invFrom = inp.value;
     else if (inp.dataset.inv === "to") invTo = inp.value;
     else if (inp.dataset.inv === "scope") invScope = inp.value;
+    else if (inp.dataset.inv === "status") invStatus = inp.value;
+    else if (inp.dataset.inv === "broker") invBroker = inp.value;
     else invKind = inp.value;
     render();
+  });
+  // The search box filters as you type. The controls are NOT rebuilt on each
+  // keystroke — that would take the caret away mid-word — only the table
+  // below and the counts in the status menu are redrawn.
+  el(root, "rep-controls").addEventListener("input", (e) => {
+    const inp = e.target.closest('input[data-inv="q"]');
+    if (!inp) return;
+    invQ = inp.value;
+    paintInvoiceTable();
+    paintStatusCounts();
   });
   el(root, "rep-controls").addEventListener("click", (e) => {
     if (e.target.closest("[data-inv-export]")) exportInvoicesXlsx();
@@ -191,7 +220,18 @@ export function mount(container) {
     const dep = e.target.closest("[data-dep]");
     if (dep) { openDepositModal(dep.dataset.dep); return; }
     const pay = e.target.closest("[data-pay]");
-    if (pay) setPaidFromReports(pay.dataset.pay, pay.dataset.to === "1");
+    if (pay) { setPaidFromReports(pay.dataset.pay, pay.dataset.to === "1"); return; }
+    // The rest of Billing's card actions, now under the row's breakdown.
+    const em = e.target.closest("[data-remind-email]");
+    if (em) { const b = state.bookings.find(x => x.id === em.dataset.remindEmail); if (b) contactByEmail(b); return; }
+    const wa = e.target.closest("[data-remind-wa]");
+    if (wa) { const b = state.bookings.find(x => x.id === wa.dataset.remindWa); if (b) contactByWhatsApp(b); return; }
+    const sec = e.target.closest("[data-secstatus]");
+    if (sec) { setSecurityStatus(sec.dataset.secstatus, sec.dataset.to); return; }
+    // Anything else on an invoice row opens or closes its breakdown. Buttons
+    // and links have all returned above, so a click on them never toggles.
+    const row = e.target.closest("tr[data-toggle]");
+    if (row) toggleInvoiceRow(row.dataset.toggle);
   });
 
   onDataChange(() => { if (root.classList.contains("active")) render(); });
@@ -510,35 +550,156 @@ function allBookingRows() {
     .sort((a, c) => a.start.localeCompare(c.start));
 }
 
-function renderInvoices() {
-  const box = el(root, "rep-table");
-  const note = el(root, "rep-note");
-  const rows = invScope === "all" ? allBookingRows() : issuedInvoices();
+// One list for the table, the counts and the export: the window (scope +
+// dates + kind + company) first, then Billing's three filters on top.
+function invBase() {
+  return invScope === "all" ? allBookingRows() : issuedInvoices();
+}
+function invMatches(r) {
+  const q = invQ.trim().toLowerCase();
+  if (q && !`${r.b.renter || ""} ${bookingCarLabel(r.b)} ${r.no}`.toLowerCase().includes(q)) return false;
+  if (invBroker !== "*" && (r.b.broker || "").trim() !== invBroker) return false;
+  return true;
+}
+function invoiceRows() {
+  const rows = invBase().filter(invMatches);
+  if (invStatus === "all") return rows;
+  // A voided number is neither paid nor owed; it shows under All only.
+  return rows.filter(r => !r.voided && invCategory(r.b) === invStatus);
+}
+// What each status option would show, search and broker included — the same
+// promise Billing's tab counts make.
+function invStatusCounts() {
+  const rows = invBase().filter(invMatches);
+  const n = { all: rows.length, unpaid: 0, paid: 0, upcoming: 0 };
+  rows.forEach(r => { if (!r.voided) n[invCategory(r.b)]++; });
+  return n;
+}
+const STATUS_LABELS = [["all", "All"], ["unpaid", "Unpaid"], ["paid", "Paid"], ["upcoming", "Not started"]];
 
-  const controls = `
+function renderInvoices() {
+  paintInvoiceControls();
+  paintInvoiceTable();
+}
+
+function paintInvoiceControls() {
+  const n = invStatusCounts();
+  // Brokers named on any booking in the window — the chosen one is kept in
+  // the menu even if the window no longer contains it, so the filter never
+  // silently changes behind the person's back.
+  const brokers = [...new Set(invBase().map(r => (r.b.broker || "").trim()).filter(Boolean))].sort();
+  if (invBroker !== "*" && !brokers.includes(invBroker)) brokers.push(invBroker);
+  el(root, "rep-controls").innerHTML = `
     <div class="inv-controls">
+      <input type="text" data-inv="q" placeholder="Search customer, car or invoice no..." value="${esc(invQ)}" autocomplete="off">
       <select data-inv="scope">
         <option value="issued"${invScope === "issued" ? " selected" : ""}>Issued invoices (by issue date)</option>
         <option value="all"${invScope === "all" ? " selected" : ""}>All bookings (by start date)</option>
       </select>
       <label>From <input type="date" data-inv="from" value="${esc(invFrom)}"></label>
       <label>To <input type="date" data-inv="to" value="${esc(invTo)}"></label>
+      <select data-inv="status">
+        ${STATUS_LABELS.map(([v, t]) => `<option value="${v}"${invStatus === v ? " selected" : ""}>${t} (${n[v]})</option>`).join("")}
+      </select>
+      <select data-inv="broker">
+        <option value="*">All brokers</option>
+        ${brokers.map(b => `<option value="${esc(b)}"${invBroker === b ? " selected" : ""}>${esc(b)}</option>`).join("")}
+      </select>
       ${invScope === "issued" ? `
       <select data-inv="kind">
         <option value=""${invKind === "" ? " selected" : ""}>All invoices</option>
         <option value="vat"${invKind === "vat" ? " selected" : ""}>VAT invoices</option>
         <option value="normal"${invKind === "normal" ? " selected" : ""}>Regular invoices</option>
-      </select>
-      <button class="btn" type="button" data-inv-export ${rows.length ? "" : "disabled"}>Export this list</button>` : ""}
+      </select>` : ""}
+      <button class="btn" type="button" data-inv-export>Export this list</button>
     </div>`;
-  el(root, "rep-controls").innerHTML = controls;
+}
 
-  if (invScope === "all") { renderAllBookings(box, note, controls, rows); return; }
+// Counts refreshed in place while typing — the menu is not rebuilt, so an
+// open dropdown or a focused search box is left exactly as it was.
+function paintStatusCounts() {
+  const sel = el(root, "rep-controls").querySelector('select[data-inv="status"]');
+  if (!sel) return;
+  const n = invStatusCounts();
+  STATUS_LABELS.forEach(([v, t]) => {
+    const o = sel.querySelector(`option[value="${v}"]`);
+    if (o) o.textContent = `${t} (${n[v]})`;
+  });
+}
+
+// The buttons under an open row: everything Billing's card offered, in the
+// same order, driven by the same helpers.
+function invoiceActionsHtml(b) {
+  const cust = customerForBooking(b);
+  const hasEmail = !!(b.email || cust?.email);
+  const hasPhone = !!(b.phone || cust?.phone);
+  const sec = b.securityDeposit || 0;
+  const held = (b.securityStatus || "held") === "held";
+  return `<div class="card-actions inv-detail-actions">
+    ${b.paid
+      ? (hasLedger(b)
+          ? `<button class="btn btn-small" data-payrec="${b.id}">Payments</button>`
+          : `<button class="btn btn-small" data-pay="${b.id}" data-to="0">Mark as unpaid</button>`)
+      : `<button class="btn btn-small" data-payrec="${b.id}">Record payment</button>`}
+    <button class="btn btn-small" data-dep="${b.id}">Deposits</button>
+    <button class="btn btn-small" data-open-booking="${b.id}">View booking</button>
+    ${!b.paid && hasEmail ? `<button class="btn btn-small" data-remind-email="${b.id}">Email reminder</button>` : ""}
+    ${!b.paid && hasPhone ? `<button class="btn btn-small" data-remind-wa="${b.id}">WhatsApp reminder</button>` : ""}
+    ${sec > 0 && held ? `
+      <button class="btn btn-small" data-secstatus="${b.id}" data-to="refunded">Refund deposit</button>
+      <button class="btn btn-small" data-secstatus="${b.id}" data-to="kept">Keep deposit</button>` : ""}
+  </div>`;
+}
+
+// The breakdown row that sits under an invoice row. Always in the DOM, shown
+// by class, so opening one is a class flip rather than a redraw — no flicker,
+// no lost scroll position, and the table above it never moves.
+function invoiceDetailRow(b, cols) {
+  return `<tr class="inv-detail${invOpen.has(b.id) ? " open" : ""}" data-detail-of="${b.id}">
+    <td colspan="${cols}"><div class="inv-detail-body">${invoiceDetailsHtml(b)}${invoiceActionsHtml(b)}</div></td>
+  </tr>`;
+}
+
+function toggleInvoiceRow(id) {
+  if (invOpen.has(id)) invOpen.delete(id); else invOpen.add(id);
+  const box = el(root, "rep-table");
+  const row = box.querySelector(`tr[data-toggle="${id}"]`);
+  const det = box.querySelector(`tr[data-detail-of="${id}"]`);
+  if (row) row.classList.toggle("open", invOpen.has(id));
+  if (det) det.classList.toggle("open", invOpen.has(id));
+}
+
+// The row's own compact actions — the two most-used, kept on the row so a
+// payment can be recorded without opening anything (yesterday's design).
+function rowActionsHtml(b) {
+  return `${b.paid
+    ? (hasLedger(b)
+        ? `<button class="btn btn-small" data-payrec="${b.id}">Payments</button>`
+        : `<button class="btn btn-small" data-pay="${b.id}" data-to="0">Unmark</button>`)
+    : `<button class="btn btn-small" data-payrec="${b.id}">Record payment</button>`}<button class="btn btn-small" data-dep="${b.id}">Deposits</button>`;
+}
+function periodHtml(b) {
+  return `${esc(formatDate(b.startDate))} – ${esc(formatDate(b.endDate))}`;
+}
+function statusChip(b) {
+  const c = invCategory(b);
+  return c === "paid" ? `<span class="pay-chip paid">PAID</span>` : "";
+}
+
+function paintInvoiceTable() {
+  const box = el(root, "rep-table");
+  const note = el(root, "rep-note");
+  const rows = invoiceRows();
+  note.textContent = "";
+  const exp = el(root, "rep-controls").querySelector("[data-inv-export]");
+  if (exp) exp.disabled = !rows.length;
+
+  if (invScope === "all") { renderAllBookings(box, rows); return; }
 
   if (!rows.length) {
-    box.innerHTML = `<div class="empty">No invoices issued between these dates.
-      Invoices are issued from a booking — open one and press Invoice.</div>`;
-    note.textContent = "";
+    box.innerHTML = `<div class="empty">${invQ || invStatus !== "all" || invBroker !== "*"
+      ? "No invoices match these filters. Widen them above to see more."
+      : "No invoices issued between these dates. Invoices are issued from a booking — open one and press Invoice."}</div>`;
     return;
   }
 
@@ -548,15 +709,18 @@ function renderInvoices() {
     vat: a.vat + (r.vat || 0)
   }), { total: 0, excl: 0, vat: 0 });
   const r2 = x => Math.round(x * 100) / 100;
+  const COLS = 12;
 
   box.innerHTML = `
-    <table class="rep-table">
+    <table class="rep-table inv-table">
       <thead>
         <tr>
           <th class="rep-car">Invoice</th>
           <th>Issued</th>
+          <th>Period</th>
           <th>Customer</th>
           <th>Vehicle</th>
+          <th>Broker</th>
           <th class="rep-num">Excl. VAT</th>
           <th class="rep-num">VAT</th>
           <th class="rep-num rep-strong">Total</th>
@@ -568,11 +732,13 @@ function renderInvoices() {
       <tbody>
         ${rows.map(r => r.voided ? `
           <tr class="inv-void">
-            <th class="rep-car"><button type="button" class="inv-open" data-print-void="${r.b.id}" data-void-no="${esc(r.no)}">${esc(r.no)}</button>
+            <th class="rep-car"><span class="inv-chev inv-chev-none"></span><button type="button" class="inv-open" data-print-void="${r.b.id}" data-void-no="${esc(r.no)}">${esc(r.no)}</button>
               <span class="rep-model">${r.isVat ? "VAT invoice" : "Invoice"} · <span class="pay-chip void">VOID</span></span></th>
             <td>${esc(formatDate(r.at))}</td>
+            <td>${periodHtml(r.b)}</td>
             <td>${esc(r.b.renter || "")}</td>
             <td>${esc(bookingCarLabel(r.b))}</td>
+            <td>${esc(r.b.broker || "\u2014")}</td>
             <td class="rep-num"><span class="rep-zero">\u2014</span></td>
             <td class="rep-num"><span class="rep-zero">\u2014</span></td>
             <td class="rep-num">${esc(money(r.total))}</td>
@@ -580,28 +746,26 @@ function renderInvoices() {
             <td class="rep-num">voided ${esc(formatDate(r.voidedAt))}</td>
             <td class="inv-actions"></td>
           </tr>` : `
-          <tr>
-            <th class="rep-car"><button type="button" class="inv-open" data-open-invoice="${r.b.id}">${esc(r.no)}</button>
-              <span class="rep-model">${r.isVat ? `VAT invoice · ${esc(String(r.pct))}%` : "Invoice"}</span></th>
+          <tr class="inv-row${invOpen.has(r.b.id) ? " open" : ""}" data-toggle="${r.b.id}" title="Click for the breakdown">
+            <th class="rep-car"><span class="inv-chev">\u25B8</span><button type="button" class="inv-open" data-open-invoice="${r.b.id}">${esc(r.no)}</button>
+              <span class="rep-model">${r.isVat ? `VAT invoice · ${esc(String(r.pct))}%` : "Invoice"} · ${esc(bookingRef(r.b))}</span></th>
             <td>${esc(formatDate(r.at))}</td>
+            <td>${periodHtml(r.b)}</td>
             <td>${esc(r.b.renter || "")}</td>
             <td>${esc(bookingCarLabel(r.b))}</td>
+            <td>${esc(r.b.broker || "\u2014")}</td>
             <td class="rep-num">${r.excl !== null ? esc(money(r.excl)) : `<span class="rep-zero">—</span>`}</td>
             <td class="rep-num">${r.vat !== null ? esc(money(r.vat)) : `<span class="rep-zero">—</span>`}</td>
             <td class="rep-num rep-strong">${esc(money(r.total))}</td>
             <td class="rep-num">${r.received > 0 ? esc(money(r.received)) : `<span class="rep-zero">\u2014</span>`}</td>
-            <td class="rep-num">${r.b.paid ? `<span class="pay-chip paid">PAID</span>` : esc(money(balanceFor(r.b)))}</td>
-            <td class="inv-actions">${r.b.paid
-              ? (hasLedger(r.b)
-                  ? `<button class="btn btn-small" data-payrec="${r.b.id}">Payments</button>`
-                  : `<button class="btn btn-small" data-pay="${r.b.id}" data-to="0">Unmark</button>`)
-              : `<button class="btn btn-small" data-payrec="${r.b.id}">Record payment</button>`}<button class="btn btn-small" data-dep="${r.b.id}">Deposits</button></td>
-          </tr>`).join("")}
+            <td class="rep-num">${r.b.paid ? statusChip(r.b) : esc(money(balanceFor(r.b)))}</td>
+            <td class="inv-actions">${rowActionsHtml(r.b)}</td>
+          </tr>${invoiceDetailRow(r.b, COLS)}`).join("")}
       </tbody>
       <tfoot>
         <tr>
           <th class="rep-car">Total · ${rows.length} invoice${rows.length === 1 ? "" : "s"}</th>
-          <td></td><td></td><td></td>
+          <td></td><td></td><td></td><td></td><td></td>
           <td class="rep-num">${totals.excl ? esc(money(r2(totals.excl))) : "—"}</td>
           <td class="rep-num">${totals.vat ? esc(money(r2(totals.vat))) : "—"}</td>
           <td class="rep-num rep-strong">${esc(money(r2(totals.total)))}</td>
@@ -611,27 +775,28 @@ function renderInvoices() {
         </tr>
       </tfoot>
     </table>`;
-
-  note.textContent = "";
 }
 
-function renderAllBookings(box, note, controls, rows) {
-  note.textContent = "";
+function renderAllBookings(box, rows) {
   if (!rows.length) {
-    box.innerHTML = `<div class="empty">No bookings start between these dates.</div>`;
+    box.innerHTML = `<div class="empty">${invQ || invStatus !== "all" || invBroker !== "*"
+      ? "No bookings match these filters. Widen them above to see more."
+      : "No bookings start between these dates."}</div>`;
     return;
   }
   const r2 = x => Math.round(x * 100) / 100;
   const tot = rows.reduce((a, r) => ({ total: a.total + r.total, rec: a.rec + r.received, bal: a.bal + r.balance }),
     { total: 0, rec: 0, bal: 0 });
+  const COLS = 9;
   box.innerHTML = `
-    <table class="rep-table">
+    <table class="rep-table inv-table">
       <thead>
         <tr>
           <th class="rep-car">Invoice</th>
-          <th>Starts</th>
+          <th>Period</th>
           <th>Customer</th>
           <th>Vehicle</th>
+          <th>Broker</th>
           <th class="rep-num rep-strong">Total</th>
           <th class="rep-num">Received</th>
           <th class="rep-num">Balance</th>
@@ -640,28 +805,25 @@ function renderAllBookings(box, note, controls, rows) {
       </thead>
       <tbody>
         ${rows.map(r => `
-          <tr>
-            <th class="rep-car">${r.no
+          <tr class="inv-row${invOpen.has(r.b.id) ? " open" : ""}" data-toggle="${r.b.id}" title="Click for the breakdown">
+            <th class="rep-car"><span class="inv-chev">\u25B8</span>${r.no
               ? `<button type="button" class="inv-open" data-open-invoice="${r.b.id}">${esc(r.no)}</button>`
               : `<button type="button" class="btn btn-small" data-open-booking="${r.b.id}">Issue invoice</button>`}
               <span class="rep-model">${esc(bookingRef(r.b))}</span></th>
-            <td>${esc(formatDate(r.start))}</td>
+            <td>${periodHtml(r.b)}</td>
             <td>${esc(r.b.renter || "")}</td>
             <td>${esc(bookingCarLabel(r.b))}</td>
+            <td>${esc(r.b.broker || "\u2014")}</td>
             <td class="rep-num rep-strong">${esc(money(r.total))}</td>
             <td class="rep-num">${r.received > 0 ? esc(money(r.received)) : `<span class="rep-zero">\u2014</span>`}</td>
-            <td class="rep-num">${r.b.paid ? `<span class="pay-chip paid">PAID</span>` : esc(money(r.balance))}</td>
-            <td class="inv-actions">${r.b.paid
-              ? (hasLedger(r.b)
-                  ? `<button class="btn btn-small" data-payrec="${r.b.id}">Payments</button>`
-                  : `<button class="btn btn-small" data-pay="${r.b.id}" data-to="0">Unmark</button>`)
-              : `<button class="btn btn-small" data-payrec="${r.b.id}">Record payment</button>`}<button class="btn btn-small" data-dep="${r.b.id}">Deposits</button></td>
-          </tr>`).join("")}
+            <td class="rep-num">${r.b.paid ? statusChip(r.b) : esc(money(r.balance))}</td>
+            <td class="inv-actions">${rowActionsHtml(r.b)}</td>
+          </tr>${invoiceDetailRow(r.b, COLS)}`).join("")}
       </tbody>
       <tfoot>
         <tr>
           <th class="rep-car">Total \u00b7 ${rows.length} booking${rows.length === 1 ? "" : "s"}</th>
-          <td></td><td></td><td></td>
+          <td></td><td></td><td></td><td></td>
           <td class="rep-num rep-strong">${esc(money(r2(tot.total)))}</td>
           <td class="rep-num">${esc(money(r2(tot.rec)))}</td>
           <td class="rep-num">${esc(money(r2(tot.bal)))}</td>
@@ -669,6 +831,18 @@ function renderAllBookings(box, note, controls, rows) {
         </tr>
       </tfoot>
     </table>`;
+}
+
+// Refund / keep a security deposit — the same one-field write Billing makes.
+async function setSecurityStatus(id, to) {
+  if (to !== "refunded" && to !== "kept") return;
+  setSync("saving");
+  try {
+    await updateDoc(doc(db, "bookings", id), { securityStatus: to });
+  } catch (err) {
+    setSync("error");
+    alert("Couldn't update (" + (err.code || err.message) + "). Try again.");
+  }
 }
 
 // Marking paid from this page writes exactly what Billing writes — the one
@@ -688,29 +862,42 @@ async function setPaidFromReports(id, to) {
 }
 
 async function exportInvoicesXlsx() {
-  const rows = issuedInvoices();
+  // Exactly the rows on screen — every filter applies, in either scope.
+  const rows = invoiceRows();
   if (!rows.length) return;
   const r2 = x => Math.round(x * 100) / 100;
   const co = companyName() || "Company";
+  const issued = invScope === "issued";
+  const statusOf = r => r.voided ? "Void" : ({ paid: "Paid", unpaid: "Unpaid", upcoming: "Not started" })[invCategory(r.b)];
+  const head = issued
+    ? ["Invoice no", "Kind", "VAT %", "Issued", "Booking", "Customer", "Vehicle", "From", "To", "Broker",
+       "Value excl. VAT", "VAT", "Total", "Received", "Balance", "Status"]
+    : ["Invoice no", "Booking", "Customer", "Vehicle", "From", "To", "Broker",
+       "Total", "Received", "Balance", "Status"];
+  const line = r => issued
+    ? [r.no, r.isVat ? "VAT invoice" : "Invoice", r.isVat ? r.pct : "", r.at, bookingRef(r.b),
+       r.b.renter || "", bookingCarLabel(r.b), r.b.startDate || "", r.b.endDate || "", r.b.broker || "",
+       r.excl ?? "", r.vat ?? "", r.total, r.voided ? "" : r.received, r.voided ? "" : (r.b.paid ? 0 : balanceFor(r.b)), statusOf(r)]
+    : [r.no, bookingRef(r.b), r.b.renter || "", bookingCarLabel(r.b), r.b.startDate || "", r.b.endDate || "",
+       r.b.broker || "", r.total, r.received, r.balance, statusOf(r)];
+  const sum = fn => r2(rows.reduce((a, r) => a + (Number(fn(r)) || 0), 0));
+  const totalLine = issued
+    ? ["Total", "", "", "", "", "", "", "", "", "",
+       sum(r => r.excl), sum(r => r.vat), sum(r => r.total),
+       sum(r => r.voided ? 0 : r.received), sum(r => r.voided || r.b.paid ? 0 : balanceFor(r.b)), ""]
+    : ["Total", "", "", "", "", "", "", sum(r => r.total), sum(r => r.received), sum(r => r.balance), ""];
   const aoa = [
-    [`${co} — invoices issued ${invFrom} to ${invTo}`],
+    [`${co} — ${issued ? "invoices issued" : "bookings starting"} ${invFrom} to ${invTo}`],
     [],
-    ["Invoice no", "Kind", "VAT %", "Issued", "Booking", "Customer", "Vehicle",
-     "Value excl. VAT", "VAT", "Total"],
-    ...rows.map(r => [r.no, r.isVat ? "VAT invoice" : "Invoice", r.isVat ? r.pct : "",
-      r.at, bookingRef(r.b), r.b.renter || "", bookingCarLabel(r.b),
-      r.excl ?? "", r.vat ?? "", r.total]),
+    head,
+    ...rows.map(line),
     [],
-    ["Total", "", "", "", "", "", "",
-      r2(rows.reduce((a, r) => a + (r.excl || 0), 0)),
-      r2(rows.reduce((a, r) => a + (r.vat || 0), 0)),
-      r2(rows.reduce((a, r) => a + r.total, 0))]
+    totalLine
   ];
   const XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 7 }, { wch: 12 }, { wch: 12 },
-                 { wch: 22 }, { wch: 26 }, { wch: 15 }, { wch: 12 }, { wch: 13 }];
+  ws["!cols"] = head.map(h => ({ wch: h === "Customer" || h === "Vehicle" ? 24 : h.length > 9 ? 15 : 12 }));
   XLSX.utils.book_append_sheet(wb, ws, "Invoices");
   const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   const name = co.replace(/[^a-z0-9]+/gi, "-").toLowerCase().replace(/^-|-$/g, "");

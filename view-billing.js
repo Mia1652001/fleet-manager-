@@ -211,10 +211,7 @@ export function render() {
   }
 
   listEl.innerHTML = list.map(b => {
-    const days = rentalDays(b);
-    const rate = rateFor(b);
     const total = rentalTotal(b);
-    const adv = advancePaid(b);
     const balance = balanceFor(b);
     const sec = b.securityDeposit || 0;
     const secStatus = b.securityStatus || "held";
@@ -231,6 +228,43 @@ export function render() {
         </div>
         <span class="badge ${BADGE[categoryOf(b)].cls}">${BADGE[categoryOf(b)].text}</span>
       </div>
+      ${invoiceDetailsHtml(b)}
+      <div class="card-actions">
+        ${b.paid
+          ? (hasLedger(b)
+              ? `<button class="btn" data-act="pay" data-id="${b.id}">Payments</button>`
+              : `<button class="btn" data-act="markunpaid" data-id="${b.id}">Mark as unpaid</button>`)
+          : `<button class="btn" data-act="pay" data-id="${b.id}">Record payment</button>`}
+        <button class="btn" data-act="deposits" data-id="${b.id}">Deposits</button>
+        <button class="btn" data-act="open" data-id="${b.id}">View booking</button>
+        ${!b.paid && hasEmail ? `<button class="btn" data-act="email" data-id="${b.id}">Email reminder</button>` : ""}
+        ${!b.paid && hasPhone ? `<button class="btn" data-act="whatsapp" data-id="${b.id}">WhatsApp reminder</button>` : ""}
+        ${sec > 0 && secStatus === "held" ? `
+          <button class="btn" data-act="refund" data-id="${b.id}">Refund deposit</button>
+          <button class="btn" data-act="keep" data-id="${b.id}">Keep deposit</button>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ---------- The details block ----------
+// Everything a card says about the money on one booking, as HTML. Exported so
+// the Invoices tab on Reports opens the very same block under a row — one
+// function, so the two pages can never describe the same booking differently
+// (25 Aug: Billing is on its way out; Invoices has to carry all of it).
+export function invoiceDetailsHtml(b) {
+  const days = rentalDays(b);
+  const rate = rateFor(b);
+  const total = rentalTotal(b);
+  const adv = advancePaid(b);
+  const balance = balanceFor(b);
+  const sec = b.securityDeposit || 0;
+  const secStatus = b.securityStatus || "held";
+  const cust = customerForBooking(b);
+  const hasEmail = !!(b.email || cust?.email);
+  const hasPhone = !!(b.phone || cust?.phone);
+  const log = Array.isArray(b.paidLog) && b.paidLog.length ? b.paidLog[b.paidLog.length - 1] : null;
+  return `
       <div class="card-details">
         <span>Period: <strong>${formatDate(b.startDate)} – ${formatDate(b.endDate)}</strong></span>
         ${b.broker ? `<span>Broker: <strong>${esc(b.broker)}</strong></span>` : ""}
@@ -248,10 +282,7 @@ export function render() {
           : adv > 0 ? `<span>Advance paid: <strong>-${fxPair(b, adv, b.fxAdvance)}</strong></span>` : ""}
         ${(hasLedger(b) ? paidTotal(b) > 0 : adv > 0) && !b.paid ? `<span>Balance: <strong>${formatAmount(balance)}</strong></span>` : ""}
         ${b.paid && b.paidAt ? `<span>Paid on: <strong>${formatDate(b.paidAt.slice(0, 10))}</strong></span>` : ""}
-        ${(() => {
-          const log = Array.isArray(b.paidLog) && b.paidLog.length ? b.paidLog[b.paidLog.length - 1] : null;
-          return log ? `<span style="color:var(--muted);">Last change: ${esc(log.action)} ${formatDate(String(log.at).slice(0, 10))}${log.by ? ` by ${esc(log.by)}` : ""}</span>` : "";
-        })()}
+        ${log ? `<span style="color:var(--muted);">Last change: ${esc(log.action)} ${formatDate(String(log.at).slice(0, 10))}${log.by ? ` by ${esc(log.by)}` : ""}</span>` : ""}
         ${b.paid && settledAmount(b) !== amountDue(b) ? `<span>Counted as received: <strong>${formatAmount(settledAmount(b))}</strong> <span style="opacity:0.7;">(the advance came in earlier)</span></span>` : ""}
         ${(rate === 0 && !hasManualTotal(b)) ? `<span style="color:var(--red-text);">No daily rate set on this car — edit the car in Fleet, or enter a total on the booking</span>` : ""}
       </div>
@@ -263,23 +294,7 @@ export function render() {
       ${!b.paid && !hasPhone && !hasEmail ? `
       <div class="card-details" style="border-top:none;padding-top:0;margin-top:6px;">
         <span style="color:var(--muted);">No phone or email saved — open the booking and add one, then a reminder can be sent</span>
-      </div>` : ""}
-      <div class="card-actions">
-        ${b.paid
-          ? (hasLedger(b)
-              ? `<button class="btn" data-act="pay" data-id="${b.id}">Payments</button>`
-              : `<button class="btn" data-act="markunpaid" data-id="${b.id}">Mark as unpaid</button>`)
-          : `<button class="btn" data-act="pay" data-id="${b.id}">Record payment</button>`}
-        <button class="btn" data-act="deposits" data-id="${b.id}">Deposits</button>
-        <button class="btn" data-act="open" data-id="${b.id}">View booking</button>
-        ${!b.paid && hasEmail ? `<button class="btn" data-act="email" data-id="${b.id}">Email reminder</button>` : ""}
-        ${!b.paid && hasPhone ? `<button class="btn" data-act="whatsapp" data-id="${b.id}">WhatsApp reminder</button>` : ""}
-        ${sec > 0 && secStatus === "held" ? `
-          <button class="btn" data-act="refund" data-id="${b.id}">Refund deposit</button>
-          <button class="btn" data-act="keep" data-id="${b.id}">Keep deposit</button>` : ""}
-      </div>
-    </div>`;
-  }).join("");
+      </div>` : ""}`;
 }
 
 // ---------- Categories ----------
@@ -689,7 +704,7 @@ function reminderText(b) {
   return lines.join("\n");
 }
 
-function contactByEmail(b) {
+export function contactByEmail(b) {
   // The booking's own address first: a walk-in booked with "just type a name"
   // keeps its contact details on the booking rather than in the register, and
   // that is the path most bookings are taken through. Same order as the
@@ -708,7 +723,7 @@ function contactByEmail(b) {
 // on the same thread reads as the same conversation rather than a cold text.
 // The number is normalised by the same helper the confirmation uses, so both
 // messages can only ever reach the same chat.
-function contactByWhatsApp(b) {
+export function contactByWhatsApp(b) {
   const c = customerForBooking(b);
   const raw = b.phone || c?.phone || "";
   const short =
