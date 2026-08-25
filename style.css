@@ -3111,3 +3111,13 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
   font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
 }
 .tl-corner-fixed .tl-colgrip { right: 2px; }
+
+/* The head strip, restructured so the month CANNOT move (25 Aug):
+   - .tl-head-wrap is now the OUTER frame: page-sticky, bordered, full-bleed —
+     and it is never scrolled by anything.
+   - .tl-head-scroll is the inner strip the mirror scrolls (overflow hidden).
+   - .tl-corner-fixed is absolute in the OUTER frame — outside the scrolled
+     canvas entirely. Absolute children ride their container's scroll, which
+     is why every in-wrap technique failed; this one is outside it. */
+.tl-head-scroll { overflow-x: hidden; }
+.tl-head-wrap { overflow-x: visible; }

@@ -180,7 +180,7 @@ export function mount(container) {
   // top, and the class follows. At rest there is no mask and no dead space.
   {
     const sentinel = el(root, "tl-pin-sentinel");
-    const wrap = el(root, "timeline-head-wrap");
+    const wrap = el(root, "tl-head-outer");
     if (sentinel && wrap && "IntersectionObserver" in window) {
       new IntersectionObserver(([e]) =>
         wrap.classList.toggle("hdr-pinned", !e.isIntersecting && e.boundingClientRect.top < 0)
@@ -1134,7 +1134,7 @@ function wireCarColumnDrag(grid) {
 
   // The visible handle in the frozen corner — the phone's way in, since the
   // column's bare edge loses every fight with touch scrolling (pilot, 22 Aug).
-  const head = el(root, "timeline-head-wrap");   // the wrap holds the fixed corner overlay
+  const head = el(root, "tl-head-outer");   // the outer frame holds the fixed corner overlay
   if (head && !head.dataset.gripWired) {
     head.dataset.gripWired = "1";
     head.addEventListener("pointerdown", (e) => {
@@ -1236,7 +1236,7 @@ function renderTimeline() {
     // centred in a 2,800px box — pushed off-screen and clipped. First thing a
     // brand-new company would see.
     grid.style.minWidth = "";
-    const hw = el(root, "timeline-head-wrap"); if (hw) hw.style.display = "none";
+    const hw = el(root, "tl-head-outer"); if (hw) hw.style.display = "none";
     return;
   }
 
@@ -1263,12 +1263,12 @@ function renderTimeline() {
     grid.innerHTML = '<div class="tl-empty">No cars match that search.</div>';
     grid.style.gridTemplateColumns = "1fr";
     grid.style.minWidth = "";
-    const hw = el(root, "timeline-head-wrap"); if (hw) hw.style.display = "none";
+    const hw = el(root, "tl-head-outer"); if (hw) hw.style.display = "none";
     return;
   }
 
   const cfg = zoomCfg();
-  const headWrap = el(root, "timeline-head-wrap");
+  const headWrap = el(root, "tl-head-outer");
   const headGrid = el(root, "timeline-head");
   if (headWrap) headWrap.style.display = "";
   // The car column's width: the person's own dragged width wins over the
