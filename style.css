@@ -2667,8 +2667,13 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 
 /* The filter block collapses on a phone only (25 Aug). The DOM stays flat —
    every control is still a direct child of .inv-controls, so the grid and the
-   CONTROL STANDARD sizing below apply unchanged; only visibility moves. */
-.inv-more-toggle { display: none; }
+   CONTROL STANDARD sizing below apply unchanged; only visibility moves.
+   The desktop hide cannot live here: the CONTROL STANDARD block at the end of
+   this file sets display:inline-flex on every .btn inside a control bar, and
+   its selector outscores a bare .inv-more-toggle wherever that sits. So the
+   toggle appeared on desktop (pilot's screenshot, 25 Aug 17:39). The hide is
+   at the foot of this file instead, after that block and above it on
+   specificity. */
 
 
 /* ---------- Appearance picker ---------- */
@@ -3212,3 +3217,14 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
      is why every in-wrap technique failed; this one is outside it. */
 .tl-head-scroll { overflow-x: hidden; }
 .tl-head-wrap { overflow-x: visible; }
+
+
+/* The invoices filter toggle is a phone-only control. On a desktop the filter
+   row already fits on one line, so the button collapses nothing and does
+   nothing — it is removed there rather than left as a dead control (pilot,
+   25 Aug). Placed last, and naming both of the button's classes, so it beats
+   the CONTROL STANDARD's display:inline-flex above on order AND specificity.
+   Mobile is untouched: the toggle's own rule lives in the max-width block. */
+@media (min-width: 641px) {
+  .inv-controls .inv-more-toggle.btn { display: none; }
+}
