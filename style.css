@@ -2665,6 +2665,12 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 }
 .inv-controls label { display: flex; gap: 6px; align-items: center; }
 
+/* The filter block collapses on a phone only (25 Aug). The DOM stays flat —
+   every control is still a direct child of .inv-controls, so the grid and the
+   CONTROL STANDARD sizing below apply unchanged; only visibility moves. */
+.inv-more-toggle { display: none; }
+
+
 /* ---------- Appearance picker ---------- */
 .theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
 .theme-opt {
@@ -3054,6 +3060,20 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
   }
   .inv-controls label input[type="date"] { flex: 1; min-width: 0; }
   .inv-controls .btn { width: 100%; }
+
+  /* One toggle on its own line, then everything except the search hidden
+     while closed. Named selectors rather than :not() chains, so a control
+     added here later is visible by default rather than silently hidden. */
+  /* layout only — height, padding and font come from the CONTROL STANDARD
+     via .btn, so this adds no sizing of its own */
+  .inv-more-toggle {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    grid-column: 1 / -1;
+  }
+  .inv-more-scope { color: var(--muted); text-transform: none; letter-spacing: 0; opacity: 0.8; }
+  .inv-controls.filters-closed > select,
+  .inv-controls.filters-closed > label,
+  .inv-controls.filters-closed > [data-inv-export] { display: none; }
 }
 
 

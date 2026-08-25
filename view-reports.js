@@ -68,6 +68,15 @@ let invScope = "issued";   // "issued" (by issue date) · "all" (every booking, 
 let invQ = "";             // customer, car or invoice number
 let invStatus = "all";     // all · unpaid · paid · upcoming
 let invBroker = "*";       // "*" = every broker
+// The filter block costs most of a phone screen — six controls and a button
+// above a table that is the actual answer. On a phone it collapses behind one
+// toggle, closed by default, remembered per device; the search box stays out
+// so the commonest action needs no opening. Desktop has the room and is
+// untouched (the media query alone decides that, so rotating a phone needs
+// no redraw). A plain .btn, so it takes the CONTROL STANDARD sizing with
+// no rule of its own; the caret follows the Legend/Summary convention.
+let invFiltersOpen = loadPref("reports:invFilters", false);
+
 // Rows whose breakdown is open under them. Module-level so a redraw after
 // recording a payment leaves the row the person was working on still open.
 const invOpen = new Set();
@@ -196,7 +205,14 @@ export function mount(container) {
     paintStatusCounts();
   });
   el(root, "rep-controls").addEventListener("click", (e) => {
-    if (e.target.closest("[data-inv-export]")) exportInvoicesXlsx();
+    if (e.target.closest("[data-inv-export]")) { exportInvoicesXlsx(); return; }
+    // Redrawing only the control block leaves the table and its open rows
+    // exactly where they are.
+    if (e.target.closest("[data-inv-toggle]")) {
+      invFiltersOpen = !invFiltersOpen;
+      savePref("reports:invFilters", invFiltersOpen);
+      paintInvoiceControls();
+    }
   });
   el(root, "rep-table").addEventListener("click", (e) => {
     // The number itself opens the document — a real click, so no pop-up
@@ -589,9 +605,15 @@ function paintInvoiceControls() {
   // silently changes behind the person's back.
   const brokers = [...new Set(invBase().map(r => (r.b.broker || "").trim()).filter(Boolean))].sort();
   if (invBroker !== "*" && !brokers.includes(invBroker)) brokers.push(invBroker);
+  // The dates always apply, so a closed block names them — otherwise a list
+  // narrowed to one quarter looks like the whole ledger.
+  const rangeLabel = `${formatDate(invFrom)} \u2013 ${formatDate(invTo)}`;
   el(root, "rep-controls").innerHTML = `
-    <div class="inv-controls">
+    <div class="inv-controls${invFiltersOpen ? "" : " filters-closed"}">
       <input type="text" data-inv="q" placeholder="Search customer, car or invoice no..." value="${esc(invQ)}" autocomplete="off">
+      <button type="button" class="btn inv-more-toggle" data-inv-toggle>
+        ${invFiltersOpen ? "\u25be" : "\u25b8"} Export invoices${invFiltersOpen ? "" : `<span class="inv-more-scope">${esc(rangeLabel)}</span>`}
+      </button>
       <select data-inv="scope">
         <option value="issued"${invScope === "issued" ? " selected" : ""}>Issued invoices (by issue date)</option>
         <option value="all"${invScope === "all" ? " selected" : ""}>All bookings (by start date)</option>
