@@ -2537,12 +2537,20 @@ input[type="number"] {
 
 .rep-table { border-collapse: collapse; width: 100%; font-size: 12px; }
 .rep-table th, .rep-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+/* A heading sits over its own column: left above words, right above figures.
+   The default was right for every heading, which read correctly over the
+   money columns and wrongly over Issued / Period / Customer / Vehicle /
+   Broker, whose text starts at the left (pilot, 25 Aug 18:04).
+   .rep-num is restated with the thead prefix on purpose — a bare .rep-num
+   scores (0,1,0) and would lose to .rep-table thead th at (0,1,2), which is
+   how the money headings would have silently gone left. */
 .rep-table thead th {
   position: sticky; top: 0; z-index: 2;
   background: var(--bg);
   font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--muted); font-weight: 400; text-align: right;
+  color: var(--muted); font-weight: 400; text-align: left;
 }
+.rep-table thead th.rep-num { text-align: right; }
 .rep-table thead th.rep-car { text-align: left; z-index: 4; }
 
 /* The vehicle stays put while the months scroll past it. */
@@ -2567,6 +2575,11 @@ input[type="number"] {
   font-weight: 500;
   position: sticky; bottom: 0;
 }
+/* Same rule below the table: a th spanning the text columns is a label, not a
+   figure, so it starts where those columns start rather than floating in the
+   middle of them (the Billing tab's "N bookings"). */
+.rep-table tfoot th { text-align: left; }
+.rep-table tfoot th.rep-num { text-align: right; }
 
 .rep-note {
   font-size: 11px; color: var(--muted); line-height: 1.6;
