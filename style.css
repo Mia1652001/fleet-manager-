@@ -1078,6 +1078,18 @@ input[type="number"] {
    Letting the track reach zero puts the row back in charge of its own truncation. */
 .dash-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
 .dash-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* A column of cards inside one grid cell. The cell still stretches to the
+   tallest column in the row, but inside it each card takes only the height
+   its content needs and the LAST card absorbs whatever is left over — so a
+   short card (the expenses strip) is never inflated to fill a row set by a
+   long one (the documents list). */
+.dash-stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.dash-stack > .dash-card { margin: 0; }
+.dash-stack > .dash-card:last-child { flex: 1 1 auto; }
+/* When a card in a stack does get extra height, its body sinks to the bottom
+   rather than leaving the graph stranded under the heading. */
+.dash-flexbody { display: flex; flex-direction: column; }
+.dash-flexbody > [data-el="expense-months"] { margin-top: auto; }
 
 .dash-card {
   background: var(--surface);
@@ -1345,6 +1357,7 @@ input[type="number"] {
      line of text inside it. */
   .dash-card { padding: 0.85rem 0.8rem 0.95rem; min-width: 0; }
   .dash-grid, .dash-grid-3 { gap: 9px; margin-bottom: 9px; }
+  .dash-stack { gap: 9px; }
   .dash-wide { margin-bottom: 9px; }
 
   /* Heading rows carry a title and a set of controls. On a phone they cannot
