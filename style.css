@@ -2976,10 +2976,15 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 .tl-car { cursor: default; }
 .tl-car::after { content: ""; position: absolute; right: -3px; top: 0; bottom: 0; width: 7px; cursor: col-resize; }
 
-/* In the installed app the planner's frozen header paints into the safe-area
-   strip above its resting place — the stepper row above it donates padding of
-   the same height, so the overhang eats air instead of buttons (pilot, 24 Aug) */
-#view-bookings .cal-nav { padding-bottom: env(safe-area-inset-top, 0px); }
+/* REMOVED 25 Aug: "#view-bookings .cal-nav { padding-bottom:
+   env(safe-area-inset-top) }". It belonged to the older always-on masking of
+   the frozen header, and was left behind when that was replaced by the
+   .hdr-pinned rule further down, which masks the status bar only while the
+   date strip is actually pinned. With both in place the installed app carried
+   a whole status-bar of blank space between the Days row and the planner —
+   the browser showed none, because env(safe-area-inset-top) is 0 there.
+   That is the difference in the pilot's two screenshots (25 Aug 18:25).
+   Nothing else donates padding here: the pinned mask is self-contained. */
 
 /* The car-column resize grip: lives in the frozen corner so it is always on
    screen; touch-action none means a finger on it drags width, never scrolls */
