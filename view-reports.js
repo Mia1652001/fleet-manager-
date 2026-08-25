@@ -77,6 +77,33 @@ let invBroker = "*";       // "*" = every broker
 // no rule of its own; the caret follows the Legend/Summary convention.
 let invFiltersOpen = loadPref("reports:invFilters", false);
 
+// ---------- The first column's width ----------
+// The same handle the planner puts in its corner, for the same reason: the
+// left column is the one people want wider (a long invoice number) or
+// narrower (to reach the money columns without scrolling). Drag to resize,
+// double-tap to reset, remembered per device — identical behaviour to
+// Bookings, so it only has to be learned once.
+//
+// A table cannot be resized the planner's way (that is a CSS grid template).
+// The width travels as a custom property on the scroll wrapper instead, which
+// survives the innerHTML redraws the reports do on every change.
+const REP_CAR_MIN = 120;
+const REP_CAR_MAX = 460;
+let repCarW = Number(loadPref("reports:carW", 0)) || 0;
+
+// The header cell of every report's first column, grip included.
+function repCarHead(label) {
+  return `<th class="rep-car">${label}<span class="tl-colgrip" data-rep-grip
+    title="Drag to resize this column \u00b7 double-click to reset">\u22ee\u22ee</span></th>`;
+}
+
+function applyRepCarW(w) {
+  const box = el(root, "rep-table");
+  if (!box) return;
+  if (w) box.style.setProperty("--rep-car-w", w + "px");
+  else box.style.removeProperty("--rep-car-w");
+}
+
 // Rows whose reminder panel is open. Same reason as invOpen below: a redraw
 // arrives whenever any booking changes, and it must not shut a panel the
 // person is reading a phone number off.
@@ -219,6 +246,40 @@ export function mount(container) {
       paintInvoiceControls();
     }
   });
+  // The column grip. Pointer events (not mouse) so it works on the phone,
+  // with the pointer captured so a fast drag that leaves the header keeps
+  // resizing rather than stopping dead.
+  {
+    const box = el(root, "rep-table");
+    let drag = null;
+    box.addEventListener("pointerdown", (e) => {
+      const grip = e.target.closest("[data-rep-grip]");
+      if (!grip) return;
+      const cell = grip.closest(".rep-car");
+      drag = { x: e.clientX, w: repCarW || (cell ? cell.getBoundingClientRect().width : 190) };
+      box.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    box.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      repCarW = Math.round(Math.min(REP_CAR_MAX, Math.max(REP_CAR_MIN, drag.w + e.clientX - drag.x)));
+      applyRepCarW(repCarW);
+    });
+    const finish = () => {
+      if (!drag) return;
+      drag = null;
+      savePref("reports:carW", repCarW);
+    };
+    box.addEventListener("pointerup", finish);
+    box.addEventListener("pointercancel", finish);
+    box.addEventListener("dblclick", (e) => {
+      if (!e.target.closest("[data-rep-grip]")) return;
+      repCarW = 0;
+      savePref("reports:carW", 0);
+      applyRepCarW(0);
+    });
+  }
+
   el(root, "rep-table").addEventListener("click", (e) => {
     // The number itself opens the document — a real click, so no pop-up
     // blocker has anything to say about it.
@@ -318,6 +379,7 @@ function filterReport(data) {
 
 export function render() {
   if (!root) return;
+  applyRepCarW(repCarW);   // the property lives on the wrapper, which survives redraws
   refreshYearOptions();
   paintTabs();
   paintEntityFilter();
@@ -453,7 +515,7 @@ function renderCarGrid(data, verb, which) {
     <table class="rep-table rep-cargrid">
       <thead>
         <tr>
-          <th class="rep-car">Car</th>
+          ${repCarHead("Car")}
           ${MONTHS.map(m => `<th class="rep-num">${m}</th>`).join("")}
           <th class="rep-num rep-strong">Total</th>
           <th class="rep-num">Average</th>
@@ -505,7 +567,7 @@ function renderMonthly(mon) {
     <table class="rep-table rep-months">
       <thead>
         <tr>
-          <th class="rep-car">Month</th>
+          ${repCarHead("Month")}
           <th class="rep-num">Occupancy</th>
           <th class="rep-num">Days rented</th>
           <th class="rep-num">Income</th>
@@ -772,7 +834,7 @@ function paintInvoiceTable() {
     <table class="rep-table inv-table">
       <thead>
         <tr>
-          <th class="rep-car">Invoice</th>
+          ${repCarHead("Invoice")}
           <th>Issued</th>
           <th>Period</th>
           <th>Customer</th>
@@ -849,7 +911,7 @@ function renderAllBookings(box, rows) {
     <table class="rep-table inv-table">
       <thead>
         <tr>
-          <th class="rep-car">Invoice</th>
+          ${repCarHead("Invoice")}
           <th>Period</th>
           <th>Customer</th>
           <th>Vehicle</th>

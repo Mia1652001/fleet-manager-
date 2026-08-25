@@ -2554,11 +2554,33 @@ input[type="number"] {
 .rep-table thead th.rep-car { text-align: left; z-index: 4; }
 
 /* The vehicle stays put while the months scroll past it. */
+/* The first column's width is the person's to set (the grip in its heading,
+   same control as the planner's). --rep-car-w is written on the scroll
+   wrapper by the drag; with no drag yet the fallbacks below are the old
+   fixed widths, so nothing changes until the handle is used.
+   max-width matters as much as min-width: without it the column simply grows
+   back to its content and the handle appears to do nothing in one direction. */
 .rep-car {
   position: sticky; left: 0; z-index: 3;
   background: var(--surface);
-  text-align: left; font-weight: 400; min-width: 190px;
+  text-align: left; font-weight: 400;
+  min-width: var(--rep-car-w, 190px);
+  max-width: var(--rep-car-w, none);
+  overflow: hidden;
 }
+/* Narrowed, the contents must trail off rather than spill over the figures.
+   inline-block, not block: the chevron sits beside the number and a block
+   would push it onto its own line. */
+.rep-car .inv-open {
+  display: inline-block; vertical-align: bottom;
+  max-width: calc(100% - 18px);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rep-car .rep-model, .rep-car .rep-plate {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Room for the grip so it never sits on top of the heading word. */
+.rep-table thead th.rep-car { padding-right: 32px; }
 .rep-table thead .rep-car, .rep-table tfoot .rep-car { background: var(--bg); }
 .rep-plate { display: block; font-weight: 500; }
 .rep-model { display: block; font-size: 10px; color: var(--muted); margin-top: 1px; }
@@ -2588,7 +2610,7 @@ input[type="number"] {
 
 @media (max-width: 640px) {
   .rep-table th, .rep-table td { padding: 6px 8px; }
-  .rep-car { min-width: 150px; }
+  .rep-car { min-width: var(--rep-car-w, 150px); }   /* the drag still wins on a phone */
   .rep-title { font-size: 1rem; }
 }
 
