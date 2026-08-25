@@ -130,7 +130,8 @@ let tlMonthHalf = 60;   // half-column width in px at the current zoom
 
 function updateTlMonth() {
   if (!root || tlMonthDays.length === 0) return;
-  const label = root.querySelector(".tl-month");
+  const fixed = el(root, "tl-corner-fixed");
+  const label = fixed && fixed.querySelector(".tl-month");
   const wrap = el(root, "timeline-wrap");
   if (!label || !wrap) return;
   // Which day sits at the left edge right now. Columns only compress to their
@@ -1452,6 +1453,15 @@ function renderTimeline() {
   // into a date whenever the planner moves sideways.
   tlMonthDays = days;
   tlMonthHalf = cfg.half;
+  // The month is RENDERED, not patched in afterwards: the label is born with
+  // its text in the same statement that owns the window, so no query, call
+  // order or event timing can ever leave it blank (the pilot's third and
+  // final empty-corner screenshot, 25 Aug). Scrolling updates the same span.
+  {
+    const fixed = el(root, "tl-corner-fixed");
+    if (fixed) fixed.innerHTML = `<span class="tl-month">${MONTH_NAMES[days[0].getMonth()]} ${days[0].getFullYear()}</span>`
+      + `<span class="tl-colgrip" title="Drag to resize the car column \u00b7 double-tap to reset">\u22ee\u22ee</span>`;
+  }
 
   grid.innerHTML = html;
   applyDayHighlight();   // the selected date's tint survives redraws
