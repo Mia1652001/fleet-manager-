@@ -424,6 +424,23 @@
       <div class="toolbar">
         <input type="text" data-el="search" placeholder="Search name, phone, email, or license...">
         <button class="btn-primary" data-el="add-customer">+ Add customer</button>
+        <button class="btn" data-el="import-customers">Import from Excel</button>
+        <input type="file" data-el="import-file" accept=".xlsx,.xls,.csv" style="display:none;">
+      </div>
+
+      <!-- Same shape as the fleet importer: read the file, name every problem,
+           write nothing until Import is pressed. -->
+      <div class="overlay" data-el="import-modal">
+        <div class="modal" style="width:640px;">
+          <h2>Import customers from a spreadsheet</h2>
+          <div class="form-error" data-el="import-error"></div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px;" data-el="import-summary"></p>
+          <div data-el="import-list" style="max-height:46vh;overflow:auto;"></div>
+          <div class="modal-actions">
+            <button class="btn" data-close="import-modal">Cancel</button>
+            <button class="btn-primary" data-el="import-go" disabled>Import</button>
+          </div>
+        </div>
       </div>
       <!-- Jump straight to a letter rather than scrolling a register that only
            ever gets longer. Letters with nobody behind them are dimmed. -->
