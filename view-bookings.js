@@ -1144,8 +1144,15 @@ function wireCarColumnDrag(grid) {
     head.addEventListener("pointerdown", (e) => {
       const grip = e.target.closest(".tl-colgrip");
       if (!grip) return;
-      const corner = grip.closest(".tl-corner");
-      dragging = { startX: e.clientX, startW: corner.getBoundingClientRect().width };
+      // The grip lives in the fixed overlay since 25 Aug, not the scrolled
+      // corner cell — the old ".tl-corner" lookup found nothing and threw,
+      // which is why the button went dead (Mia's recording, 25 Aug 13:46).
+      // Start from the column width the grid actually has, so the overlay's
+      // own box (padding, borders) can never skew the drag.
+      const gridEl = el(root, "timeline");
+      const corner = grip.closest(".tl-corner-fixed, .tl-corner") || grip.parentElement;
+      const startW = (gridEl && parseInt(gridEl.style.gridTemplateColumns)) || corner.getBoundingClientRect().width;
+      dragging = { startX: e.clientX, startW };
       head.setPointerCapture(e.pointerId);
       e.preventDefault();
     });
