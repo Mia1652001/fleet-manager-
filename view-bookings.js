@@ -1058,7 +1058,11 @@ function exportPlannerXls() {
       const ds = ymd(d);
       const b = state.bookings.find(x => x.carId === c.id && x.startDate <= ds && x.endDate >= ds);
       if (!b) { html += `<td></td>`; return; }
-      const colour = b.colour || "#f5a623";
+      // Mirror the planner exactly (pilot, 25 Aug): a custom colour wins;
+      // otherwise the STATUS colour — the field is barColour, and reading a
+      // nonexistent b.colour was why every cell exported the same orange.
+      const STATUS_HEX = { "active-b": "#e8f4e8", upcoming: "#fdf3dc", overdue: "#fdeaea", completed: "#efece5" };
+      const colour = b.barColour || STATUS_HEX[bookingState(b)] || "#fdf3dc";
       const label = ds === b.startDate ? esc2(b.renter || "") : "";
       html += `<td style="background:${esc2(colour)};">${label}</td>`;
     });

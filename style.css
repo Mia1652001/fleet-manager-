@@ -7,6 +7,9 @@
   --border: #e0dbd0;
   --text: #1a1814;
   --muted: #7a7568;
+  --col-hl-bg: #e4eaf6;        /* the tapped-column tint — deliberately NOT
+                                  yellow, so it never reads as today/weekend
+                                  (pilot, 25 Aug) */
   --green-bg: #e8f4e8;
   --green-text: #2d6a2d;
   --amber-bg: #fdf3dc;
@@ -2922,8 +2925,8 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 
 /* Tap a date header: its column tints (planner) */
 .tl-daynum { cursor: pointer; }
-.tl-daynum.col-hl { background: var(--amber-bg); color: var(--amber-text); }
-.tl-cell.col-hl { background: var(--amber-bg); }
+.tl-daynum.col-hl { background: var(--col-hl-bg); color: #3a4d7a; }
+.tl-cell.col-hl { background: var(--col-hl-bg); }
 
 /* Page-level sideways panning is prevented globally (html/body overflow-x
    clip). A clip on the SECTION itself amputated the boards' intended
