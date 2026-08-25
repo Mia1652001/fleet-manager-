@@ -13,7 +13,8 @@ import {
   sharesStartHandover, sharesEndHandover,
   el,
   requestFocus,
-  carDocsDue
+  carDocsDue,
+  CAR_DOC_FIELDS, MONTH_NAMES
 , monthlySummary } from "./store.js";
 
 let root = null;
@@ -144,7 +145,145 @@ export function render() {
   renderBookingFigures();
   renderServiceFigures();
   renderCustomerFigures();
+  renderDocMonths(t);
+  renderExpenseMonths();
   renderUnpaid();
+}
+
+// ---------- Documents expiring, by month ----------
+// Arshad, 7 Aug: "license coming to expiry for the current month and next
+// months." The app already warned at 30 days, which is a rolling window —
+// it cannot be tied to a month, compared with last month, or looked at ahead.
+// The same objection his accountant made about the money figures, and the
+// same answer: whole calendar months, each one named.
+//
+// Six months: this one and five ahead. Far enough to plan a renewal queue,
+// short enough that the card does not become a list nobody reads. Anything
+// already expired leads, because that is today's problem, not next quarter's.
+const DOC_MONTHS_AHEAD = 5;
+const DOCS_PER_MONTH = 4;
+
+function docsByMonth(t) {
+  const first = t.slice(0, 7);
+  const window = [first];
+  for (let i = 1; i <= DOC_MONTHS_AHEAD; i++) window.push(shiftMonth(first, i));
+  const buckets = new Map(window.map(m => [m, []]));
+  const expired = [];
+
+  orderedCars().forEach(car => {
+    CAR_DOC_FIELDS.forEach(f => {
+      const date = car[f.key];
+      if (!date || String(date).length < 10) return;
+      const item = { car, label: f.label, date };
+      if (date < t) { expired.push(item); return; }
+      const key = String(date).slice(0, 7);
+      if (buckets.has(key)) buckets.get(key).push(item);
+    });
+  });
+
+  expired.sort((a, b) => a.date.localeCompare(b.date));
+  buckets.forEach(list => list.sort((a, b) => a.date.localeCompare(b.date)));
+  return { expired, window, buckets };
+}
+
+function docRow(x, tone) {
+  return `<div class="dash-job" data-goto="fleet" data-focus="docs">
+    <span class="dash-job-main">${esc(x.car.plate || bookingCarLabelish(x.car))}
+      <span class="dash-dim">${esc(x.label)}</span></span>
+    <span class="dash-doc-date${tone ? " " + tone : ""}">${esc(formatDate(x.date))}</span>
+  </div>`;
+}
+// A car's own short name, without needing a booking to hang it on.
+function bookingCarLabelish(car) {
+  return [car.make, car.model].filter(Boolean).join(" ") || "Car";
+}
+
+function renderDocMonths(t) {
+  const box = el(root, "docs-months");
+  if (!box) return;                       // older cached page: skip, never throw
+  const { expired, window, buckets } = docsByMonth(t);
+  const total = expired.length + window.reduce((n, m) => n + buckets.get(m).length, 0);
+
+  if (!total) {
+    box.innerHTML = `<div class="dash-empty">Nothing expiring in the next ${DOC_MONTHS_AHEAD + 1} months.</div>`;
+    return;
+  }
+
+  const block = (title, items, tone) => {
+    if (!items.length) return "";
+    const shown = items.slice(0, DOCS_PER_MONTH);
+    return `<div class="dash-month">
+      <div class="dash-month-head${tone ? " " + tone : ""}">
+        <span>${esc(title)}</span><span class="dash-month-n">${items.length}</span>
+      </div>
+      ${shown.map(x => docRow(x, tone)).join("")}
+      ${items.length > shown.length
+        ? `<button class="dash-more" data-goto="fleet" data-focus="docs">+ ${items.length - shown.length} more \u2192</button>`
+        : ""}
+    </div>`;
+  };
+
+  // Months with nothing due are dropped rather than printed empty: six empty
+  // headings would bury the two months that actually need work.
+  box.innerHTML = block("Already expired", expired, "dash-red")
+    + window.map((m, i) => block(monthLabel(m) + (i === 0 ? " \u00b7 this month" : ""),
+        buckets.get(m), i === 0 ? "dash-amber" : "")).join("");
+}
+
+// ---------- Monthly expenses: past, current and coming ----------
+// His words: "Monthly expenses for the month + past months + next months."
+// All three at once, so a strip rather than a stepper — the Money card above
+// already steps one month at a time, and the question here is the shape of
+// the year, not one month's figure. Reads state.expenses directly rather than
+// monthlySummary because the window crosses a year boundary and that helper
+// answers for one year only.
+const EXP_MONTHS_BACK = 5;
+const EXP_MONTHS_AHEAD = 3;
+
+function expensesByMonthWindow() {
+  const now = thisMonth();
+  const keys = [];
+  for (let i = -EXP_MONTHS_BACK; i <= EXP_MONTHS_AHEAD; i++) keys.push(shiftMonth(now, i));
+  const totals = new Map(keys.map(k => [k, 0]));
+  (state.expenses || []).forEach(x => {
+    const k = String(x.date || "").slice(0, 7);
+    if (!totals.has(k)) return;
+    totals.set(k, totals.get(k) + Math.max(0, Number(x.amount) || 0));
+  });
+  return { keys, totals, now };
+}
+
+function renderExpenseMonths() {
+  const box = el(root, "expense-months");
+  if (!box) return;
+  const { keys, totals, now } = expensesByMonthWindow();
+  const spent = keys.reduce((n, k) => n + totals.get(k), 0);
+  if (!spent) {
+    box.innerHTML = `<div class="dash-empty">Nothing recorded in these months.</div>`;
+    return;
+  }
+  // The tallest month sets the bar scale, so the shape is readable whatever
+  // the amounts happen to be.
+  // Bar heights in pixels, not percentages: a percentage needs a parent with a
+  // definite height, and one stylesheet change to the column would silently
+  // flatten every bar to nothing.
+  const peak = Math.max(...keys.map(k => totals.get(k)));
+  const BAR_MAX = 48;
+  const barPx = v => (peak > 0 && v > 0) ? Math.max(2, Math.round((v / peak) * BAR_MAX)) : 0;
+  box.innerHTML = `<div class="dash-mstrip">
+    ${keys.map(k => {
+      const v = totals.get(k);
+      const isNow = k === now;
+      const ahead = k > now;
+      return `<div class="dash-mcol${isNow ? " now" : ""}${ahead ? " ahead" : ""}" data-goto="expenses"
+          title="${esc(monthLabel(k))}: ${esc(formatAmount(v))}">
+        <span class="dash-mbar" style="height:${barPx(v)}px"></span>
+        <span class="dash-mval">${v ? esc(formatAmount(v)) : "\u2014"}</span>
+        <span class="dash-mlabel">${esc(MONTH_NAMES[Number(k.slice(5, 7)) - 1].slice(0, 3))}</span>
+      </div>`;
+    }).join("")}
+  </div>
+  <div class="dash-mnote">${esc(formatAmount(spent))} over these ${keys.length} months \u00b7 months ahead hold what is already recorded</div>`;
 }
 
 // ---------- Anything that needs attention right now ----------

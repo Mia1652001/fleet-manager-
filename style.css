@@ -1183,6 +1183,55 @@ input[type="number"] {
 
 .dash-empty { font-size: 12px; color: var(--muted); padding: 10px 6px; }
 
+/* ---------- Dashboard: documents expiring, by month (Arshad, 7 Aug) ----------
+   A month heading over the documents due in it. Months with nothing due are
+   not printed at all, so the card shows only the months that need work. */
+.dash-month + .dash-month { margin-top: 10px; }
+.dash-month-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); padding: 4px 6px; border-bottom: 1px solid var(--border);
+}
+.dash-month-head.dash-red { color: var(--red-text); }
+.dash-month-head.dash-amber { color: var(--amber-text); }
+.dash-month-n {
+  font-size: 10px; letter-spacing: 0; padding: 1px 7px; border-radius: 10px;
+  background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+}
+.dash-doc-date { flex-shrink: 0; font-variant-numeric: tabular-nums; color: var(--muted); }
+.dash-doc-date.dash-red { color: var(--red-text); font-weight: 500; }
+.dash-doc-date.dash-amber { color: var(--amber-text); }
+
+/* ---------- Dashboard: monthly expenses strip ----------
+   Past, current and coming months side by side — his request was all three
+   at once, which a stepper cannot show. Scrolls with the thumb on a phone,
+   the same gesture as the expenses category totals. */
+.dash-mstrip {
+  display: flex; gap: 6px; align-items: flex-end;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  padding: 6px 2px 0;
+}
+.dash-mcol {
+  flex: 1 0 52px; min-width: 52px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  cursor: pointer; border-radius: 5px; padding: 4px 2px;
+}
+.dash-mcol:hover { background: var(--bg); }
+.dash-mcol .dash-mbar {
+  width: 60%; border-radius: 3px 3px 0 0;
+  background: var(--accent); opacity: 0.55;
+  flex-shrink: 0;   /* a short bar must not be squeezed to nothing */
+}
+.dash-mcol.now .dash-mbar { opacity: 1; }
+.dash-mcol.ahead .dash-mbar { opacity: 0.28; }
+.dash-mval { font-size: 10px; font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; }
+.dash-mlabel { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.dash-mcol.now .dash-mlabel { color: var(--text); font-weight: 500; }
+.dash-mnote { font-size: 11px; color: var(--muted); margin-top: 8px; }
+/* The bars need a height to grow into; the column is the reference box. */
+.dash-mstrip { min-height: 96px; }
+.dash-mcol { justify-content: flex-end; height: 88px; }
+
 /* The dashboard planner is a glance, not a workspace */
 .dash-timeline { max-height: 340px; overflow-y: auto; margin-bottom: 0; }
 .dash-timeline .tl-car { padding-left: 10px; cursor: pointer; }
