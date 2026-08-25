@@ -1085,7 +1085,12 @@ input[type="number"] {
    long one (the documents list). */
 .dash-stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .dash-stack > .dash-card { margin: 0; }
-.dash-stack > .dash-card:last-child { flex: 1 1 auto; }
+/* This row's columns are NOT stretched to the tallest one. Everywhere else on
+   the dashboard equal-height cards look tidy, but here one column is a long
+   documents list and the other a short strip, and stretching inflated the
+   short card into half a screen of white (pilot, 25 Aug 18:27). Each card
+   keeps the height its own content needs. */
+.dash-grid-top { align-items: start; }
 /* When a card in a stack does get extra height, its body sinks to the bottom
    rather than leaving the graph stranded under the heading. */
 .dash-flexbody { display: flex; flex-direction: column; }

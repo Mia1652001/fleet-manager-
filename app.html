@@ -159,23 +159,15 @@
            documents list is tall and the expenses strip is short, and side by
            side the short one was stretched to match, leaving the empty half
            screen the pilot circled (25 Aug 18:27). Stacked, each card takes
-           the height it needs and the unpaid list takes up the slack. -->
-      <div class="dash-grid">
+           the height it needs and nothing is stretched to match. -->
+      <div class="dash-grid dash-grid-top">
         <div class="dash-stack">
           <div class="dash-card">
             <div class="dash-head">
               <h3>Documents expiring</h3>
-              <a href="#fleet" class="dash-link" data-goto="fleet" data-focus="docs">Fleet →</a>
+              <a href="#fleet" class="dash-link">Fleet →</a>
             </div>
             <div data-el="docs-months"></div>
-          </div>
-
-          <div class="dash-card">
-            <div class="dash-head">
-              <h3>Customers</h3>
-              <a href="#customers" class="dash-link">Customers →</a>
-            </div>
-            <div class="dash-figures" data-el="customer-figures"></div>
           </div>
         </div>
 
@@ -194,6 +186,14 @@
               <a href="#billing" class="dash-link">All invoices →</a>
             </div>
             <div data-el="unpaid-list"></div>
+          </div>
+
+          <div class="dash-card">
+            <div class="dash-head">
+              <h3>Customers</h3>
+              <a href="#customers" class="dash-link">Customers →</a>
+            </div>
+            <div class="dash-figures" data-el="customer-figures"></div>
           </div>
         </div>
       </div>

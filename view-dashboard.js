@@ -32,8 +32,18 @@ export function mount(container) {
   // 2026): the real planner is one tap away and this one repeated it worse.
   root.addEventListener("click", (e) => {
     const go = e.target.closest("[data-goto]");
-    if (go && go.dataset.focus) setFleetFocus(go.dataset.focus);
-    if (go) { location.hash = "#" + go.dataset.goto; return; }
+    if (!go) return;
+    // A named car wins over any filter: Fleet is asked to reveal that one
+    // card, and whatever focus a previous jump left behind is cleared, or the
+    // filter could hide the very car being opened.
+    if (go.dataset.car) {
+      setFleetFocus(null);
+      requestFocus("fleet", go.dataset.car);
+      location.hash = "#" + go.dataset.goto;
+      return;
+    }
+    if (go.dataset.focus) setFleetFocus(go.dataset.focus);
+    location.hash = "#" + go.dataset.goto;
   });
 
   // Prev / this month / next for the Money card. Guarded the same way the
@@ -187,7 +197,11 @@ function docsByMonth(t) {
 }
 
 function docRow(x, tone) {
-  return `<div class="dash-job" data-goto="fleet" data-focus="docs">
+  // No data-focus here. This card looks six months ahead; the Fleet "docs"
+  // filter only keeps cars due within 30 days, so a row for a document due in
+  // December landed on "Showing 0 cars" (pilot, 25 Aug 18:34). The row opens
+  // its own car instead, which is what clicking a car should do anyway.
+  return `<div class="dash-job" data-goto="fleet" data-car="${esc(x.car.id)}">
     <span class="dash-job-main">${esc(x.car.plate || bookingCarLabelish(x.car))}
       <span class="dash-dim">${esc(x.label)}</span></span>
     <span class="dash-doc-date${tone ? " " + tone : ""}">${esc(formatDate(x.date))}</span>
@@ -218,7 +232,7 @@ function renderDocMonths(t) {
       </div>
       ${shown.map(x => docRow(x, tone)).join("")}
       ${items.length > shown.length
-        ? `<button class="dash-more" data-goto="fleet" data-focus="docs">+ ${items.length - shown.length} more \u2192</button>`
+        ? `<button class="dash-more" data-goto="fleet">+ ${items.length - shown.length} more \u2192</button>`
         : ""}
     </div>`;
   };
