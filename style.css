@@ -3052,8 +3052,8 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
    .filter-row for tab groups), use .btn/.btn-primary/.tab/select/input
    with NO inline sizing — and both layouts are already correct. */
 :root {
-  --ctl-h-mobile: 44px;     /* one tap-target height for every control */
-  --ctl-font-mobile: 14px;
+  --ctl-h-mobile: 31px;     /* 30% down from 44px — pilot's call, 25 Aug */
+  --ctl-font-mobile: 10px;
   --ctl-h-desktop: 30px;    /* the Tasks-bar size, now THE desktop size */
   --ctl-font-desktop: 11px;
 }
@@ -3089,6 +3089,13 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
   input[type="text"], input[type="date"] {
     min-height: var(--ctl-h-mobile);
     font-size: var(--ctl-font-mobile);
+  }
+  /* text inputs keep 16px type — the exact iOS threshold below which the
+     page zooms on every tap; they take the compact height through padding */
+  input[type="text"], input[type="date"] {
+    font-size: 16px;
+    padding-top: 4px;
+    padding-bottom: 4px;
   }
   .alpha-btn { min-height: 0; font-size: 10px; }  /* documented exception: 26-key index strip */
 }
