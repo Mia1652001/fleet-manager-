@@ -154,7 +154,7 @@ nav a.active { background: var(--bg); color: var(--text); }
 .stat-val.blue { color: var(--blue-text); }
 
 /* ---------- Controls ---------- */
-.toolbar { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+.toolbar { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
 
 /* THE standard box. One size for every text, number, date and choice box in
    the whole app, now and for every future feature: DM Mono at 16px, the same
@@ -438,7 +438,7 @@ input[type="number"] {
   .cal-header { flex-direction: column; align-items: stretch; }
   .cal-title { font-size: 1.05rem; white-space: normal; }
   .cal-nav { justify-content: flex-start; }
-  .cal-nav .tab, .cal-nav .btn { font-size: 10px; padding: 6px 10px; }
+  /* cal-nav controls use the standard sizes like everything else (25 Aug) */
 }
 
 @media (max-width: 640px) {
@@ -1188,7 +1188,7 @@ input[type="number"] {
 
 .dash-range { font-family: var(--font-ui); font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 6px; }
 .dash-minnav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.dash-minnav .btn { padding: 4px 9px; font-size: 11px; }
+/* dash-minnav buttons use the standard sizes (25 Aug) */
 
 /* ---------- Wider planner on the Bookings view ----------
    Lists and cards read better in a narrow centred column, so .main stays at
@@ -2061,7 +2061,7 @@ input[type="number"] {
 .contact-box { margin: -0.4rem 0 1rem; }
 .contact-edit { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
 .contact-edit input { flex: 1 1 150px; min-width: 0; }
-.contact-edit .btn-primary { flex: 0 0 auto; padding: 8px 14px; font-size: 11px; }
+.contact-edit .btn-primary { flex: 0 0 auto; }
 .contact-links { display: flex; gap: 14px; flex-wrap: wrap; }
 /* Plain text buttons: these are asides, not actions competing with Save. */
 .link-btn {
@@ -2157,36 +2157,8 @@ input[type="number"] {
   border-color: var(--text);
 }
 
-/* ---------- Tasks toolbar: one size for every control ----------
-   Five control styles (search, buttons, selects, tabs, toggles) each brought
-   their own height, type size and padding, which read as clutter. Everything
-   in this bar now shares the Fleet page's compact tab size — small and even,
-   not big and even. Controls keep their natural widths and wrap; only the
-   search stretches. */
-#view-tasks .planner-bar input[type="text"],
-#view-tasks .planner-bar select,
-#view-tasks .planner-bar .btn,
-#view-tasks .planner-bar .btn-primary,
-#view-tasks .planner-bar .panel-toggle,
-#view-tasks .planner-bar .tab {
-  height: 30px;
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 12px;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border-radius: 4px;
-  margin: 0;
-}
-#view-tasks .planner-bar input[type="text"] {
-  justify-content: flex-start;
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 12px;
-}
+/* (the Tasks bar sizes were promoted to the desktop-wide CONTROL STANDARD, 25 Aug) */
+
 #view-tasks .planner-bar select { min-width: 0; }
 #view-tasks .planner-bar .tab-select { max-width: 150px; }
 #view-tasks .planner-bar .toolbar,
@@ -2198,17 +2170,9 @@ input[type="number"] {
    line: the two dropdowns share the space Today leaves, instead of the third
    control falling onto a lonely line of its own. Desktop is untouched. */
 @media (max-width: 640px) {
-  #view-tasks .planner-bar input[type="text"] { flex: 1 1 100%; height: 32px; font-size: 12px; }
-  #view-tasks .planner-bar select,
-  #view-tasks .planner-bar .btn,
-  #view-tasks .planner-bar .btn-primary,
-  #view-tasks .planner-bar .panel-toggle,
-  #view-tasks .planner-bar .tab {
-    height: 26px;
-    padding: 0 8px;
-    font-size: 10px;
-    letter-spacing: 0.04em;
-  }
+  #view-tasks .planner-bar input[type="text"] { flex: 1 1 100%; }
+  /* (sizes come from the CONTROL STANDARD — the old 26px compact set
+     contradicted the 44px mobile rule and is gone, 25 Aug) */
   /* Air between the rows — the compact controls read as cramped when the
      lines sit tight on each other. Horizontal gaps stay small; it is the
      vertical rhythm that was missing. */
@@ -2444,13 +2408,6 @@ input[type="number"] {
     min-width: 110px;
   }
   #view-tasks .planner-bar select,
-  #view-tasks .planner-bar .btn,
-  #view-tasks .planner-bar .btn-primary,
-  #view-tasks .planner-bar .panel-toggle,
-  #view-tasks .planner-bar .tab {
-    padding-left: 10px;
-    padding-right: 10px;
-  }
   #view-tasks .planner-bar select[data-el="kind-filter"] { max-width: 120px; }
   #view-tasks .planner-bar .tab-select { max-width: 112px; }
   #view-tasks .planner-bar .toolbar { gap: 6px; }
@@ -2923,7 +2880,9 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 
 /* The car-column resize grip: lives in the frozen corner so it is always on
    screen; touch-action none means a finger on it drags width, never scrolls */
-.tl-corner { position: relative; }
+/* (the grip positions against the corner's sticky context — sticky IS a
+   positioning context, so no relative override; that override was what
+   un-pinned the month, pilot's screenshots 25 Aug) */
 .tl-colgrip {
   position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
   padding: 6px 5px; font-size: 11px; letter-spacing: -1px; line-height: 1;
@@ -3095,13 +3054,41 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 :root {
   --ctl-h-mobile: 44px;     /* one tap-target height for every control */
   --ctl-font-mobile: 14px;
+  --ctl-h-desktop: 30px;    /* the Tasks-bar size, now THE desktop size */
+  --ctl-font-desktop: 11px;
+}
+/* DESKTOP: every control in every page control bar uses the Tasks recipe.
+   Dialog forms keep the 44px field standard — density belongs to control
+   bars, comfort belongs to forms. */
+@media (min-width: 641px) {
+  :is(.toolbar, .planner-bar, .filter-row, .cal-header, .inv-controls, [data-el="rep-controls"])
+  :is(.btn, .btn-primary, .tab, .panel-toggle, select, input[type="text"], input[type="date"]) {
+    height: var(--ctl-h-desktop);
+    min-height: 0;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    font-size: var(--ctl-font-desktop);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  /* typed text keeps its case and reading size — only labels shout */
+  :is(.toolbar, .planner-bar, .filter-row, .cal-header, .inv-controls, [data-el="rep-controls"]) input[type="text"] {
+    justify-content: flex-start;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+  }
 }
 @media (max-width: 640px) {
-  .toolbar .btn, .toolbar .btn-primary, .toolbar select,
-  .toolbar input[type="text"], .toolbar input[type="date"],
-  .filter-row .tab, .filter-row .btn, .filter-row .btn-primary, .filter-row select,
-  .inv-controls select, .inv-controls .btn, .inv-controls input[type="date"] {
+  /* EVERY control, everywhere — not just inside toolbars (25 Aug). The one
+     documented exception is the customers A–Z index strip below. */
+  .btn, .btn-primary, .tab, select,
+  input[type="text"], input[type="date"] {
     min-height: var(--ctl-h-mobile);
     font-size: var(--ctl-font-mobile);
   }
+  .alpha-btn { min-height: 0; font-size: 10px; }  /* documented exception: 26-key index strip */
 }
