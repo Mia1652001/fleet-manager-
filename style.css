@@ -290,6 +290,7 @@ input[type="number"] {
 .overlay.open { display: flex; }
 
 .modal {
+  position: relative;   /* anchors .modal-pins to the frame (25 Aug) */
   background: var(--surface); border-radius: 6px; border: 1px solid var(--border);
   width: 400px; max-width: 100%;
   /* A column: the body scrolls, the action bar is the popup's own bottom
@@ -315,14 +316,18 @@ input[type="number"] {
    app.js). Sticky, so it rides at the top edge however far the form scrolls.
    The negative bottom margin gives back the space it occupies, so titles sit
    exactly where they always did — they just keep clear of the corner. */
+.modal-pins {
+  /* the frame's own corner: absolute beside the scrolling body — no scroll
+     exists in its coordinate system (25 Aug) */
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 40;
+}
 .modal-x {
-  /* sticks within the scrolling body, so it stays reachable however far
-     down a long form has been scrolled */
-  position: sticky;
-  top: 6px;
-  z-index: 30;
-  display: block;
-  margin: calc(-2rem + 6px) calc(-2rem + 6px) -30px auto;
   width: 30px;
   height: 30px;
   border: 1px solid var(--border);
@@ -2909,11 +2914,9 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 
 /* The quick Paid pill: pinned inside the booking dialog's top edge */
 .paid-quick {
-  position: sticky; top: 6px; float: right; z-index: 8;
   font-family: var(--font-ui); font-size: 12px; padding: 6px 12px;
   border: 1px solid var(--border); border-radius: 999px;
   background: var(--surface); color: var(--muted); cursor: pointer;
-  margin: 0 40px 0 12px;   /* clear of the × */
 }
 .paid-quick.on { background: var(--green-bg); color: var(--green-text); border-color: var(--green-text); }
 
@@ -3109,6 +3112,14 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
     min-height: 0;
     padding-top: 2px;
     padding-bottom: 2px;
+    /* iOS date controls carry an intrinsic native width that overflowed the
+       card edge (pilot's red line, 25 Aug) — it yields here */
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    text-align: left;
   }
   /* a checkbox and its words are one row: box first, text beside it,
      wrapping within the row — never a word-per-line column adrift of its

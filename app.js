@@ -576,6 +576,19 @@ function injectModalCloseButtons() {
       m.insertBefore(body, m.firstChild);
     }
     const bodyEl = m.querySelector(".modal-body");
+    // The pins row lives in the FRAME, beside the scrolling body, so nothing
+    // that scrolls can carry it: sticky-with-negative-margins inside the
+    // scroller drifted on iOS (pilot's screenshots, 25 Aug). Any quick-action
+    // pill a modal declares (the booking form's \u2713 Paid) is lifted out of
+    // the body into the same row, so the pair sit together top-right, frozen.
+    let pins = m.querySelector(".modal-pins");
+    if (!pins) {
+      pins = document.createElement("div");
+      pins.className = "modal-pins";
+      m.insertBefore(pins, bodyEl);
+    }
+    const pill = bodyEl.querySelector(".paid-quick");
+    if (pill) pins.appendChild(pill);
     if (!m.querySelector(".modal-x")) {
       const b = document.createElement("button");
       b.type = "button";
@@ -583,7 +596,7 @@ function injectModalCloseButtons() {
       b.setAttribute("aria-label", "Close");
       b.innerHTML = "&times;";
       b.addEventListener("click", () => o.classList.remove("open"));
-      bodyEl.prepend(b);
+      pins.appendChild(b);
     }
   });
 }
