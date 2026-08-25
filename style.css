@@ -3103,9 +3103,10 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
   /* date inputs open a wheel, not a keyboard — no zoom risk, so they take
      the full compact size; a hard height tames the native chrome that made
      them taller than their neighbours (pilot's PDF, 25 Aug) */
-  input[type="date"] {
+  input[type="date"], .field input[type="date"], .modal .field input[type="date"] {
     font-size: 13px;
     height: var(--ctl-h-mobile);
+    min-height: 0;
     padding-top: 2px;
     padding-bottom: 2px;
   }
@@ -3121,7 +3122,7 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
     width: 100%;
     text-align: left;
   }
-  label:has(> input[type="checkbox"]) input[type="checkbox"] { flex: 0 0 auto; }
+  label:has(> input[type="checkbox"]) input[type="checkbox"] { flex: 0 0 auto; width: auto; }
   .alpha-btn { min-height: 0; font-size: 10px; }  /* documented exception: 26-key index strip */
 }
 
