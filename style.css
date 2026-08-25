@@ -3024,9 +3024,10 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
    arrow, 25 Aug). On a phone the shared toolbar grid already gives the tabs
    a full line of their own in pairs. */
 @media (min-width: 641px) {
-  #view-reports .toolbar [data-el="rep-tabs"] {
-    display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: 12px;
-  }
+  /* display:contents dissolves the tab container so every tab flows as a
+     direct toolbar item — the row can never wrap as one solid block below
+     the selects again (pilot, 25 Aug) */
+  #view-reports .toolbar [data-el="rep-tabs"] { display: contents; }
 }
 
 
@@ -3086,17 +3087,41 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
   /* EVERY control, everywhere — not just inside toolbars (25 Aug). The one
      documented exception is the customers A–Z index strip below. */
   .btn, .btn-primary, .tab, select,
-  input[type="text"], input[type="date"] {
+  input[type="text"], input[type="date"], input[type="email"],
+  input[type="tel"], input[type="number"], input[type="password"] {
     min-height: var(--ctl-h-mobile);
     font-size: var(--ctl-font-mobile);
   }
-  /* text inputs keep 16px type — the exact iOS threshold below which the
+  /* keyboard inputs keep 16px type — the exact iOS threshold below which the
      page zooms on every tap; they take the compact height through padding */
-  input[type="text"], input[type="date"] {
+  input[type="text"], input[type="email"], input[type="tel"],
+  input[type="number"], input[type="password"] {
     font-size: 16px;
     padding-top: 4px;
     padding-bottom: 4px;
   }
+  /* date inputs open a wheel, not a keyboard — no zoom risk, so they take
+     the full compact size; a hard height tames the native chrome that made
+     them taller than their neighbours (pilot's PDF, 25 Aug) */
+  input[type="date"] {
+    font-size: 13px;
+    height: var(--ctl-h-mobile);
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+  /* a checkbox and its words are one row: box first, text beside it,
+     wrapping within the row — never a word-per-line column adrift of its
+     box (pilot's PDF, 25 Aug) */
+  label:has(> input[type="checkbox"]) {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+  }
+  label:has(> input[type="checkbox"]) input[type="checkbox"] { flex: 0 0 auto; }
   .alpha-btn { min-height: 0; font-size: 10px; }  /* documented exception: 26-key index strip */
 }
 
