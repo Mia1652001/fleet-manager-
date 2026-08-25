@@ -1133,7 +1133,7 @@ function wireCarColumnDrag(grid) {
 
   // The visible handle in the frozen corner — the phone's way in, since the
   // column's bare edge loses every fight with touch scrolling (pilot, 22 Aug).
-  const head = el(root, "timeline-head");
+  const head = el(root, "timeline-head-wrap");   // the wrap holds the fixed corner overlay
   if (head && !head.dataset.gripWired) {
     head.dataset.gripWired = "1";
     head.addEventListener("pointerdown", (e) => {
@@ -1173,6 +1173,8 @@ function applyCarWidth(w) {
   const rest = grid.style.gridTemplateColumns.replace(/^[\d.]+px/, w + "px");
   grid.style.gridTemplateColumns = rest;
   if (head) head.style.gridTemplateColumns = rest;
+  const fixed = el(root, "tl-corner-fixed");
+  if (fixed) fixed.style.width = w + "px";
 }
 
 function jumpToSearchMatch() {
@@ -1274,6 +1276,10 @@ function renderTimeline() {
   const columnsSpec = `${carW}px repeat(${DAYS * 2}, minmax(${cfg.half}px, 1fr))`;
   grid.style.gridTemplateColumns = columnsSpec;
   if (headGrid) headGrid.style.gridTemplateColumns = columnsSpec;
+  {
+    const fixed = el(root, "tl-corner-fixed");
+    if (fixed) fixed.style.width = carW + "px";
+  }
   wireCarColumnDrag(grid);
   wireDayHighlight();
 
@@ -1301,7 +1307,11 @@ function renderTimeline() {
   // the planner grid itself — that is what keeps it on screen while the page
   // scrolls down a long fleet. Same columns, same widths, so it always lines
   // up with the body beneath it.
-  let headHtml = `<div class="tl-corner" style="grid-row:1;grid-column:1;"><span class="tl-month"></span><span class="tl-colgrip" title="Drag to resize the car column \u00b7 double-tap to reset">\u22ee\u22ee</span></div>`;
+  // spacer only — the visible month+grip live in the fixed overlay on the
+  // wrap, outside the scrolling coordinate system entirely: sticky inside a
+  // programmatically-scrolled overflow:hidden strip proved unreliable (the
+  // pilot's third month-scrolls-away screenshot, 25 Aug)
+  let headHtml = `<div class="tl-corner" style="grid-row:1;grid-column:1;"></div>`;
   days.forEach((d, i) => {
     const ds = dstr(d);
     const dow = d.getDay();

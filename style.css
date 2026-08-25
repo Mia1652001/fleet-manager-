@@ -3092,3 +3092,15 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
   }
   .alpha-btn { min-height: 0; font-size: 10px; }  /* documented exception: 26-key index strip */
 }
+
+/* The planner month + grip as a fixed overlay on the head strip — anchored
+   to the wrap, which never scrolls, so no scroll can move it (25 Aug). */
+.tl-head-wrap { position: sticky; }  /* (already sticky — restated as the overlay's anchor) */
+.tl-corner-fixed {
+  position: absolute; left: 0; top: 0; bottom: 0; z-index: 8;
+  display: flex; align-items: center;
+  padding: 6px 10px; box-sizing: border-box;
+  background: var(--bg); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+.tl-corner-fixed .tl-colgrip { right: 2px; }
