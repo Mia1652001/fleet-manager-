@@ -2978,6 +2978,17 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
 .inv-detail-body .card-details { margin-top: 6px; padding-top: 8px; gap: 10px 22px; }
 .inv-detail-body .card-details:first-child { border-top: none; padding-top: 4px; margin-top: 0; }
 .inv-detail-actions { margin-top: 10px; }
+/* The reminder panel: one row under the actions showing where the message is
+   about to go. Hidden by class, shown in place, so opening it never redraws
+   the breakdown above. Buttons carry only the standard .btn .btn-small — the
+   panel sets layout, never size. */
+.inv-remind { display: none; }
+.inv-remind.open { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.inv-remind-lead { font-size: 11px; color: var(--muted); margin-right: 2px; }
+@media (max-width: 640px) {
+  .inv-remind.open { gap: 6px; }
+  .inv-remind-lead { width: 100%; margin: 0 0 2px; }
+}
 @media (max-width: 640px) {
   .inv-detail-body { max-width: calc(100vw - 16px); }
   .inv-detail-body .card-details { gap: 6px 14px; }

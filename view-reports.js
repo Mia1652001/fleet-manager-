@@ -77,6 +77,11 @@ let invBroker = "*";       // "*" = every broker
 // no rule of its own; the caret follows the Legend/Summary convention.
 let invFiltersOpen = loadPref("reports:invFilters", false);
 
+// Rows whose reminder panel is open. Same reason as invOpen below: a redraw
+// arrives whenever any booking changes, and it must not shut a panel the
+// person is reading a phone number off.
+const invRemindOpen = new Set();
+
 // Rows whose breakdown is open under them. Module-level so a redraw after
 // recording a payment leaves the row the person was working on still open.
 const invOpen = new Set();
@@ -238,6 +243,8 @@ export function mount(container) {
     const pay = e.target.closest("[data-pay]");
     if (pay) { setPaidFromReports(pay.dataset.pay, pay.dataset.to === "1"); return; }
     // The rest of Billing's card actions, now under the row's breakdown.
+    const rem = e.target.closest("[data-remind]");
+    if (rem) { toggleReminder(rem.dataset.remind); return; }
     const em = e.target.closest("[data-remind-email]");
     if (em) { const b = state.bookings.find(x => x.id === em.dataset.remindEmail); if (b) contactByEmail(b); return; }
     const wa = e.target.closest("[data-remind-wa]");
@@ -665,12 +672,40 @@ function invoiceActionsHtml(b) {
       : `<button class="btn btn-small" data-payrec="${b.id}">Record payment</button>`}
     <button class="btn btn-small" data-dep="${b.id}">Deposits</button>
     <button class="btn btn-small" data-open-booking="${b.id}">View booking</button>
-    ${!b.paid && hasEmail ? `<button class="btn btn-small" data-remind-email="${b.id}">Email reminder</button>` : ""}
-    ${!b.paid && hasPhone ? `<button class="btn btn-small" data-remind-wa="${b.id}">WhatsApp reminder</button>` : ""}
+    ${!b.paid && (hasEmail || hasPhone) ? `<button class="btn btn-small" data-remind="${b.id}">${invRemindOpen.has(b.id) ? "\u25be" : "\u25b8"} Reminder</button>` : ""}
     ${sec > 0 && held ? `
       <button class="btn btn-small" data-secstatus="${b.id}" data-to="refunded">Refund deposit</button>
       <button class="btn btn-small" data-secstatus="${b.id}" data-to="kept">Keep deposit</button>` : ""}
+  </div>${reminderPanelHtml(b, hasEmail, hasPhone)}`;
+}
+
+// The address and the number themselves, not two blind buttons: the desk
+// wants to see WHERE the reminder is about to go before sending it — the
+// customer's own contact may be out of date, and a reminder to the wrong
+// person is worse than none. Clicking either sends the same message Billing
+// sends, through the same two helpers.
+function reminderPanelHtml(b, hasEmail, hasPhone) {
+  if (b.paid || (!hasEmail && !hasPhone)) return "";
+  const cust = customerForBooking(b);
+  const email = b.email || cust?.email || "";
+  const phone = b.phone || cust?.phone || "";
+  return `<div class="inv-remind${invRemindOpen.has(b.id) ? " open" : ""}" data-remind-for="${b.id}">
+    <span class="inv-remind-lead">Send a payment reminder to:</span>
+    ${hasEmail ? `<button class="btn btn-small" data-remind-email="${b.id}">\u2709 ${esc(email)}</button>` : ""}
+    ${hasPhone ? `<button class="btn btn-small" data-remind-wa="${b.id}">\u260e ${esc(phone)}</button>` : ""}
   </div>`;
+}
+
+// Opened and closed in place — no redraw, so the breakdown above it does not
+// move and the table keeps its scroll position.
+function toggleReminder(id) {
+  if (invRemindOpen.has(id)) invRemindOpen.delete(id); else invRemindOpen.add(id);
+  const open = invRemindOpen.has(id);
+  const box = el(root, "rep-table");
+  const panel = box.querySelector(`.inv-remind[data-remind-for="${id}"]`);
+  const btn = box.querySelector(`[data-remind="${id}"]`);
+  if (panel) panel.classList.toggle("open", open);
+  if (btn) btn.textContent = `${open ? "\u25be" : "\u25b8"} Reminder`;
 }
 
 // The breakdown row that sits under an invoice row. Always in the DOM, shown
