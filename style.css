@@ -2694,7 +2694,9 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 /* On a phone the filter row pins to the top while the register scrolls —
    dates, kind filter and Export stay reachable at row 200 as at row 1. */
 @media (max-width: 640px) {
-  .inv-controls { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 45; background: var(--bg); padding: 8px 2px; margin: 0 0 8px; }
+  /* not sticky: the pilot voted these should scroll away with the page
+     like everything else (25 Aug) */
+  .inv-controls { background: var(--bg); padding: 8px 2px; margin: 0 0 8px; }
 }
 .inv-controls label { display: flex; gap: 6px; align-items: center; }
 
@@ -2758,7 +2760,6 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 
   /* the invoice filters stay visible while the register scrolls */
   #view-reports [data-el="rep-controls"] {
-    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 35;
     background: var(--bg); padding: 6px 0;
   }
 
@@ -3057,4 +3058,14 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
   }
   .inv-controls label input[type="date"] { flex: 1; min-width: 0; }
   .inv-controls .btn { width: 100%; }
+}
+
+
+/* Reports: the tab row shares the top toolbar line on a desktop (pilot's
+   arrow, 25 Aug). On a phone the shared toolbar grid already gives the tabs
+   a full line of their own in pairs. */
+@media (min-width: 641px) {
+  #view-reports .toolbar [data-el="rep-tabs"] {
+    display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: 12px;
+  }
 }
