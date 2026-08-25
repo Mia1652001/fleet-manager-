@@ -2752,7 +2752,9 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
   .planner-bar > *, .cal-header > * { min-width: 0; margin-left: 0 !important; }
 
   .filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin-left: 0 !important; }
-  .filter-row .tab, .filter-row select { flex: 1 1 calc(50% - 6px); min-width: 0; text-align: center; }
+  .filter-row .tab, .filter-row select, .filter-row .btn, .filter-row .btn-primary {
+    flex: 1 1 calc(50% - 6px); min-width: 0; text-align: center;
+  }
 
   /* the invoice filters stay visible while the register scrolls */
   #view-reports [data-el="rep-controls"] {
@@ -3007,19 +3009,14 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
    middle — Add task, Show completed, List, Board — and the Past/Today/Ahead
    range row at the bottom, closest to the board it filters. */
 @media (max-width: 640px) {
-  /* Both control rows are children of .toolbar, so the ordering lives there:
-     search, the two pickers, then the four-button row, and the Past/Today/
-     Ahead ranges LAST — at the bottom, closest to the board they filter. */
-  #view-tasks .toolbar { display: flex; flex-direction: column; }
-  #view-tasks .toolbar > input[data-el="search"] { order: 1; }
+  /* Tasks uses the SAME two-column toolbar grid as Expenses — one mechanism,
+     one look (pilot: "use the expenses page as reference", 25 Aug). Only the
+     order is tasks-specific: pickers, then the action/view pairs, and the
+     Past/Today/Ahead ranges last, closest to the board they filter. */
   #view-tasks .toolbar > .multi-pick { order: 2; }
   #view-tasks .toolbar > select { order: 3; }
-  #view-tasks .toolbar > .filter-row-last { order: 4; display: flex; gap: 6px; }
-  #view-tasks .toolbar > [data-el="filters"] { order: 5; margin-left: 0 !important; }
-  #view-tasks .filter-row-last .btn-primary,
-  #view-tasks .filter-row-last .tab {
-    flex: 1 1 0; min-width: 0; padding: 9px 4px; font-size: 11px; white-space: nowrap;
-  }
+  #view-tasks .toolbar > .filter-row-last { order: 4; }
+  #view-tasks .toolbar > [data-el="filters"] { order: 5; }
 }
 
 
