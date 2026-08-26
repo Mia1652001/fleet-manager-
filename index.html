@@ -249,7 +249,6 @@
               </datalist>
             </div>
             <div class="field"><label>Colour</label><input data-el="c-colour" placeholder="e.g. silver"></div>
-            <div data-el="c-customs"></div>
             <div class="field"><label>Rented under</label>
               <select data-el="c-entity"></select></div>
           </div>
@@ -291,6 +290,18 @@
           <div class="field"><label>Total lease paid</label><input data-el="c-lease-paid" type="number" min="0" placeholder="paid to date, typed by hand"></div>
           <div style="font-size:11px;color:var(--muted);margin:-6px 0 14px;">Leasing figures, all optional — shown on the car's card.
             Total lease paid is carried forward by hand for now.</div>
+
+          <!-- Whatever extra fields this company has defined in Settings.
+               They used to sit inside the Category / Colour / Rented-under
+               row, which broke that row's layout and pushed the standard
+               fields around; and they are extra information, so they belong
+               after the fields every car has, not among them (pilot,
+               26 Aug). The whole block disappears when none are defined. -->
+          <div data-el="c-customs-wrap" style="display:none;">
+            <div class="field-label-lead">Additional information</div>
+            <div data-el="c-customs"></div>
+          </div>
+
           <div class="modal-actions">
             <button class="btn" data-close="car-modal">Cancel</button>
             <button class="btn-primary" data-el="save-car">Save car</button>

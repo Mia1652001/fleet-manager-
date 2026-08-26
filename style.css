@@ -377,6 +377,16 @@ input[type="number"] {
 .field label { display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
 .field input, .field select { width: 100%; }
 
+/* A heading over a group of fields — same type as a field label, but with a
+   rule above it so the group reads as its own section. Used for the car
+   form's company-defined extra fields, which sit after everything standard. */
+.field-label-lead {
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 12px; margin-bottom: 10px;
+}
+
 .form-error { background: var(--red-bg); color: var(--red-text); font-size: 12px; padding: 10px 12px; border-radius: 4px; margin-bottom: 14px; display: none; }
 .form-error.show { display: block; }
 

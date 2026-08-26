@@ -498,10 +498,16 @@ function openCarModal(id) {
   setVal(root, "c-colour", c?.colour || "");
   // the company's own fields, rendered from their Settings definitions
   {
+    // The block carries its own heading, so it has to disappear entirely when
+    // this company has defined no extra fields — otherwise every car form ends
+    // with an "Additional information" heading and nothing under it.
     const slot = el(root, "c-customs");
-    if (slot) slot.innerHTML = carCustomFields().map(f => `
+    const wrap = el(root, "c-customs-wrap");
+    const fields = carCustomFields();
+    if (slot) slot.innerHTML = fields.map(f => `
       <div class="field"><label>${esc(f.label)}</label>
         <input type="text" data-cf="${esc(f.id)}" value="${esc((c?.customFields || {})[f.id] || "")}"></div>`).join("");
+    if (wrap) wrap.style.display = fields.length ? "" : "none";
   }
   // Which company this car is rented under — its documents follow this tag.
   {
