@@ -2267,6 +2267,15 @@ input[type="number"] {
 /* Brief outline on an invoice jumped to from its booking, so the eye lands on
    the right card among many. */
 .item-card.card-flash { outline: 2px solid var(--text); outline-offset: 2px; }
+/* The same brief outline for a table row. .card-flash is scoped to .item-card
+   and does nothing on a <tr>, and an outline on a row is unreliable across
+   browsers anyway — the cells carry it instead (25 Aug, "View invoice" now
+   lands on the Reports register). */
+.inv-row.row-flash > th, .inv-row.row-flash > td {
+  background: var(--bg);
+  box-shadow: inset 0 2px 0 var(--text), inset 0 -2px 0 var(--text);
+}
+.inv-row.row-flash > th.rep-car { box-shadow: inset 2px 0 0 var(--text), inset 0 2px 0 var(--text), inset 0 -2px 0 var(--text); }
 
 /* The floating date tag that follows the cursor during planner drags. Dark on
    light so it reads over any bar colour; never catches the pointer itself. */

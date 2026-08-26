@@ -87,9 +87,11 @@ export function mountBookingForm() {
   const viewInvoice = el(root, "b-view-invoice");
   if (viewInvoice) viewInvoice.addEventListener("click", () => {
     if (!editingBookingId) return;
-    requestFocus("billing", editingBookingId);
+    // Reports, not Billing (25 Aug): the invoice register on Reports now
+    // carries everything Billing's card did, and Billing is on its way out.
+    requestFocus("reports", editingBookingId);
     closeModal(root, "booking-modal");
-    location.hash = "#billing";
+    location.hash = "#reports";
   });
   ["b-delivery", "b-insurance", "b-other", "b-total"].forEach(name =>
     el(root, name).addEventListener("input", () => { syncExtrasHint(); syncCardCharge(); syncMoneyBlock(); }));

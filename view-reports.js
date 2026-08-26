@@ -16,7 +16,7 @@ import {
   customerForBooking,
   extraEntities, mainEntity,
   revenueByBrokerMonth,
-  loadPref, savePref, el
+  loadPref, savePref, el, takeFocus
 } from "./store.js";
 import { loadXlsx, downloadBlob } from "./backup.js";
 import { openVoidedInvoice, openInvoice } from "./agreement.js";
@@ -102,6 +102,49 @@ function applyRepCarW(w) {
   if (!box) return;
   if (w) box.style.setProperty("--rep-car-w", w + "px");
   else box.style.removeProperty("--rep-car-w");
+}
+
+// Set by a jump from a booking; cleared as soon as the row has been shown.
+let revealInvoice = null;
+
+// Everything that has to be true for one invoice to be on screen. Filters are
+// widened rather than wiped: a date window that already contains the invoice
+// is left alone, so arriving from a booking does not silently throw away the
+// month someone was looking at.
+function applyInvoiceFocus(id) {
+  const b = state.bookings.find(x => x.id === id);
+  if (!b) return;
+
+  current = "invoices";
+  savePref("reports:tab", current);
+
+  // A search box or a status/broker filter could hide it whatever the dates.
+  invQ = "";
+  invStatus = "all";
+  invBroker = "*";
+  invKind = "";
+
+  // The issued scope files a row under its issue DATE, and an invoice raised
+  // before the app began recording that date has none — such a row carries an
+  // empty date and is dropped by any window at all. So the issued scope is
+  // used only when there is a real issue date to file under; everything else
+  // goes to the all-bookings scope, which files by start date and lists every
+  // booking, invoiced or not. Both scopes show the invoice number.
+  const at = String(b.invoiceIssuedAt || "").slice(0, 10);
+  const issued = !!b.invoiceNo && at.length === 10;
+  invScope = issued ? "issued" : "all";
+  const anchor = (issued ? at : "")
+    || String(b.startDate || "").slice(0, 10)
+    || todayStr();
+
+  if (!invFrom) invFrom = quarterStart(todayStr());
+  if (!invTo) invTo = todayStr();
+  if (anchor < invFrom) invFrom = anchor;
+  if (anchor > invTo) invTo = anchor;
+
+  // Drawn already open, so the breakdown is there the moment it is seen.
+  invOpen.add(id);
+  revealInvoice = id;
 }
 
 // Rows whose reminder panel is open. Same reason as invOpen below: a redraw
@@ -379,6 +422,12 @@ function filterReport(data) {
 
 export function render() {
   if (!root) return;
+  // Arriving from a booking's "View invoice": switch to the register, widen
+  // whatever is filtering it until that invoice is inside the window, and
+  // mark it to be opened and flashed once the table is drawn. Done before
+  // anything is painted, so the tab and the filters are already right.
+  const focusId = takeFocus("reports");
+  if (focusId) applyInvoiceFocus(focusId);
   applyRepCarW(repCarW);   // the property lives on the wrapper, which survives redraws
   refreshYearOptions();
   paintTabs();
@@ -805,6 +854,21 @@ function statusChip(b) {
   return c === "paid" ? `<span class="pay-chip paid">PAID</span>` : "";
 }
 
+// Scroll the row into view and outline it briefly. Runs after the table has
+// been written, on a timeout so the browser has laid it out first.
+function revealInvoiceRow() {
+  if (!revealInvoice) return;
+  const id = revealInvoice;
+  revealInvoice = null;
+  setTimeout(() => {
+    const row = el(root, "rep-table").querySelector(`tr[data-toggle="${id}"]`);
+    if (!row) return;
+    row.scrollIntoView({ block: "center", behavior: "smooth" });
+    row.classList.add("row-flash");
+    setTimeout(() => row.classList.remove("row-flash"), 1600);
+  }, 0);
+}
+
 function paintInvoiceTable() {
   const box = el(root, "rep-table");
   const note = el(root, "rep-note");
@@ -813,7 +877,7 @@ function paintInvoiceTable() {
   const exp = el(root, "rep-controls").querySelector("[data-inv-export]");
   if (exp) exp.disabled = !rows.length;
 
-  if (invScope === "all") { renderAllBookings(box, rows); return; }
+  if (invScope === "all") { renderAllBookings(box, rows); revealInvoiceRow(); return; }
 
   if (!rows.length) {
     box.innerHTML = `<div class="empty">${invQ || invStatus !== "all" || invBroker !== "*"
@@ -894,6 +958,7 @@ function paintInvoiceTable() {
         </tr>
       </tfoot>
     </table>`;
+  revealInvoiceRow();
 }
 
 function renderAllBookings(box, rows) {
