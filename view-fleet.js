@@ -212,9 +212,13 @@ export function render() {
       <div class="card-top">
         <div>
           <div class="card-title">${esc(c.make)} ${esc(c.model)}</div>
-          <div class="card-sub">${esc(c.plate) || "no plate"}${c.category ? " · " + esc(c.category) : ""}${c.colour ? " · " + esc(c.colour) : ""}${c.automatic ? " · auto" : ""}${c.entityId ? ` · <span class="car-ent">${esc(entityForCar(c).name)}</span>` : ""}${
-  carCustomFields().map(f => (c.customFields || {})[f.id]
-    ? ` · <span class="car-ent">${esc(f.label)}: ${esc(c.customFields[f.id])}</span>` : "").join("")}</div>
+          <div class="card-sub">${esc(c.plate) || "no plate"}${c.category ? " · " + esc(c.category) : ""}${c.colour ? " · " + esc(c.colour) : ""}${c.automatic ? " · auto" : ""}${c.entityId ? ` · <span class="car-ent">${esc(entityForCar(c).name)}</span>` : ""}</div>
+          <!-- User-defined fields used to be appended here. With three of them
+               filled (insurance details, previous amount, policy number) the
+               line ran to four wrapped lines on every card and buried the
+               plate (pilot, 26 Aug). They are still on the car's own form,
+               still saved, and still in the Excel export — just not on the
+               card, whose job is to identify the car at a glance. -->
         </div>
         ${c.outOfService ? `<span class="badge overdue">Out of service</span>` : ""}
       </div>
