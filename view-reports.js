@@ -279,6 +279,9 @@ export function mount(container) {
     invQ = inp.value;
     paintInvoiceTable();
     paintStatusCounts();
+    // Searching rebuilds the table, and narrower content means narrower
+    // columns — so the frozen heading has to be measured again.
+    requestAnimationFrame(syncRepHead);
   });
   el(root, "rep-controls").addEventListener("click", (e) => {
     if (e.target.closest("[data-inv-export]")) { exportInvoicesXlsx(); return; }
@@ -472,6 +475,11 @@ export function render() {
         `<div class="rep-note">Month by month always shows all companies \u2014 the company filter applies to the other tabs.</div>`);
     }
   }
+
+  // One call for every tab: each branch above has just written its table, and
+  // the frozen heading is measured from whatever ended up there. After paint,
+  // so the browser has laid the columns out and the widths are real.
+  requestAnimationFrame(syncRepHead);
 }
 
 
@@ -749,6 +757,67 @@ function invStatusCounts() {
   return n;
 }
 const STATUS_LABELS = [["all", "All"], ["unpaid", "Unpaid"], ["paid", "Paid"], ["upcoming", "Not started"]];
+
+// ---------- The frozen heading ----------
+// Same arrangement as the planner and the two boards: the heading that must
+// stay still lives OUTSIDE the scrolling box. A copy of the real <thead> is
+// placed in .rep-head-wrap, which sticks to the page and is scrolled sideways
+// only by mirroring the table. The real heading stays in the table so the
+// columns keep their natural widths — the copy is measured from it and laid
+// over it, so at rest the two are indistinguishable.
+//
+// The first attempt (26 Aug) capped the table's height instead. That did
+// freeze the heading, but only by giving the table its own vertical
+// scrollbar — the window-in-a-window the pilot had already asked to remove.
+function syncRepHead() {
+  const wrap = el(root, "rep-head-wrap");
+  const box = el(root, "rep-table");
+  if (!wrap || !box) return;
+
+  const table = box.querySelector("table.rep-table");
+  const head = table && table.tHead;
+  if (!head) { wrap.style.display = "none"; wrap.innerHTML = ""; return; }
+
+  // Copy, then force every column to the width the real one actually got.
+  // Without fixed widths the copy would lay itself out from its own content
+  // and drift a few pixels per column — visible as a shiver on scroll.
+  const clone = document.createElement("table");
+  clone.className = table.className;
+  clone.appendChild(head.cloneNode(true));
+
+  const cells = [...head.rows[0].cells];
+  const widths = cells.map(c => c.getBoundingClientRect().width);
+  const total = widths.reduce((a, w) => a + w, 0);
+  if (!total) { wrap.style.display = "none"; return; }
+
+  const colgroup = document.createElement("colgroup");
+  widths.forEach(w => {
+    const col = document.createElement("col");
+    col.style.width = w + "px";
+    colgroup.appendChild(col);
+  });
+  clone.insertBefore(colgroup, clone.firstChild);
+  clone.style.tableLayout = "fixed";
+  clone.style.width = total + "px";
+
+  wrap.innerHTML = "";
+  wrap.appendChild(clone);
+  wrap.style.display = "block";
+
+  // Lay the copy exactly over the real heading: the negative margin pulls the
+  // table back up by the copy's own height, so nothing moves down the page.
+  const h = head.getBoundingClientRect().height;
+  wrap.style.height = h + "px";
+  wrap.style.marginBottom = (-h) + "px";
+  wrap.scrollLeft = box.scrollLeft;
+
+  if (!box.dataset.repMirror) {
+    box.dataset.repMirror = "1";
+    box.addEventListener("scroll", () => { wrap.scrollLeft = box.scrollLeft; });
+    // Column widths change with the window, so the copy is remeasured.
+    window.addEventListener("resize", () => syncRepHead());
+  }
+}
 
 function renderInvoices() {
   paintInvoiceControls();

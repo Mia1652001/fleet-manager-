@@ -2560,92 +2560,42 @@ input[type="number"] {
   #view-tasks [data-el="board"],
   #view-expenses [data-el="xboard"],
   #view-reports .rep-wrap {
-    width: calc(100% + 2 * var(--main-pad-x, 0.9rem));
-    margin-left: calc(-1 * var(--main-pad-x, 0.9rem));
-    border-left: none;
-    border-right: none;
-    border-radius: 0;
-  }
-
-  /* The frozen date/name strip holds its own copy of the grid. It must fill
-     that strip and not shift again, or the two would sit a padding apart and
-     the columns would stop lining up. */
-  .board-head-wrap .staff-board {
-    width: 100%;
-    margin-left: 0;
-  }
-}
-
-/* ---------- Bigger tick boxes on a phone ----------
-   The board's tick is 13px square. On a desktop that is a precise little
-   control under a mouse pointer; under a thumb it is a miss waiting to happen,
-   and the pilot's staff mark jobs done on their phones all day. It roughly
-   doubles on a phone — 24px, which is 3.4 times the area — and centres itself
-   in the chip rather than sitting on the text baseline, where a taller box
-   would hang low.
-
-   Deliberately not stretched into an invisible 44px pad: chips sit a few pixels
-   apart in a cell, and a pad that big would swallow taps meant for the chip
-   beside it and mark the wrong job done. A visible box you can actually see and
-   hit beats a large invisible one.
-
-   Desktop is untouched — every rule here is inside the phone breakpoint. */
-@media (max-width: 640px) {
-  .board-tick {
-    width: 24px;
-    height: 24px;
-    /* Top-aligned, not centred: a chip whose text wraps to four lines would
-       float the box halfway down it, away from the line it belongs to. The
-       chip's own alignment is baseline, which suits a 13px box and hangs a
-       24px one well below the first line. */
-    align-self: flex-start;
-    border-radius: 4px;
-    font-size: 15px;
-    line-height: 22px;
-  }
-
-  /* The same job in List mode. 22px was already the better of the two, but it
-     is still under the thumb and the two views should not disagree. */
-  #view-tasks .job-tick {
-    width: 30px;
-    height: 30px;
-    font-size: 16px;
-  }
-}
-
-/* ---------- Reports: revenue by car and month ----------
-   Twelve money columns plus a total and an average will not fit a phone and
-   should not try: shrinking them to fit produces a grid nobody can read a
-   figure out of. The table keeps a legible size and the box scrolls sideways,
-   with the car column frozen so a row never loses the vehicle it belongs to —
-   the same treatment the planner and the boards get. */
-.rep-title { font-family: var(--font-display); font-size: 1.05rem; font-weight: 400; margin: 0 8px 0 0; }
-
-.rep-wrap {
-  /* 24 Aug: the vertical cap was removed so the page had one scrollbar
-     instead of two, and the column headings were allowed to scroll away.
-     26 Aug: the pilot asked for the headings frozen in every report. Those
-     two wishes are in direct conflict — a heading can only stay put if what
-     it heads is the thing scrolling, which means the table needs its own
-     vertical scroll. So the cap is back, but sized generously (most reports
-     are shorter than this and never scroll at all) and the scrollbar only
-     appears on the reports long enough to need it.
-     Note `overflow-y: auto` is not optional here: with overflow-x set,
-     `visible` computes to auto anyway, but without a height it could never
-     scroll — which is why sticky headings did nothing before. */
+  /* Sideways only. The page owns vertical scrolling — a height cap here is
+     the window-in-a-window the pilot rejected (24 Aug), and it came back by
+     mistake on 26 Aug when the frozen heading was first attempted this way.
+     The heading is frozen instead by the boards' method: a copy of it lives
+     OUTSIDE this scroller (.rep-head-wrap), sticks to the page, and mirrors
+     this element's sideways scroll. Same rule as the planner and the two
+     boards — nothing that must stay still may live inside a scrolled box. */
   overflow-x: auto;
-  overflow-y: auto;
-  max-height: calc(100vh - 230px);
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--surface);
   margin-bottom: 1rem;
 }
-@media (max-width: 640px) {
-  /* A phone has little height to spare and the page already scrolls, so the
-     cap is looser here — short reports still show whole, with no inner bar. */
-  .rep-wrap { max-height: calc(100vh - 190px); }
+
+/* The frozen heading. Sticky against the PAGE, sized and positioned in JS to
+   sit exactly over the real heading row, which stays in the table so the
+   columns keep their natural widths. At rest it covers the real one exactly;
+   once the table scrolls up it stays behind while the rows move under it.
+   overflow-x hidden, never auto: it is scrolled only by the mirror, so it
+   can never disagree with the table or add a second scrollbar. */
+.rep-region { position: relative; }
+.rep-head-wrap {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 6;
+  overflow-x: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  display: none;
+}
+.rep-head-wrap .rep-table { margin: 0; background: transparent; }
+.rep-head-wrap .rep-table thead th { position: static; }
 }
 
 .rep-table { border-collapse: collapse; width: 100%; font-size: 12px; }

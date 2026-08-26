@@ -608,7 +608,14 @@
            they can stick to the top of a phone screen: a scrolling container
            captures position:sticky (the planner/tasks lesson, third use). -->
       <div data-el="rep-controls"></div>
-      <div class="rep-wrap" data-el="rep-table"></div>
+      <!-- The frozen heading lives outside the sideways-scrolling table, the
+           same arrangement the planner and both boards use. .rep-region is
+           what the sticky heading sticks WITHIN, so it lets go once the table
+           has scrolled past rather than following the page forever. -->
+      <div class="rep-region" data-el="rep-region">
+        <div class="rep-head-wrap" data-el="rep-head-wrap"></div>
+        <div class="rep-wrap" data-el="rep-table"></div>
+      </div>
       <p class="rep-note" data-el="rep-note"></p>
     </section>
 
