@@ -13,6 +13,7 @@ import {
   revenueByCarMonth, expensesByCarMonth, monthlySummary,
   bookingYears, companyName, bookingCarLabel, bookingRef,
   invoiceTotal, amountDue, vatSplit, balanceFor, paidPatch, paidTotal, hasLedger, hasStarted,
+  rentalDays, MONTH_NAMES,
   customerForBooking,
   extraEntities, mainEntity,
   revenueByBrokerMonth,
@@ -379,7 +380,8 @@ function refreshYearOptions() {
 }
 
 let repEntity = "*";   // "*" = all companies, "" = main, otherwise entity id
-let billStatus = "all";      // all | paid | unpaid | upcoming
+let billStatus = "all";
+let billMonth = "*";        // "*" = the whole year, otherwise "01".."12"      // all | paid | unpaid | upcoming
 let billBroker = "*";        // "*" = everyone
 
 // The company filter appears only when trading companies exist — the
@@ -480,6 +482,19 @@ export function render() {
 // Billing tab in tabular form" with Unpaid / not started / brokers (24 Aug).
 // Same category rule as Billing (paid wins; else started = unpaid, else
 // upcoming), same money helpers, so the two screens can never disagree.
+// The foreign amount as agreed on the booking, if there was one. Not a
+// conversion — the rupee total in the next column is the book figure.
+function fxCell(b) {
+  if (!b.fxCurrency || !(Number(b.fxTotal) > 0)) return `<span class="rep-zero">\u2014</span>`;
+  return esc(`${b.fxCurrency} ${Number(b.fxTotal).toLocaleString("en-US", { maximumFractionDigits: 2 })}`);
+}
+function fxTotalsCell(fx) {
+  const parts = Object.entries(fx).filter(([, v]) => v > 0);
+  if (!parts.length) return `<span class="rep-zero">\u2014</span>`;
+  return parts.map(([sym, v]) =>
+    esc(`${sym} ${v.toLocaleString("en-US", { maximumFractionDigits: 2 })}`)).join("<br>");
+}
+
 function renderBillingReport() {
   const box = el(root, "rep-table");
   const note = el(root, "rep-note");
@@ -488,6 +503,8 @@ function renderBillingReport() {
   const catOf = b => b.paid ? "paid" : hasStarted(b) ? "unpaid" : "upcoming";
 
   let rows = state.bookings.filter(b => String(b.startDate || "").slice(0, 4) === y);
+  // Filed by start date, the same date the rest of this tab is built on.
+  if (billMonth !== "*") rows = rows.filter(b => String(b.startDate || "").slice(5, 7) === billMonth);
   if (repEntity !== "*") rows = rows.filter(b => carEntityId(b.carId) === repEntity);
   const brokers = [...new Set(rows.map(b => (b.broker || "").trim()).filter(Boolean))].sort();
   if (billBroker !== "*") rows = rows.filter(b => (b.broker || "").trim() === billBroker);
@@ -495,6 +512,13 @@ function renderBillingReport() {
   rows.sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)));
 
   ctrl.innerHTML = `<div class="filter-row" style="margin-bottom:8px;">
+      <select data-el="bill-month">
+        <option value="*">Whole year</option>
+        ${MONTH_NAMES.map((n, i) => {
+          const v = String(i + 1).padStart(2, "0");
+          return `<option value="${v}"${billMonth === v ? " selected" : ""}>${n}</option>`;
+        }).join("")}
+      </select>
       <select data-el="bill-status">
         ${[["all", "All bookings"], ["paid", "Paid"], ["unpaid", "Unpaid"], ["upcoming", "Not started"]]
           .map(([v, n]) => `<option value="${v}"${billStatus === v ? " selected" : ""}>${n}</option>`).join("")}
@@ -504,35 +528,50 @@ function renderBillingReport() {
         ${brokers.map(n => `<option value="${esc(n)}"${billBroker === n ? " selected" : ""}>${esc(n)}</option>`).join("")}
       </select>
     </div>`;
+  ctrl.querySelector('[data-el="bill-month"]').addEventListener("change", (e) => { billMonth = e.target.value; render(); });
   ctrl.querySelector('[data-el="bill-status"]').addEventListener("change", (e) => { billStatus = e.target.value; render(); });
   ctrl.querySelector('[data-el="bill-broker"]').addEventListener("change", (e) => { billBroker = e.target.value; render(); });
 
   if (!rows.length) {
-    box.innerHTML = `<div class="empty">No bookings match in ${esc(y)}.</div>`;
+    box.innerHTML = `<div class="empty">No bookings match in ${esc(billMonth === "*" ? y : MONTH_NAMES[Number(billMonth) - 1] + " " + y)}.</div>`;
     note.textContent = "";
     return;
   }
   const BADGE = { paid: "Paid", unpaid: "Unpaid", upcoming: "Not started" };
   const totals = rows.reduce((a, b) => {
-    a.total += invoiceTotal(b); a.recv += paidTotal(b);
+    a.total += invoiceTotal(b); a.recv += paidTotal(b); a.days += rentalDays(b);
     if (catOf(b) === "unpaid") a.owed += balanceFor(b);
+    // Foreign amounts are totalled per currency and never converted: the books
+    // are in rupees, and the agreed rate differs booking by booking, so adding
+    // euros to dollars — or to rupees — would invent a number nobody agreed.
+    if (b.fxCurrency && Number(b.fxTotal) > 0) {
+      a.fx[b.fxCurrency] = (a.fx[b.fxCurrency] || 0) + Number(b.fxTotal);
+    }
     return a;
-  }, { total: 0, recv: 0, owed: 0 });
+  }, { total: 0, recv: 0, owed: 0, days: 0, fx: {} });
 
   box.innerHTML = `<table class="rep-table">
-    <thead><tr><th>Booking</th><th>Renter</th><th>Car</th><th>From</th><th>To</th><th>Broker</th>
-      <th class="rep-num">Total</th><th class="rep-num">Received</th><th class="rep-num">Balance</th><th>Status</th></tr></thead>
+    <thead><tr><th>Booking</th><th>Renter</th><th>Car</th><th>From</th><th>To</th>
+      <th class="rep-num">Days</th><th>Broker</th>
+      <th class="rep-num">Total</th><th class="rep-num">Paid in</th>
+      <th class="rep-num">Received</th><th class="rep-num">Balance</th><th>Status</th></tr></thead>
     <tbody>
       ${rows.map(b => `<tr>
         <td>${esc(bookingRef(b))}</td><td>${esc(b.renter || "")}</td><td>${esc(bookingCarLabel(b))}</td>
-        <td>${esc(formatDate(b.startDate))}</td><td>${esc(formatDate(b.endDate))}</td><td>${esc(b.broker || "\u2014")}</td>
+        <td>${esc(formatDate(b.startDate))}</td><td>${esc(formatDate(b.endDate))}</td>
+        <td class="rep-num">${rentalDays(b)}</td>
+        <td>${esc(b.broker || "\u2014")}</td>
         <td class="rep-num">${esc(formatAmount(invoiceTotal(b)))}</td>
+        <td class="rep-num">${fxCell(b)}</td>
         <td class="rep-num">${esc(formatAmount(paidTotal(b)))}</td>
         <td class="rep-num">${esc(formatAmount(balanceFor(b)))}</td>
         <td>${BADGE[catOf(b)]}</td></tr>`).join("")}
     </tbody>
-    <tfoot><tr><th colspan="6">${rows.length} booking${rows.length === 1 ? "" : "s"}</th>
+    <tfoot><tr><th colspan="5">${rows.length} booking${rows.length === 1 ? "" : "s"}</th>
+      <th class="rep-num">${totals.days}</th>
+      <th></th>
       <th class="rep-num">${esc(formatAmount(totals.total))}</th>
+      <th class="rep-num">${fxTotalsCell(totals.fx)}</th>
       <th class="rep-num">${esc(formatAmount(totals.recv))}</th>
       <th class="rep-num">${esc(formatAmount(totals.owed))}</th><th></th></tr></tfoot>
   </table>`;
