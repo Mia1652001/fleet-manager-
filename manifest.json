@@ -2,7 +2,7 @@
   "name": "FleetMate",
   "short_name": "FleetMate",
   "description": "Car rental fleet, bookings, customers, billing and maintenance.",
-  "start_url": "./app.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",

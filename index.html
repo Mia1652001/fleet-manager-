@@ -2,284 +2,1531 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FleetMate — simple rental car management</title>
-<meta name="description" content="Fleet, bookings, customers, billing and maintenance for small car rental companies. Works on any phone or computer. Nothing to install.">
-<meta name="theme-color" content="#12203a">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>FleetMate</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a1814">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fleet">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg: #f5f2eb;
-    --surface: #ffffff;
-    --border: #e0dbd0;
-    --text: #1a1814;
-    --muted: #7a7568;
-    --green-text: #2d6a2d;
-  }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    font-family: 'DM Mono', monospace;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  .wrap { max-width: 980px; margin: 0 auto; padding: 0 1.5rem; }
-
-  /* ---------- Top bar ---------- */
-  .topbar { background: var(--text); color: var(--bg); padding: 1rem 0; }
-  .topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-  .brand { font-family: 'Fraunces', serif; font-size: 1.35rem; font-weight: 300; letter-spacing: -0.02em; }
-  .brand em { font-style: italic; }
-  .topbar a.launch {
-    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
-    color: var(--bg); text-decoration: none;
-    border: 1px solid #4a453c; border-radius: 4px; padding: 7px 16px;
-    transition: background 0.15s;
-  }
-  .topbar a.launch:hover { background: #2a2620; }
-
-  /* ---------- Hero ---------- */
-  .hero { padding: 5rem 0 4rem; }
-  .eyebrow { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.25rem; }
-  .hero h1 {
-    font-family: 'Fraunces', serif;
-    font-size: clamp(2.4rem, 6vw, 4rem);
-    font-weight: 300; line-height: 1.05; letter-spacing: -0.03em;
-    margin-bottom: 1.5rem; max-width: 16ch;
-  }
-  .hero h1 em { font-style: italic; }
-  .hero p.lead { font-size: 15px; color: var(--muted); max-width: 54ch; margin-bottom: 2.5rem; }
-
-  .cta-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .btn-primary {
-    font-family: 'DM Mono', monospace; font-size: 13px; letter-spacing: 0.04em;
-    background: var(--text); color: var(--bg); text-decoration: none;
-    border-radius: 4px; padding: 13px 26px; display: inline-block; transition: opacity 0.15s;
-  }
-  .btn-primary:hover { opacity: 0.85; }
-  .btn-ghost {
-    font-family: 'DM Mono', monospace; font-size: 13px; letter-spacing: 0.04em;
-    background: transparent; color: var(--text); text-decoration: none;
-    border: 1px solid var(--border); border-radius: 4px; padding: 12px 24px; display: inline-block;
-    transition: border-color 0.15s;
-  }
-  .btn-ghost:hover { border-color: var(--text); }
-
-  .note { font-size: 11px; color: var(--muted); margin-top: 1.25rem; letter-spacing: 0.03em; }
-
-  /* ---------- Sections ---------- */
-  section.block { padding: 4rem 0; border-top: 1px solid var(--border); }
-  .section-label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 2rem; }
-  h2.section-title {
-    font-family: 'Fraunces', serif; font-weight: 300; font-size: clamp(1.7rem, 3.5vw, 2.4rem);
-    letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 1rem; max-width: 22ch;
-  }
-  h2.section-title em { font-style: italic; }
-  p.section-lead { color: var(--muted); font-size: 14px; max-width: 58ch; margin-bottom: 2.5rem; }
-
-  /* ---------- Features ---------- */
-  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
-  .feature {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-    padding: 1.6rem 1.5rem; border-left: 3px solid var(--text);
-  }
-  .feature h3 { font-family: 'Fraunces', serif; font-size: 1.2rem; font-weight: 400; margin-bottom: 0.6rem; }
-  .feature p { font-size: 13px; color: var(--muted); }
-
-  /* ---------- Contrast panels ---------- */
-  .contrast { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
-  .panel { border: 1px solid var(--border); border-radius: 4px; padding: 1.6rem 1.5rem; background: var(--surface); }
-  .panel.before { opacity: 0.88; }
-  .panel h3 { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
-  .panel ul { list-style: none; }
-  .panel li { font-size: 13px; padding: 0.45rem 0 0.45rem 1.4rem; position: relative; color: var(--muted); }
-  .panel.before li::before { content: "×"; position: absolute; left: 0; color: #a33; font-size: 15px; }
-  .panel.after li { color: var(--text); }
-  .panel.after li::before { content: "✓"; position: absolute; left: 0; color: var(--green-text); }
-
-  /* ---------- Steps ---------- */
-  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-  .step { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1.5rem; }
-  .step-num { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 300; color: var(--border); line-height: 1; margin-bottom: 0.6rem; }
-  .step h3 { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.5rem; }
-  .step p { font-size: 13px; color: var(--muted); }
-
-  /* ---------- Pilot ---------- */
-  .pilot { background: var(--text); color: var(--bg); border-radius: 6px; padding: 3rem 2.5rem; text-align: center; }
-  .pilot h2 { font-family: 'Fraunces', serif; font-weight: 300; font-size: clamp(1.6rem, 3.5vw, 2.2rem); margin-bottom: 1rem; letter-spacing: -0.02em; }
-  .pilot h2 em { font-style: italic; }
-  .pilot p { font-size: 14px; color: #b8b0a2; max-width: 48ch; margin: 0 auto 2rem; }
-  .pilot a {
-    font-family: 'DM Mono', monospace; font-size: 13px; letter-spacing: 0.04em;
-    background: var(--bg); color: var(--text); text-decoration: none;
-    border-radius: 4px; padding: 13px 26px; display: inline-block;
-  }
-  .pilot a:hover { opacity: 0.9; }
-
-  /* ---------- Footer ---------- */
-  footer { padding: 3rem 0 4rem; border-top: 1px solid var(--border); }
-  footer .wrap { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-  footer p { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
-  footer a { color: var(--muted); }
-
-  @media (max-width: 640px) {
-    .hero { padding: 3.5rem 0 3rem; }
-    section.block { padding: 3rem 0; }
-    .pilot { padding: 2.5rem 1.5rem; }
-  }
+  /* View switching — kept inline so it always applies, even if a cached
+     stylesheet is being served. */
+  .view { display: none; }
+  .view.active { display: block; }
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="wrap">
-    <div class="brand">Fleet<em>Mate</em></div>
-    <a href="app.html" class="launch">Open the app</a>
+<div class="boot" id="boot">
+  <div class="boot-mark">Fleet<em>Mate</em></div>
+  <div class="boot-dot"></div>
+</div>
+
+<!-- ================= LOGIN ================= -->
+<div class="login-wrap" id="login" style="display:none;">
+  <div class="login-card">
+    <h1>Fleet<em>Mate</em></h1>
+    <div class="login-sub">Staff sign in</div>
+    <div class="form-error" id="login-error"></div>
+    <div class="field"><label>Email</label><input id="login-email" type="email" placeholder="you@company.com" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="btn-primary" id="login-btn">Sign in</button>
+    <!-- Password reset, so a forgotten password never again means asking the
+         administrator — or a password travelling through a WhatsApp thread. -->
+    <button type="button" class="login-forgot" id="login-forgot">Forgot your password?</button>
+    <div class="login-note" id="login-note"></div>
   </div>
 </div>
 
-<div class="wrap">
-
-  <div class="hero">
-    <div class="eyebrow">Rental car management · Mauritius</div>
-    <h1>Know which cars are <em>out</em>, and which are <em>free</em>.</h1>
-    <p class="lead">
-      FleetMate keeps your bookings, customers, invoices and servicing in one place —
-      so nothing gets double-booked, no rental goes unbilled, and anyone at the desk can
-      see the whole fleet at a glance.
-    </p>
-    <div class="cta-row">
-      <a href="app.html" class="btn-primary">Open the app</a>
-      <a href="#install" class="btn-ghost">How to install it</a>
+<!-- ================= APP ================= -->
+<div id="app" style="display:none;">
+  <header>
+    <div class="header-top">
+      <div>
+        <div class="header-brand">
+          <h1>Fleet<em>Mate</em></h1>
+          <!-- Filled from the Settings page; hidden until a logo is uploaded. -->
+          <div class="header-logo" id="company-logo" style="display:none;"></div>
+        </div>
+        <div class="header-company" id="company-label">—</div>
+      </div>
+      <div class="header-right">
+        <div class="sync-status"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">Live</span></div>
+        <button class="btn-logout" id="export-btn">Export data</button>
+        <button class="btn-logout" id="logout-btn">Sign out</button>
+      </div>
     </div>
-    <p class="note">Works on any phone, tablet or computer · Nothing to download · Free for pilot users</p>
+    <nav id="main-nav">
+      <a href="#dashboard" data-view="dashboard" class="active">Dashboard</a>
+      <a href="#bookings" data-view="bookings">Bookings</a>
+      <a href="#tasks" data-view="tasks">Tasks</a>
+      <a href="#expenses" data-view="expenses">Expenses</a>
+      <a href="#fleet" data-view="fleet">Fleet</a>
+      <a href="#customers" data-view="customers">Customers</a>
+      <a href="#billing" data-view="billing">Billing</a>
+      <a href="#reports" data-view="reports">Reports</a>
+      <a href="#maintenance" data-view="maintenance">Maintenance</a>
+      <a href="#settings" data-view="settings">Settings</a>
+    </nav>
+  </header>
+
+  <!-- Shown only when a backup is overdue. Dismissable, because being nagged on
+       every screen is worse than being reminded once. -->
+  <div class="backup-banner" id="backup-banner" style="display:none;">
+    <span id="backup-banner-text"></span>
+    <span class="backup-banner-actions">
+      <button class="btn" id="backup-banner-go">Back up now</button>
+      <button class="btn" id="backup-banner-hide">Not now</button>
+    </span>
   </div>
 
-  <section class="block">
-    <div class="section-label">The problem</div>
-    <h2 class="section-title">Spreadsheets and notebooks lose money <em>quietly</em>.</h2>
-    <p class="section-lead">
-      Most small rental companies run on a shared spreadsheet, a wall planner, or someone's memory.
-      It works until two customers are promised the same car.
-    </p>
-    <div class="contrast">
-      <div class="panel before">
-        <h3>Without a system</h3>
-        <ul>
-          <li>Double bookings discovered at the counter</li>
-          <li>Cars returned late that nobody is tracking</li>
-          <li>Invoices calculated by hand, sometimes forgotten</li>
-          <li>No record of who rented what, or when</li>
-          <li>Servicing remembered only when something breaks</li>
-        </ul>
+  <div class="main">
+
+    <!-- ---------- DASHBOARD ---------- -->
+    <section class="view active" id="view-dashboard">
+      <div class="dash-alerts" data-el="alerts"></div>
+
+      <div class="dash-grid">
+        <div class="dash-card">
+          <div class="dash-head">
+            <h3>Today</h3>
+            <a href="#tasks" class="dash-link">All jobs →</a>
+          </div>
+          <div data-el="today-jobs"></div>
+        </div>
+
+        <!-- The month is named beside the heading rather than repeated on each
+             figure: "Received" on its own was the complaint — nobody could say
+             which month it covered. Same three-button nav the planner below
+             uses, so stepping to next month is the gesture already learnt. -->
+        <div class="dash-card">
+          <div class="dash-head">
+            <h3>Money <span class="dash-range" data-el="money-range"></span></h3>
+            <span class="dash-minnav">
+              <button class="btn" data-el="money-prev">‹</button>
+              <button class="btn" data-el="money-this">This month</button>
+              <button class="btn" data-el="money-next">›</button>
+              <a href="#billing" class="dash-link">Billing →</a>
+            </span>
+          </div>
+          <div class="dash-figures" data-el="money"></div>
+        </div>
+
+        <div class="dash-card dash-charts-card">
+          <div class="dash-head">
+            <h3>This year <span class="dash-range" data-el="charts-year"></span></h3>
+            <a href="#reports" class="dash-link">Reports →</a>
+          </div>
+          <div class="dash-charts" data-el="dash-charts"></div>
+        </div>
       </div>
-      <div class="panel after">
-        <h3>With FleetMate</h3>
-        <ul>
-          <li>Double bookings are refused before they happen</li>
-          <li>Overdue rentals flagged automatically</li>
-          <li>Invoices calculated from the daily rate</li>
-          <li>Full rental history for every customer</li>
-          <li>Service reminders by date or by mileage</li>
-        </ul>
+
+      <div class="dash-grid dash-grid-3">
+        <div class="dash-card">
+          <div class="dash-head">
+            <h3>Fleet</h3>
+            <a href="#fleet" class="dash-link">Fleet →</a>
+          </div>
+          <div class="dash-figures" data-el="fleet-figures"></div>
+        </div>
+
+        <div class="dash-card">
+          <div class="dash-head">
+            <h3>Bookings</h3>
+            <a href="#bookings" class="dash-link">Bookings →</a>
+          </div>
+          <div class="dash-figures" data-el="booking-figures"></div>
+        </div>
+
+        <div class="dash-card">
+          <div class="dash-head">
+            <h3>Servicing</h3>
+            <a href="#maintenance" class="dash-link">Maintenance →</a>
+          </div>
+          <div class="dash-figures" data-el="service-figures"></div>
+        </div>
+      </div>
+
+      <!-- Arshad, 7 Aug: "license coming to expiry for the current month and
+           next months" and "monthly expenses for the month + past months +
+           next months". Both answer a question the 30-day alert and the
+           yearly chart could not: which MONTH does this fall in.
+           Two stacked columns rather than four cards in two rows: the
+           documents list is tall and the expenses strip is short, and side by
+           side the short one was stretched to match, leaving the empty half
+           screen the pilot circled (25 Aug 18:27). Stacked, each card takes
+           the height it needs and nothing is stretched to match. -->
+      <div class="dash-grid dash-grid-top">
+        <div class="dash-stack">
+          <div class="dash-card">
+            <div class="dash-head">
+              <h3>Documents expiring</h3>
+              <a href="#fleet" class="dash-link">Fleet →</a>
+            </div>
+            <div data-el="docs-months"></div>
+          </div>
+        </div>
+
+        <div class="dash-stack">
+          <div class="dash-card dash-flexbody">
+            <div class="dash-head">
+              <h3>Monthly expenses</h3>
+              <a href="#expenses" class="dash-link">Expenses →</a>
+            </div>
+            <div data-el="expense-months"></div>
+          </div>
+
+          <div class="dash-card">
+            <div class="dash-head">
+              <h3>Unpaid invoices</h3>
+              <a href="#billing" class="dash-link">All invoices →</a>
+            </div>
+            <div data-el="unpaid-list"></div>
+          </div>
+
+          <div class="dash-card">
+            <div class="dash-head">
+              <h3>Customers</h3>
+              <a href="#customers" class="dash-link">Customers →</a>
+            </div>
+            <div class="dash-figures" data-el="customer-figures"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- FLEET ---------- -->
+    <section class="view" id="view-fleet">
+      <div class="toolbar">
+        <input type="text" data-el="search" placeholder="Search car, plate, category...">
+        <select data-el="sort">
+          <option value="custom">Sort: Planner order</option>
+          <option value="name">Sort: Name</option>
+        </select>
+        <button class="btn-primary" data-el="add-car">+ Add car</button>
+        <button class="btn" data-el="import-cars" title="Add many cars at once from a spreadsheet">Import from Excel</button>
+        <input type="file" data-el="import-file" accept=".xlsx,.xls,.csv" style="display:none;">
+      </div>
+      <div class="fleet-focus" data-el="fleet-focus" style="display:none;"></div>
+      <div class="card-list" data-el="list"><div class="loading-screen">Loading fleet...</div></div>
+
+      <!-- Add / edit car -->
+      <!-- Importing a fleet from a spreadsheet: read in the browser, shown as a
+           preview, written only when Import is pressed. Nothing leaves the
+           company's own browser except into their own fleet. -->
+      <div class="overlay" data-el="import-modal">
+        <div class="modal" style="width:640px;">
+          <h2>Import cars from a spreadsheet</h2>
+          <div class="form-error" data-el="import-error"></div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px;" data-el="import-summary"></p>
+          <div data-el="import-list" style="max-height:46vh;overflow:auto;"></div>
+          <div class="modal-actions">
+            <button class="btn" data-close="import-modal">Cancel</button>
+            <button class="btn-primary" data-el="import-go" disabled>Import</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" data-el="car-modal">
+        <div class="modal">
+          <h2 data-el="car-modal-title">Add new car</h2>
+          <div class="field"><label>Make</label><input data-el="c-make" placeholder="e.g. Toyota"></div>
+          <div class="field"><label>Model</label><input data-el="c-model" placeholder="e.g. Corolla"></div>
+          <div class="field"><label>Year</label><input data-el="c-year" type="number" placeholder="e.g. 2023"></div>
+          <div class="field"><label>Plate number</label><input data-el="c-plate" placeholder="e.g. ABC-1234"></div>
+          <div class="field-row">
+            <div class="field"><label>Category</label>
+              <input data-el="c-category" list="car-categories" placeholder="e.g. CDAR">
+              <datalist id="car-categories">
+                <option value="CDAV"></option><option value="SCAV"></option>
+                <option value="CDAR"></option><option value="IDAR"></option>
+                <option value="CDAH"></option><option value="IFAR"></option>
+                <option value="EDAR"></option><option value="MDAR"></option>
+              </datalist>
+            </div>
+            <div class="field"><label>Colour</label><input data-el="c-colour" placeholder="e.g. silver"></div>
+            <div data-el="c-customs"></div>
+            <div class="field"><label>Rented under</label>
+              <select data-el="c-entity"></select></div>
+          </div>
+          <div class="field checkbox-field">
+            <label class="check-row"><input type="checkbox" data-el="c-automatic"> Automatic transmission</label>
+          </div>
+
+          <div class="field-row equal">
+            <div class="field"><label>Registration date</label><input type="date" data-el="c-regdate"></div>
+            <div class="field"><label>Licence expiry</label><input type="date" data-el="c-licence-exp"></div>
+          </div>
+          <div class="field-row equal">
+            <div class="field"><label>Road tax expiry</label><input type="date" data-el="c-roadtax-exp"></div>
+            <div class="field"><label>Insurance expiry</label><input type="date" data-el="c-insurance-exp"></div>
+          </div>
+          <div class="field-row equal">
+            <div class="field"><label>Fitness expiry</label><input type="date" data-el="c-fitness-exp"></div>
+            <div class="field"><label>Lease expiry</label><input type="date" data-el="c-lease-exp"></div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin:-6px 0 14px;">All optional.
+            Expiring documents warn on the Fleet page and the Dashboard, 30 days ahead.</div>
+
+          <div class="field">
+            <label>Highlight on the planner</label>
+            <div class="swatches" data-el="c-rowcolour"><button type="button" class="swatch auto selected" data-colour="" title="No colour">—</button></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:6px;">
+              Colours the car's name in the planner, for grouping vehicles however you like.
+            </div>
+          </div>
+          <div class="field"><label>Daily rate</label><input data-el="c-rate" type="number" min="0" placeholder="e.g. 1500"></div>
+          <div class="field"><label>Weekly rate</label><input data-el="c-rate-week" type="number" min="0" placeholder="optional"></div>
+          <div class="field"><label>Monthly rate</label><input data-el="c-rate-month" type="number" min="0" placeholder="optional"></div>
+          <div style="font-size:11px;color:var(--muted);margin:-6px 0 14px;">Each rate is exactly what you type — nothing fills in on its own. Billing uses the daily rate.</div>
+
+          <div class="field-row equal">
+            <div class="field"><label>Lease amount</label><input data-el="c-lease-amount" type="number" min="0" placeholder="per month"></div>
+            <div class="field"><label>Purchase amount</label><input data-el="c-purchase-amount" type="number" min="0" placeholder="optional"></div>
+          </div>
+          <div class="field"><label>Total lease paid</label><input data-el="c-lease-paid" type="number" min="0" placeholder="paid to date, typed by hand"></div>
+          <div style="font-size:11px;color:var(--muted);margin:-6px 0 14px;">Leasing figures, all optional — shown on the car's card.
+            Total lease paid is carried forward by hand for now.</div>
+          <div class="modal-actions">
+            <button class="btn" data-close="car-modal">Cancel</button>
+            <button class="btn-primary" data-el="save-car">Save car</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Walk-in rental -->
+          </section>
+
+    <!-- ---------- BOOKINGS ---------- -->
+    <section class="view" id="view-bookings">
+      <!-- Wrapped so a wide screen can lay the search row and the planner
+           controls out as a single line, which gives the planner back a whole
+           row of height. On a phone they stay stacked. -->
+      <div class="planner-bar">
+      <div class="toolbar">
+        <input type="text" data-el="search" placeholder="Search booking by car or renter...">
+        <button class="btn" data-el="check-avail" title="Enter dates and see every free car">Check availability</button>
+        <button class="btn" data-el="planner-xls" title="Download the visible planner window as Excel, colours included">Excel</button>
+      </div>
+      <div class="cal-header">
+        <div class="cal-title" data-el="cal-title">—</div>
+        <div class="cal-nav">
+          <span class="zoom-control" data-el="zoom-wrap">
+            <label for="tl-zoom" title="Fewer, wider days or more, narrower days">Days</label>
+            <input type="range" id="tl-zoom" data-el="zoom" min="1" max="5" step="1" value="4">
+            <span class="zoom-count" data-el="zoom-count"></span>
+          </span>
+          <!-- Two plain selects rather than <input type="month">: Safari, on the
+               desktop and on the iPhone, does not support that input and quietly
+               renders it as an empty text box that does nothing. Selects work
+               the same in every browser and open a native wheel on a phone. -->
+          <span class="cal-jump">
+            <select data-el="jump-month" title="Jump to a month"></select>
+            <select data-el="jump-year" title="Jump to a year"></select>
+          </span>
+          <button class="btn" data-el="cal-prev">‹ Prev</button>
+          <button class="btn" data-el="cal-today">Today</button>
+          <button class="btn" data-el="cal-next">Next ›</button>
+        </div>
+      </div>
+      </div>
+      <div data-el="tl-pin-sentinel" style="height:1px;"></div>
+      <div class="tl-head-wrap" data-el="tl-head-outer">
+        <div class="tl-corner-fixed" data-el="tl-corner-fixed"></div>
+        <div class="tl-head-scroll" data-el="timeline-head-wrap">
+          <div class="timeline" data-el="timeline-head"></div>
+        </div>
+      </div>
+      <div class="timeline-wrap" data-el="timeline-wrap">
+        <div class="timeline" data-el="timeline"></div>
+      </div>
+      <button type="button" class="panel-toggle" data-el="toggle-legend">Legend</button>
+      <button type="button" class="panel-toggle" data-el="toggle-list">Booking list</button>
+      <div class="filter-row" data-el="filters">
+        <button class="tab active" data-f="all">All</button>
+        <button class="tab" data-f="active-b">Active</button>
+        <button class="tab" data-f="upcoming">Upcoming</button>
+        <button class="tab" data-f="overdue">Overdue</button>
+        <button class="tab" data-f="completed">Completed</button>
+      </div>
+      <div class="card-list" data-el="list"><div class="loading-screen">Loading bookings...</div></div>
+
+    <!-- Which cars are free between two dates. The desk's question "have we
+         got anything from the 5th to the 9th?" answered as a list, with a
+         Book button that opens the form already filled in. -->
+    <div class="overlay" data-el="avail-modal">
+      <div class="modal">
+        <h2>Check availability</h2>
+        <div class="form-error" data-el="avail-error"></div>
+        <div class="field-row equal">
+          <div class="field"><label>From</label>
+            <input type="date" data-el="av-start">
+            <div class="time-pair"><select data-el="av-start-time-h"></select><span class="time-sep">:</span><select data-el="av-start-time-m"></select></div>
+          </div>
+          <div class="field"><label>To</label>
+            <input type="date" data-el="av-end">
+            <div class="time-pair"><select data-el="av-end-time-h"></select><span class="time-sep">:</span><select data-el="av-end-time-m"></select></div>
+          </div>
+        </div>
+        <div data-el="avail-results" style="max-height:52vh;overflow:auto;margin-top:10px;"></div>
+        <div class="modal-actions">
+          <button class="btn" data-close="avail-modal">Close</button>
+        </div>
       </div>
     </div>
-  </section>
 
-  <section class="block">
-    <div class="section-label">What it does</div>
-    <h2 class="section-title">Everything a small rental company actually <em>needs</em>.</h2>
-    <p class="section-lead">
-      No GPS trackers, no telematics, no installation, no training course.
-      Five screens that cover the working day.
-    </p>
-    <div class="features">
-      <div class="feature">
-        <h3>Fleet</h3>
-        <p>Every car with its live status — available, rented, overdue or out of service — plus daily, weekly and monthly rates.</p>
-      </div>
-      <div class="feature">
-        <h3>Bookings</h3>
-        <p>A month calendar of every reservation. The same car can't be booked twice, and late returns are flagged automatically.</p>
-      </div>
-      <div class="feature">
-        <h3>Customers</h3>
-        <p>A register of renters with contact details, licence number and full rental history — built up as you take bookings.</p>
-      </div>
-      <div class="feature">
-        <h3>Billing</h3>
-        <p>Invoices calculated from days × daily rate, with advance payments and refundable security deposits tracked separately.</p>
-      </div>
-      <div class="feature">
-        <h3>Maintenance</h3>
-        <p>Service schedules by date or mileage, with warnings before they fall due. Cars in the workshop can't be rented by mistake.</p>
-      </div>
-      <div class="feature">
-        <h3>Your data, exportable</h3>
-        <p>Download everything as a spreadsheet or a full backup whenever you want. Your records stay yours.</p>
+    <!-- Shown when a booking is dragged onto a different vehicle. A move like this
+         changes what the customer is charged, so it is never done silently. -->
+    <div class="overlay" data-el="move-modal" id="move-modal-root">
+      <div class="modal">
+        <h2>Move booking to another car</h2>
+        <div class="move-summary" data-el="move-summary"></div>
+
+        <div class="field" data-el="move-price-field">
+          <label>What should the price be?</label>
+          <label class="check-row">
+            <input type="radio" name="move-price" value="keep" data-el="move-keep" checked>
+            <span data-el="move-keep-label"></span>
+          </label>
+          <label class="check-row">
+            <input type="radio" name="move-price" value="new" data-el="move-new">
+            <span data-el="move-new-label"></span>
+          </label>
+          <!-- Needed more often than it sounds: the new car may have no rate set,
+               or the swap is a goodwill one at a price neither rate reflects. -->
+          <label class="check-row">
+            <input type="radio" name="move-price" value="custom" data-el="move-custom">
+            <span>Set a price for this rental</span>
+          </label>
+          <div class="move-custom-row" data-el="move-custom-row" style="display:none;">
+            <input type="number" min="0" step="any" data-el="move-custom-total"
+                   placeholder="Total for the whole rental">
+            <span class="settings-note" data-el="move-custom-hint"></span>
+          </div>
+        </div>
+
+        <div class="error" data-el="move-error"></div>
+        <div class="modal-actions">
+          <button class="btn" data-close="move-modal">Cancel</button>
+          <button class="btn-primary" data-el="move-confirm">Move booking</button>
+        </div>
       </div>
     </div>
-  </section>
 
-  <section class="block" id="install">
-    <div class="section-label">Getting started</div>
-    <h2 class="section-title">There's nothing to <em>download</em>.</h2>
-    <p class="section-lead">
-      FleetMate runs in the browser, so it works on whatever devices you already have.
-      Add it to your home screen and it behaves like any other app — full screen, its own icon.
-    </p>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <h3>On iPhone or iPad</h3>
-        <p>Open the app in Safari, tap the Share button, then choose "Add to Home Screen".</p>
+    </section>
+
+    <!-- ---------- CUSTOMERS ---------- -->
+    <section class="view" id="view-customers">
+      <div class="toolbar">
+        <input type="text" data-el="search" placeholder="Search name, phone, email, or license...">
+        <button class="btn-primary" data-el="add-customer">+ Add customer</button>
+        <button class="btn" data-el="import-customers">Import from Excel</button>
+        <input type="file" data-el="import-file" accept=".xlsx,.xls,.csv" style="display:none;">
       </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <h3>On Android</h3>
-        <p>Open the app in Chrome, tap the three-dot menu, then choose "Install app".</p>
+
+      <!-- Same shape as the fleet importer: read the file, name every problem,
+           write nothing until Import is pressed. -->
+      <div class="overlay" data-el="import-modal">
+        <div class="modal" style="width:640px;">
+          <h2>Import customers from a spreadsheet</h2>
+          <div class="form-error" data-el="import-error"></div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px;" data-el="import-summary"></p>
+          <div data-el="import-list" style="max-height:46vh;overflow:auto;"></div>
+          <div class="modal-actions">
+            <button class="btn" data-close="import-modal">Cancel</button>
+            <button class="btn-primary" data-el="import-go" disabled>Import</button>
+          </div>
+        </div>
       </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <h3>On a computer</h3>
-        <p>Open the app in Chrome and click the install icon in the address bar — or simply bookmark it.</p>
+      <!-- Jump straight to a letter rather than scrolling a register that only
+           ever gets longer. Letters with nobody behind them are dimmed. -->
+      <div class="alpha-index" data-el="alpha"></div>
+      <div class="list-total" data-el="list-total"></div>
+      <div class="card-list" data-el="list"><div class="loading-screen">Loading customers...</div></div>
+
+      <div class="overlay" data-el="customer-modal">
+        <div class="modal">
+          <h2 data-el="customer-modal-title">Add customer</h2>
+          <div class="form-error" data-el="customer-error"></div>
+          <div class="field"><label>Full name</label><input data-el="cu-name" placeholder="e.g. Jean Martin"></div>
+          <div class="field"><label>Phone</label><input data-el="cu-phone" placeholder="e.g. 5712 3456"></div>
+          <div class="field"><label>Email</label><input data-el="cu-email" type="email" placeholder="e.g. jean@email.com"></div>
+          <div class="field"><label>Driving license no.</label><input data-el="cu-license" placeholder="e.g. MU-123456"></div>
+          <div class="field"><label>Notes</label><input data-el="cu-notes" placeholder="e.g. prefers automatic"></div>
+          <div class="modal-actions">
+            <button class="btn" data-close="customer-modal">Cancel</button>
+            <button class="btn-primary" data-el="save-customer">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" data-el="history-modal">
+        <div class="modal">
+          <h2 data-el="history-title">Rental history</h2>
+          <div class="card-list" data-el="history-list"></div>
+          <div class="modal-actions">
+            <button class="btn" data-close="history-modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- BILLING ---------- -->
+    <section class="view" id="view-billing">
+      <!-- One control line, like the other pages: search, the payment tabs,
+           then the period and broker filters. Year and month are independent:
+           either alone works, together they narrow to one month of one year. -->
+      <div class="toolbar one-line-tools">
+        <input type="text" data-el="search" placeholder="Search by customer or car...">
+        <span class="filter-row" data-el="filters" style="display:inline-flex;gap:6px;margin:0 0 0 12px;">
+          <button class="tab active" data-f="unpaid">Unpaid</button>
+          <button class="tab" data-f="paid">Paid</button>
+          <button class="tab" data-f="upcoming">Not started</button>
+          <button class="tab" data-f="all">All</button>
+        </span>
+        <select data-el="period-year"></select>
+        <select data-el="period-month"></select>
+        <!-- No "Broker" label: the dropdown's own default option reads
+             "All brokers", so a label beside it only repeats the word. -->
+        <select data-el="period-broker" style="margin-left:14px;"></select>
+      </div>
+      <div class="list-total" data-el="list-total"></div>
+      <div class="card-list" data-el="list"><div class="loading-screen">Loading invoices...</div></div>
+
+      <div class="overlay" data-el="deposit-modal">
+        <div class="modal">
+          <h2>Deposits</h2>
+          <div class="form-error" data-el="deposit-error"></div>
+          <!-- Shown only for bookings taken in a foreign currency: the foreign
+               amounts lead, the Rs figures below become the agreed conversion. -->
+          <div class="field-row equal" data-el="dep-fx-row" style="display:none;">
+            <div class="field"><label data-el="dep-fxadvance-label">Advance in €</label>
+              <input data-el="dep-fxadvance" type="number" min="0" step="any" placeholder="e.g. 100"></div>
+            <div class="field"><label data-el="dep-fxsecurity-label">Security in €</label>
+              <input data-el="dep-fxsecurity" type="number" min="0" step="any" placeholder="e.g. 300"></div>
+          </div>
+          <div class="field"><label data-el="dep-advance-label">Advance paid (reduces balance owed)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input data-el="dep-advance" type="number" min="0" placeholder="e.g. 2000" style="flex:1;">
+              <button type="button" class="btn" data-el="dep-fx-recalc-advance" style="display:none;white-space:nowrap;"
+                title="Recalculate using today's house rate — only this booking changes">Use today's rate</button>
+            </div>
+          </div>
+          <div class="field"><label data-el="dep-security-label">Security deposit (refundable, held separately)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input data-el="dep-security" type="number" min="0" placeholder="e.g. 5000" style="flex:1;">
+              <button type="button" class="btn" data-el="dep-fx-recalc-security" style="display:none;white-space:nowrap;"
+                title="Recalculate using today's house rate — only this booking changes">Use today's rate</button>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;">Advance payment is deducted from the rental total. Security deposit is a refundable hold — mark it refunded or kept when the car comes back.</div>
+          <div class="modal-actions">
+            <button class="btn" data-close="deposit-modal">Cancel</button>
+            <button class="btn-primary" data-el="save-deposit">Save deposits</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment history: every rupee received on a booking, as it happened.
+           Recording the payment that clears the balance is what "mark paid"
+           now means — and it is how receipts learn HOW money arrived. -->
+      <div class="overlay" data-el="pay-modal">
+        <div class="modal">
+          <h2 data-el="pay-title">Payments</h2>
+          <div class="form-error" data-el="pay-error"></div>
+          <div data-el="pay-list" style="margin-bottom:12px;"></div>
+          <div class="field-row">
+            <div class="field"><label>Amount received</label>
+              <input type="number" step="0.01" data-el="pay-amount" placeholder="negative = refund"></div>
+            <div class="field"><label>Paid by</label>
+              <select data-el="pay-method">
+                <option value="">—</option>
+                <option>Cash</option>
+                <option>Juice</option>
+                <option>Bank transfer</option>
+                <option>Card</option>
+                <option>Other</option>
+              </select></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Date received</label>
+              <input type="date" data-el="pay-date"></div>
+            <div class="field"><label>Note</label>
+              <input type="text" data-el="pay-note" placeholder="optional"></div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn" data-close="pay-modal">Close</button>
+            <button class="btn-primary" data-el="pay-save">Record payment</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- MAINTENANCE ---------- -->
+    <!-- ---------- REPORTS ---------- -->
+    <!-- One control line like every other page: the year, then the download.
+         The grid itself scrolls sideways rather than shrinking to fit — twelve
+         money columns squeezed into a phone are unreadable, and finance opens
+         this on a desktop anyway. -->
+    <!-- One report at a time, chosen from the same tab row Billing and Tasks
+         use. The first attempt stacked all three as collapsible blocks, which
+         Arshad had asked for — but three headings and one open table left it
+         ambiguous which heading owned the table on screen, and no single report
+         got the width it needed. A tab answers both: one report, full screen,
+         and the others are one click away rather than folded somewhere below. -->
+    <section class="view" id="view-reports">
+      <div class="toolbar one-line-tools">
+        <select data-el="rep-year"></select>
+        <select data-el="rep-entity" style="display:none;" title="Filter by trading company"></select>
+        <button class="btn" data-el="rep-export">Download for Excel</button>
+        <div class="filter-row" data-el="rep-tabs">
+        <button class="tab active" data-rep="revenue">Revenue by car</button>
+        <button class="tab" data-rep="expenses">Expenses by car</button>
+        <button class="tab" data-rep="monthly">Month by month</button>
+        <button class="tab" data-rep="broker">By broker</button>
+        <button class="tab" data-rep="billing">Billing</button>
+        <button class="tab" data-rep="invoices">Invoices</button>
+        </div>
+      </div>
+
+      <!-- The invoice filters live outside the sideways-scrolling table so
+           they can stick to the top of a phone screen: a scrolling container
+           captures position:sticky (the planner/tasks lesson, third use). -->
+      <div data-el="rep-controls"></div>
+      <div class="rep-wrap" data-el="rep-table"></div>
+      <p class="rep-note" data-el="rep-note"></p>
+    </section>
+
+    <section class="view" id="view-maintenance">
+      <div class="toolbar">
+        <input type="text" data-el="search" placeholder="Search car or plate...">
+      </div>
+      <div class="filter-row" data-el="filters">
+        <button class="tab active" data-f="all">All</button>
+        <button class="tab" data-f="due">Service due</button>
+        <button class="tab" data-f="service">Out of service</button>
+      </div>
+      <div class="card-list" data-el="list"><div class="loading-screen">Loading...</div></div>
+
+      <!-- Logging a completed service: what was done, and when the next one is
+           due — one motion, appended to the car's permanent history. -->
+      <div class="overlay" data-el="service-modal">
+        <div class="modal">
+          <h2 data-el="service-title">Log a service</h2>
+          <div class="form-error" data-el="service-error"></div>
+          <div class="field-row equal">
+            <div class="field"><label>Service date</label><input data-el="sv-date" type="date"></div>
+            <div class="field"><label>Mileage at service (km)</label><input data-el="sv-mileage" type="number" min="0" placeholder="e.g. 45000"></div>
+          </div>
+          <div class="field"><label>Work done</label><input data-el="sv-notes" placeholder="e.g. oil change, brake pads"></div>
+          <div class="field-row equal">
+            <div class="field"><label>Next service date</label><input data-el="sv-next-date" type="date"></div>
+            <div class="field"><label>Next service at (km)</label><input data-el="sv-next-mileage" type="number" min="0" placeholder="e.g. 50000"></div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn" data-close="service-modal">Cancel</button>
+            <button class="btn-primary" data-el="save-service">Log service</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- A car's full service record, newest first. Read-only: history is
+           what happened, not something to edit. -->
+      <div class="overlay" data-el="history-modal">
+        <div class="modal">
+          <h2 data-el="history-title">Service history</h2>
+          <div class="jd-list" data-el="history-list" style="max-height:60vh;overflow:auto;"></div>
+          <div class="modal-actions">
+            <button class="btn" data-close="history-modal">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" data-el="maint-modal">
+        <div class="modal">
+          <h2 data-el="maint-title">Maintenance</h2>
+          <div class="form-error" data-el="maint-error"></div>
+          <div class="field"><label>Next service date</label><input data-el="m-date" type="date"></div>
+          <div class="field"><label>Current mileage (km)</label><input data-el="m-mileage" type="number" min="0" placeholder="e.g. 45000"></div>
+          <div class="field"><label>Service due at mileage (km)</label><input data-el="m-service-mileage" type="number" min="0" placeholder="e.g. 50000"></div>
+          <div class="field"><label>Maintenance notes</label><input data-el="m-notes" placeholder="e.g. brake pads, oil change"></div>
+          <div class="modal-actions">
+            <button class="btn" data-close="maint-modal">Cancel</button>
+            <button class="btn-primary" data-el="save-maint">Save</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- TASKS ---------- -->
+    <section class="view" id="view-expenses">
+      <div data-el="cat-totals"></div>
+      <div class="toolbar one-line-tools">
+        <input type="text" data-el="search" placeholder="Search staff, category, car or note...">
+        <span class="multi-pick">
+          <button type="button" class="btn" data-el="staff-filter-btn">All staff</button>
+          <div class="multi-panel" data-el="staff-filter-panel" style="display:none;"></div>
+        </span>
+        <button class="btn-primary" data-el="add-expense">+ Add expense</button>
+        <button class="tab" data-mode="list" style="margin-left:18px;">List</button>
+        <button class="tab active" data-mode="board">Board</button>
+        <select data-el="period-year"></select>
+        <select data-el="period-month"></select>
+        <select data-el="period-category"></select>
+      </div>
+      <div class="card-list" data-el="list" style="display:none;"><div class="loading-screen">Loading expenses...</div></div>
+      <div class="board-head-wrap" data-el="xhead-wrap" style="display:none;">
+        <div class="staff-board" data-el="xhead"></div>
+      </div>
+      <div class="staff-board" data-el="xboard"></div>
+
+      <div class="overlay" data-el="expense-modal">
+        <div class="modal">
+          <h2 data-el="expense-title">Add expense</h2>
+          <div class="form-error" data-el="expense-error"></div>
+          <div class="field-row equal">
+            <div class="field"><label>Date</label><input type="date" data-el="x-date"></div>
+            <div class="field"><label>Amount</label><input type="number" min="0" step="any" data-el="x-amount" placeholder="e.g. 500"></div>
+          </div>
+          <div class="field-row equal">
+            <div class="field"><label>Spent by</label><input data-el="x-staff" list="dl-staff" placeholder="Choose or type"></div>
+            <div class="field"><label>Category</label><input data-el="x-category" list="dl-expense-categories" placeholder="e.g. car wash"></div>
+          </div>
+          <div class="field"><label>Car (optional)</label><select data-el="x-car"></select></div>
+          <div class="field"><label>Note</label><input data-el="x-note" placeholder="optional"></div>
+          <div class="field-row equal">
+            <div class="field"><label>Paid with</label>
+              <select data-el="x-paidwith">
+                <option value="staff">Staff's own money — to be refunded</option>
+                <option value="company">Company money</option>
+              </select></div>
+            <div class="field checkbox-field" data-el="x-refund-wrap" style="align-self:center;margin-top:18px;">
+              <label class="check-row"><input type="checkbox" data-el="x-refunded"> Refunded</label></div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn danger" data-el="delete-expense" style="margin-right:auto;display:none;">Delete</button>
+            <button class="btn" data-close="expense-modal">Cancel</button>
+            <button class="btn-primary" data-el="save-expense">Save</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-settings">
+      <div class="settings-grid">
+
+        <div class="settings-card">
+          <h3>Company details</h3>
+          <p class="settings-note">These appear on invoices, reminder messages and
+            exports. Anyone signed in to this company can edit them.</p>
+
+          <div class="field">
+            <label for="s-name">Company name</label>
+            <input type="text" id="s-name" data-el="s-name" placeholder="Ocean Rentals Ltd">
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="s-phone">Phone</label>
+              <input type="text" id="s-phone" data-el="s-phone" placeholder="+230 5xxx xxxx">
+            </div>
+            <div class="field">
+              <label for="s-email">Email</label>
+              <input type="email" id="s-email" data-el="s-email" placeholder="bookings@example.mu">
+            </div>
+            <div class="field">
+              <label for="s-website">Website</label>
+              <input id="s-website" data-el="s-website" placeholder="www.yourcompany.mu">
+            </div>
+          </div>
+          <div class="field">
+            <label for="s-address">Address</label>
+            <input type="text" id="s-address" data-el="s-address" placeholder="Street, town">
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="s-currency-preset">Currency</label>
+              <select id="s-currency-preset" data-el="s-currency-preset"></select>
+            </div>
+            <div class="field">
+              <label for="s-currency">Symbol shown before amounts</label>
+              <input type="text" id="s-currency" data-el="s-currency" maxlength="6" placeholder="Rs">
+            </div>
+          </div>
+
+          <div class="field">
+            <label>House exchange rates</label>
+            <div data-el="s-fxrates"></div>
+          </div>
+
+          <div class="field">
+            <label for="s-receiptprefix">Receipt number prefix</label>
+            <input type="text" id="s-receiptprefix" data-el="s-receiptprefix"
+                   maxlength="8" placeholder="e.g. OCR" style="max-width:160px;text-transform:uppercase;">
+            <p class="settings-note">Receipts carry a consecutive number, which is
+              what the MRA expects on a receipt. This is the letters in front of
+              it: with "OCR" the numbers read OCR-2026-0001, OCR-2026-0002 and so
+              on, restarting each January. Leave it blank for plain 2026-0001.
+              Letters and digits only. Changing it later affects new receipts
+              only — a receipt already issued keeps the number the customer
+              was given.</p>
+          </div>
+
+          <div class="field">
+            <label for="s-bankcharge">Bank charge on card payments (%)</label>
+            <input type="number" id="s-bankcharge" data-el="s-bankcharge"
+                   min="0" max="100" step="any" placeholder="e.g. 3" style="max-width:160px;">
+          </div>
+
+          <div class="field">
+            <label for="s-logo-file">Company logo</label>
+            <div class="logo-row">
+              <div class="logo-preview" data-el="s-logo-preview"></div>
+              <div class="logo-actions">
+                <input type="file" id="s-logo-file" data-el="s-logo-file" accept="image/*">
+                <button class="btn danger" data-el="s-logo-clear" type="button">Remove logo</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="settings-card">
+          <h3>Company licence</h3>
+          <p class="settings-note">The Dashboard warns before the end date, and if the fleet exceeds the licensed size.</p>
+          <div class="field-row">
+            <div class="field">
+              <label for="s-licence-number">Licence number</label>
+              <input type="text" id="s-licence-number" data-el="s-licence-number" placeholder="e.g. TL/2024/1234">
+            </div>
+            <div class="field">
+              <label for="s-licence-fleet">Licensed fleet size</label>
+              <input type="number" id="s-licence-fleet" data-el="s-licence-fleet" min="1" step="1" placeholder="e.g. 25">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="s-licence-start">Licence start date</label>
+              <input type="date" id="s-licence-start" data-el="s-licence-start">
+            </div>
+            <div class="field">
+              <label for="s-licence-end">Licence end date</label>
+              <input type="date" id="s-licence-end" data-el="s-licence-end">
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h3>VAT &amp; invoicing</h3>
+          <p class="settings-note">VAT invoices count in their own series; the quarterly export is on the Reports page.</p>
+          <div class="field">
+            <label class="checkbox-field" style="text-transform:none;letter-spacing:0;">
+              <input type="checkbox" id="s-vat-registered" data-el="s-vat-registered">
+              This company is VAT registered — issue VAT invoices
+            </label>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="s-vat-number">VAT registration number</label>
+              <input type="text" id="s-vat-number" data-el="s-vat-number" placeholder="printed on every VAT invoice">
+            </div>
+            <div class="field">
+              <label for="s-vat-rate">VAT rate %</label>
+              <input type="number" id="s-vat-rate" data-el="s-vat-rate" min="0" step="0.1" placeholder="15">
+            </div>
+          </div>
+          <div class="field">
+            <label for="s-brn">Business Registration Number (BRN)</label>
+            <input type="text" id="s-brn" data-el="s-brn" placeholder="printed on invoices when set">
+          </div>
+          <div class="field">
+            <label>Company licence <span class="settings-note-inline">set by FleetMate — contact us to change</span></label>
+            <div class="licence-info" data-el="s-licence-info"></div>
+          </div>
+          <div class="field">
+            <label>Custom fields on Fleet <span class="settings-note-inline">shown on every car's Edit dialog</span></label>
+            <div data-el="cf-list"></div>
+            <button type="button" class="btn" data-el="cf-add">+ Add a field</button>
+          </div>
+          <div class="field">
+            <label for="s-invoice-note">Text on every invoice</label>
+            <textarea id="s-invoice-note" data-el="s-invoice-note" rows="3"
+              placeholder="e.g. bank details for payment&#10;MCB · Account 000123456789 · Oasis Car Rental Ltd"></textarea>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h3>Trading companies</h3>
+          <p class="settings-note">Rent the fleet under more than one company:
+            tag each car on its Edit page, and that car's documents carry that
+            company's details and invoice numbers. Untagged cars use the main
+            company above.</p>
+          <div data-el="ent-list"></div>
+          <button type="button" class="btn" data-el="ent-add" style="margin-top:8px;">+ Add a company</button>
+        </div>
+
+
+        <div class="settings-card">
+          <h3>Lists</h3>
+          <p class="settings-note">The choices offered across the app — one per
+            line, in the order you want them shown.</p>
+          <div class="field-row">
+            <div class="field">
+              <label for="s-locations">Pick-up &amp; drop-off places</label>
+              <textarea id="s-locations" data-el="s-locations" rows="6"
+                placeholder="One place per line…"></textarea>
+              <p class="settings-note">One per line — offered as suggestions on the booking form.</p>
+            </div>
+            <div class="field">
+              <label for="s-staff">Staff</label>
+              <textarea id="s-staff" data-el="s-staff" rows="6"
+                placeholder="One name per line…"></textarea>
+              <p class="settings-note">One per line — used for the staff fields and the Tasks board columns.</p>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="s-expense-categories">Expense categories</label>
+            <textarea id="s-expense-categories" data-el="s-expense-categories" rows="4"
+              placeholder="car wash&#10;repairs&#10;fuel&#10;parking"></textarea>
+            <p class="settings-note">One per line — offered on the Expenses page.</p>
+          </div>
+
+          <div class="field">
+            <label for="s-brokers">Brokers</label>
+            <textarea id="s-brokers" data-el="s-brokers" rows="4"
+              placeholder="One broker or agency per line…"></textarea>
+            <p class="settings-note">One per line — offered on the booking form's Broker field.</p>
+          </div>
+
+        </div>
+
+        <div class="settings-card">
+          <h3>Messages &amp; terms</h3>
+          <div class="field">
+            <label for="s-note">Message to customers</label>
+            <textarea id="s-note" data-el="s-note" rows="3"
+              placeholder="Leave blank to use the standard wording"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="s-terms">Terms and conditions</label>
+            <textarea id="s-terms" data-el="s-terms" rows="6"
+              placeholder="Deposit, fuel policy, insurance, late return charges..."></textarea>
+            <p class="settings-note">Stored now and used on printed contracts and
+              invoices when that stage is built. Nothing sends it automatically.</p>
+          </div>
+
+          <div class="error" data-el="settings-error"></div>
+          <div class="settings-actions">
+            <button class="btn-primary" data-el="save-settings">Save company details</button>
+            <span class="saved-note" data-el="settings-saved"></span>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h3>Backup</h3>
+          <p class="settings-note">Your records live in Google's database, which is
+            reliable but not backed up for you — and there is no undo for a
+            deletion. A copy on your own computer is the safety net.</p>
+
+          <p class="settings-note" data-el="s-last"></p>
+
+          <div class="field">
+            <label>Include</label>
+            <div class="check-list" data-el="s-categories"></div>
+          </div>
+
+          <div class="field">
+            <label for="s-interval">Remind me to back up</label>
+            <select id="s-interval" data-el="s-interval"></select>
+          </div>
+
+          <div class="field" data-el="s-auto-row">
+            <label class="check-row">
+              <input type="checkbox" id="s-auto" data-el="s-auto">
+              <span>Write backups to my folder automatically when one is due</span>
+            </label>
+          </div>
+
+          <p class="settings-note" data-el="s-folder-state"></p>
+
+          <div class="settings-actions">
+            <button class="btn-primary" data-el="backup-now">Back up now</button>
+            <button class="btn" data-el="s-choose-folder" type="button">Choose a folder</button>
+            <button class="btn" data-el="s-forget-folder" type="button">Forget folder</button>
+          </div>
+          <p class="settings-note" data-el="backup-result"></p>
+        </div>
+
+        <div class="settings-card">
+          <h3>Your password</h3>
+          <p class="settings-note">Changes the password for your own sign-in
+            (<strong data-el="pw-email">—</strong>) only — colleagues change their
+            own here too. Forgotten it entirely? Sign out and use
+            "Forgot your password?" on the sign-in screen instead.</p>
+
+          <div class="field">
+            <label for="pw-current">Current password</label>
+            <input type="password" id="pw-current" data-el="pw-current"
+              autocomplete="current-password" placeholder="••••••••">
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="pw-new">New password</label>
+              <input type="password" id="pw-new" data-el="pw-new"
+                autocomplete="new-password" placeholder="At least 8 characters">
+            </div>
+            <div class="field">
+              <label for="pw-new2">New password again</label>
+              <input type="password" id="pw-new2" data-el="pw-new2"
+                autocomplete="new-password" placeholder="Same again">
+            </div>
+          </div>
+
+          <div class="error" data-el="pw-error"></div>
+          <div class="settings-actions">
+            <button class="btn-primary" data-el="pw-change">Change password</button>
+            <span class="saved-note" data-el="pw-saved"></span>
+          </div>
+        </div>
+        <div class="settings-card">
+          <h3>Appearance</h3>
+          <p class="settings-note">Applies to everyone in this company. Save keeps it; printed documents stay paper-white.</p>
+          <div class="theme-grid" data-el="theme-presets"></div>
+          <div class="field" style="margin-top:14px;">
+            <label>Font</label>
+            <select data-el="s-theme-font"></select>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Text colour</label>
+              <div class="theme-pick">
+                <input type="color" data-el="s-theme-text" title="Pick the text colour">
+                <button type="button" class="btn" data-el="s-theme-text-clear">Theme default</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Header &amp; button text</label>
+              <div class="theme-pick">
+                <input type="color" data-el="s-theme-headink" title="Pick the text colour on the header and buttons">
+                <button type="button" class="btn" data-el="s-theme-headink-clear">Theme default</button>
+              </div>
+            </div>
+          </div>
+          <div class="field-row" style="margin-top:0;">
+            <div class="field">
+              <label>Background colour</label>
+              <div class="theme-pick">
+                <input type="color" data-el="s-theme-bg" title="Pick a background colour">
+                <button type="button" class="btn" data-el="s-theme-bg-clear">Theme default</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Buttons &amp; header</label>
+              <div class="theme-pick">
+                <input type="color" data-el="s-theme-accent" title="Pick the accent colour">
+                <button type="button" class="btn" data-el="s-theme-accent-clear">Theme default</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+      </div>
+          <div class="overlay" data-el="ent-modal">
+        <div class="modal">
+          <h2 data-el="ent-title">Company</h2>
+          <div class="form-error" data-el="ent-error"></div>
+          <div class="field"><label for="ent-name">Company name</label>
+            <input type="text" id="ent-name" data-el="ent-name"></div>
+          <div class="field"><label for="ent-addr">Address</label>
+            <input type="text" id="ent-addr" data-el="ent-addr"></div>
+          <div class="field-row">
+            <div class="field"><label for="ent-phone">Phone</label>
+              <input type="text" id="ent-phone" data-el="ent-phone"></div>
+            <div class="field"><label for="ent-email">Email</label>
+              <input type="email" id="ent-email" data-el="ent-email"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="ent-brn">BRN</label>
+              <input type="text" id="ent-brn" data-el="ent-brn"></div>
+            <div class="field"><label for="ent-prefix">Invoice &amp; receipt prefix</label>
+              <input type="text" id="ent-prefix" data-el="ent-prefix" placeholder="e.g. IWL"></div>
+          </div>
+          <div class="field">
+            <label class="checkbox-field" style="text-transform:none;letter-spacing:0;">
+              <input type="checkbox" id="ent-vatreg" data-el="ent-vatreg">
+              VAT registered — this company issues VAT invoices
+            </label>
+          </div>
+          <div class="field"><label for="ent-vat">VAT number</label>
+            <input type="text" id="ent-vat" data-el="ent-vat"></div>
+          <div class="field"><label for="ent-invnote">Text on every invoice</label>
+            <textarea id="ent-invnote" data-el="ent-invnote" rows="3"
+              placeholder="e.g. this company's bank details for payment"></textarea></div>
+          <div class="field"><label for="ent-logo">Logo (compressed automatically)</label>
+            <input type="file" id="ent-logo" data-el="ent-logo" accept="image/*">
+            <div data-el="ent-logo-now" style="font-size:11px;color:var(--muted);margin-top:4px;"></div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn danger" data-el="ent-remove" style="margin-right:auto;">Remove</button>
+            <button class="btn" data-close="ent-modal">Cancel</button>
+            <button class="btn-primary" data-el="ent-save">Save company</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-version" id="app-version"></div>
+    </section>
+    <section class="view" id="view-tasks">
+
+      <!-- Four separate rows of controls used to sit above the work itself,
+           which on a laptop left very little room for the jobs. Wrapped like the
+           Bookings page so a wide screen lays them out on one or two lines. -->
+      <div class="planner-bar">
+        <div class="toolbar">
+          <input type="text" data-el="search" placeholder="Search car, customer or location...">
+          <!-- A button and a tick-list rather than a plain select: several people
+               can be picked at once, and a native multi-select needs ctrl-click
+               on a desktop and barely works on a phone. -->
+          <span class="multi-pick">
+            <button type="button" class="btn" data-el="staff-filter-btn">All staff</button>
+            <div class="multi-panel" data-el="staff-filter-panel" style="display:none;"></div>
+          </span>
+          <select data-el="kind-filter">
+            <option value="">All jobs</option>
+            <option value="delivery">Deliveries only</option>
+            <option value="recovery">Recoveries only</option>
+            <option value="task">Manual tasks only</option>
+            <option value="service">Servicing only</option>
+          </select>
+          <div class="filter-row" data-el="filters" style="margin-left:18px;">
+            <select class="tab tab-select" data-el="range-past" title="Look back">
+              <option value="">Past…</option>
+              <option value="past7">Past 7 days</option>
+              <option value="past30">Past 30 days</option>
+              <option value="pastall">Everything before</option>
+            </select>
+            <button class="tab active" data-f="today">Today</button>
+            <select class="tab tab-select" data-el="range-next" title="Look ahead">
+              <option value="">Ahead…</option>
+              <option value="week">Next 7 days</option>
+              <option value="month">Next 30 days</option>
+              <option value="all">Everything ahead</option>
+            </select>
+          </div>
+          <div class="filter-row filter-row-last">
+            <button class="btn-primary" data-el="add-task">+ Add task</button>
+            <button class="tab" data-el="toggle-done">Show completed</button>
+            <!-- Same jobs, two ways of reading them: the list to work through a
+                 day and tick things off, the board to see across the team. -->
+            <button class="tab" data-el="view-list">List</button>
+            <button class="tab" data-el="view-board">Board</button>
+          </div>
+        </div>
+      </div>
+
+      <div data-el="list"><div class="loading-screen">Loading schedule...</div></div>
+      <div class="board-head-wrap" data-el="board-head-wrap" style="display:none;">
+        <div class="staff-board" data-el="board-head"></div>
+      </div>
+      <div class="staff-board" data-el="board" style="display:none;"></div>
+
+      <!-- A chip on the board is too small to show everything, and a phone has no
+           hover, so tapping one opens this. -->
+      <div class="overlay" data-el="job-detail">
+        <div class="modal">
+          <h2>Job detail</h2>
+          <div class="jd-list" data-el="job-detail-body"></div>
+          <!-- The mobile answer to drag-and-drop: hand the task to someone
+               else right here. Shown for tasks only; saves immediately. -->
+          <div class="field" data-el="jd-assign-wrap" style="display:none;margin-top:12px;">
+            <label for="jd-assign">Assigned to</label>
+            <select id="jd-assign" data-el="jd-assign"></select>
+          </div>
+          <div class="modal-actions">
+            <div class="modal-actions-side">
+              <button class="btn" data-el="job-detail-open" style="display:none;">Open booking</button>
+              <button class="btn" data-el="job-detail-edit" style="display:none;">Edit task</button>
+            </div>
+            <button class="btn" data-close="job-detail">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual task -->
+      <div class="overlay" data-el="task-modal">
+        <div class="modal">
+          <h2 data-el="task-modal-title">Add task</h2>
+          <div class="form-error" data-el="task-error"></div>
+          <div class="field"><label>What needs doing</label><input data-el="t-text" placeholder="e.g. Follow up Evasion Car Rental"></div>
+          <div class="field-row">
+            <div class="field"><label>Date</label><input data-el="t-date" type="date"></div>
+            <div class="field"><label>Time (24h, optional)</label><div class="time-pair">
+              <select data-el="t-time-h"></select><span class="time-sep">:</span><select data-el="t-time-m"></select>
+            </div></div>
+          </div>
+          <div class="field"><label>Assigned to</label><input data-el="t-staff" list="dl-staff" placeholder="Choose or type"></div>
+          <div class="modal-actions">
+            <button class="btn danger" data-el="delete-task" style="display:none;">Delete</button>
+            <button class="btn" data-close="task-modal">Cancel</button>
+            <button class="btn-primary" data-el="save-task">Save task</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Moving a delivery or collection to another day. The job can move on
+           its own — the car dropped at the airport before the rental starts —
+           or take the booking's dates with it. The choice is explicit, so a
+           drag can never change what a customer is charged by accident. -->
+      <div class="overlay" data-el="task-move-modal">
+        <div class="modal">
+          <h2 data-el="tm-title">Move this job</h2>
+          <div class="form-error" data-el="tm-error"></div>
+          <div class="jd-list" data-el="tm-summary"></div>
+          <div class="field" style="margin-top:12px;">
+            <label class="check-row" style="align-items:flex-start;">
+              <input type="radio" name="tm-choice" data-el="tm-task-only" checked>
+              <span><strong>Move the task only</strong><br>
+                <span style="font-size:12px;color:var(--muted);" data-el="tm-task-hint"></span></span>
+            </label>
+            <label class="check-row" style="align-items:flex-start;margin-top:8px;">
+              <input type="radio" name="tm-choice" data-el="tm-booking-too">
+              <span><strong data-el="tm-booking-label">Move the booking too</strong><br>
+                <span style="font-size:12px;color:var(--muted);" data-el="tm-booking-hint"></span></span>
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button class="btn" data-close="task-move-modal">Cancel</button>
+            <button class="btn-primary" data-el="tm-confirm">Move</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Booking form — lives outside every view so the planner on any page can
+       open it. The wrapper is the root that booking-form.js queries within. -->
+  <!-- Shared suggestion lists, refilled whenever the booking form opens. A
+       datalist suggests without restricting: staff can still type a one-off
+       destination, and on any browser that does not support it the field simply
+       behaves as the plain text box it was before. -->
+  <datalist id="dl-locations"></datalist>
+  <datalist id="dl-staff"></datalist>
+  <datalist id="dl-customers"></datalist>
+  <datalist id="dl-brokers"></datalist>
+  <datalist id="dl-expense-categories"></datalist>
+
+<div id="booking-form-root">
+  <!-- Asked once, the first time a receipt is issued for a booking. After
+       that the number is fixed on the booking and reprints show the same
+       one — a receipt whose number changed between printings would be
+       worse than no number at all. -->
+  <div class="overlay" data-el="receipt-modal">
+    <div class="modal">
+      <h2>Receipt number</h2>
+      <div class="form-error" data-el="receipt-error"></div>
+      <div class="field">
+        <label for="receipt-no">Number on this receipt</label>
+        <input id="receipt-no" data-el="receipt-no" placeholder="loading...">
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin:-4px 0 10px;" data-el="receipt-hint"></div>
+      <div class="modal-actions">
+        <button class="btn" data-close="receipt-modal">Cancel</button>
+        <button class="btn-primary" data-el="receipt-go">Issue receipt</button>
       </div>
     </div>
-  </section>
+  </div>
 
-  <section class="block">
-    <div class="pilot">
-      <h2>Looking for rental companies to <em>try it</em>.</h2>
-      <p>
-        FleetMate is being tested with rental companies in Mauritius. Pilot use is free —
-        in exchange, tell us what's missing and what gets in your way.
+  <div class="overlay" data-el="invoice-modal">
+    <div class="modal">
+      <h2 data-el="invoice-title">Invoice number</h2>
+      <div class="form-error" data-el="invoice-error"></div>
+      <div class="field">
+        <label for="invoice-no">Number on this invoice</label>
+        <input id="invoice-no" data-el="invoice-no" placeholder="loading...">
+      </div>
+      <div class="modal-actions">
+        <button class="btn" data-close="invoice-modal">Cancel</button>
+        <button class="btn-primary" data-el="invoice-go">Issue invoice</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Damage marks: tap the company's own car drawing where the damage is;
+       each mark gets a number and a note, and prints on the agreement. -->
+  <div class="overlay" data-el="damage-modal" id="damage-modal-root">
+    <div class="modal" style="width:640px;">
+      <h2>Damage diagram</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Tap the drawing where the damage is. Number the notes below; everything prints on the agreement.</p>
+      <div class="damage-wrap" data-el="damage-svg"></div>
+      <div data-el="damage-list" style="margin-top:10px;"></div>
+      <div class="field" style="margin-top:14px;">
+        <label>Fuel at handover</label>
+        <div class="fuel-opts" data-el="fuel-opts">
+          <button type="button" class="btn fuel-opt" data-fuel="25">25%</button>
+          <button type="button" class="btn fuel-opt" data-fuel="50">50%</button>
+          <button type="button" class="btn fuel-opt" data-fuel="75">75%</button>
+          <button type="button" class="btn fuel-opt" data-fuel="100">100%</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" data-close="damage-modal">Cancel</button>
+        <button class="btn-primary" data-el="save-damage">Save marks</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Signature pad: drawn with a finger or stylus, saved small, printed on
+       the renter's signature line. -->
+  <div class="overlay" data-el="sign-modal" id="sign-modal-root">
+    <div class="modal" style="width:560px;">
+      <h2>Signatures</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">Sign with a finger or the mouse.
+        Both signatures print on the rental agreement; either can be left empty and signed on paper.</p>
+
+      <label style="font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">Renter</label>
+      <canvas class="sign-pad" data-el="rsign-pad" width="600" height="180"></canvas>
+      <div style="display:flex;gap:8px;margin:6px 0 14px;">
+        <button class="btn" data-el="rsign-clear">Clear</button>
+        <button class="btn danger" data-el="rsign-remove" style="display:none;">Remove saved</button>
+      </div>
+
+      <label style="font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">For the company</label>
+      <canvas class="sign-pad" data-el="sign-pad" width="600" height="180"></canvas>
+      <div style="display:flex;gap:8px;margin:6px 0 4px;">
+        <button class="btn" data-el="sign-clear">Clear</button>
+        <button class="btn danger" data-el="sign-remove" style="display:none;">Remove saved</button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" data-close="sign-modal">Cancel</button>
+        <button class="btn-primary" data-el="save-sign">Save signatures</button>
+      </div>
+    </div>
+  </div>
+
+
+    <div class="overlay" data-el="booking-modal">
+    <div class="modal">
+      <h2 data-el="booking-modal-title">New booking</h2>
+      <button type="button" class="paid-quick" data-el="b-paid-quick" title="Marked as paid — same switch as in the money section">✓ Paid</button>
+          <div class="form-error" data-el="booking-error"></div>
+      <div class="field"><label>Car</label><select data-el="b-car"></select></div>
+
+      <!-- With a saved customer chosen, neither block below is shown, so the
+           phone number was nowhere on the form and staff could not tell whether
+           WhatsApp would work until they pressed it. -->
+      <div class="contact-box" data-el="b-contact-box" style="display:none;">
+        <p class="settings-note contact-note" data-el="b-contact-note"></p>
+
+        <!-- Filling this in here writes to the customer's record, not to this
+             booking. A number typed onto one booking would leave the customer
+             still blank, so the next booking would be missing it again and the
+             company would end up with two numbers for one person. -->
+        <div class="contact-edit" data-el="b-contact-edit" style="display:none;">
+          <input data-el="b-cust-phone" placeholder="Phone number">
+          <input type="email" data-el="b-cust-email" placeholder="Email">
+          <button type="button" class="btn-primary" data-el="b-cust-save">Save to customer</button>
+        </div>
+
+        <div class="contact-links">
+          <button type="button" class="link-btn" data-el="b-contact-toggle"></button>
+          <button type="button" class="link-btn" data-el="b-contact-full">Edit full customer</button>
+        </div>
+      </div>
+
+      <div data-el="b-new-fields" style="display:none;">
+        <div class="field"><label>New customer name</label><input data-el="b-name" placeholder="Full name"></div>
+        <div class="field"><label>Phone number</label><input data-el="b-phone" placeholder="e.g. 5712 3456"></div>
+        <div class="field"><label>Email</label><input data-el="b-email" type="email" placeholder="e.g. jean@email.com"></div>
+      </div>
+      <div data-el="b-quick-fields">
+        <div class="field"><label>Name on booking</label>
+          <input data-el="b-quickname" list="dl-customers" autocomplete="off"
+            placeholder="Start typing — matches your customer register">
+          <div class="linked-chip" data-el="b-linked" style="display:none;"></div>
+        </div>
+        <!-- Kept on the booking rather than in the customer register, which is
+             the point of this option. Without them there was nothing for the
+             WhatsApp and email buttons to send to, and this is the path the desk
+             actually uses. -->
+        <div class="field-row equal">
+          <div class="field"><label>Phone number</label>
+            <input data-el="b-quickphone" placeholder="e.g. 5712 3456"></div>
+          <div class="field"><label>Email <span class="field-hint">optional</span></label>
+            <input type="email" data-el="b-quickemail" placeholder="e.g. jean@email.com"></div>
+        </div>
+
+      <div class="field-row equal">
+        <div class="field"><label>Passport number <span class="field-hint">optional</span></label>
+          <input data-el="b-passport" placeholder="e.g. AB1234567"></div>
+        <div class="field"><label>Driving licence number <span class="field-hint">optional</span></label>
+          <input data-el="b-licence" placeholder="e.g. 123456"></div>
+      </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field"><label>Pick-up date</label><input data-el="b-start" type="date"></div>
+        <div class="field"><label>Time (24h)</label><div class="time-pair">
+          <select data-el="b-start-time-h"></select><span class="time-sep">:</span><select data-el="b-start-time-m"></select>
+        </div></div>
+      </div>
+      <div class="field"><label>Pick-up location</label><input data-el="b-pickup" list="dl-locations" placeholder="Choose or type"></div>
+
+      <div class="field-row">
+        <div class="field"><label>Return date</label><input data-el="b-end" type="date"></div>
+        <div class="field"><label>Time (24h)</label><div class="time-pair">
+          <select data-el="b-end-time-h"></select><span class="time-sep">:</span><select data-el="b-end-time-m"></select>
+        </div></div>
+      </div>
+      <div class="field"><label>Drop-off location</label><input data-el="b-dropoff" list="dl-locations" placeholder="Choose or type"></div>
+
+      <div class="field-row">
+        <div class="field"><label>Booking currency</label>
+          <select data-el="b-currency"></select></div>
+        <div class="field" data-el="b-fx-field" style="display:none;">
+          <label data-el="b-fxtotal-label">Total in €</label>
+          <input data-el="b-fxtotal" type="number" min="0" step="any" placeholder="e.g. 300">
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;" data-el="b-fx-hint"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label data-el="b-total-label">Total price (leave blank to calculate from daily rate)</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input data-el="b-total" type="number" min="0" placeholder="auto" style="flex:1;">
+          <button type="button" class="btn" data-el="b-fx-recalc" style="display:none;white-space:nowrap;"
+            title="Recalculate this booking's total using today's house rate — only this booking changes">Use today's rate</button>
+        </div>
+      </div>
+
+      <!-- Charged on top of the hire itself, and shown as their own lines on the
+           invoice and the rental agreement. -->
+      <div class="field-row equal">
+        <div class="field"><label data-el="b-delivery-label">Delivery cost</label>
+          <input type="number" min="0" step="any" data-el="b-delivery" placeholder="0"></div>
+        <div class="field"><label data-el="b-insurance-label">Insurance cost</label>
+          <input type="number" min="0" step="any" data-el="b-insurance" placeholder="0"></div>
+        <div class="field"><label data-el="b-other-label">Other costs</label>
+          <input type="number" min="0" step="any" data-el="b-other" placeholder="0"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin:-6px 0 10px;" data-el="b-extras-hint"></div>
+
+      <!-- Card fee passed on to the client. Off unless ticked, because most of
+           this market pays cash or Juice and carries no fee at all. The rate
+           fills itself from Settings and stays editable for a one-off. -->
+      <div class="field checkbox-field" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <label class="check-row"><input type="checkbox" data-el="b-card"> Paying by credit card</label>
+        <span data-el="b-card-pct-wrap" style="display:none;align-items:center;gap:6px;">
+          <input type="number" min="0" max="100" step="any" data-el="b-card-pct"
+                 style="width:80px;" placeholder="3">
+          <span class="field-hint">% of the total charges</span>
+        </span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin:-6px 0 10px;" data-el="b-card-hint"></div>
+
+      <div class="field-row equal">
+        <div class="field"><label>Managed by</label><input data-el="b-managedby" list="dl-staff" placeholder="Choose or type"></div>
+        <div class="field"><label>Delivered by</label><input data-el="b-deliveredby" list="dl-staff" placeholder="Choose or type"></div>
+        <div class="field"><label>Recovered by</label><input data-el="b-recoveredby" list="dl-staff" placeholder="Choose or type"></div>
+      </div>
+
+      <div class="field"><label>Broker <span class="field-hint">optional — who brought this booking</span></label>
+        <input data-el="b-broker" list="dl-brokers" placeholder="Choose or type"></div>
+
+      <div class="field checkbox-field" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <label class="check-row"><input type="checkbox" data-el="b-paid"> Marked as paid</label>
+        <button type="button" class="btn" data-el="b-view-invoice" style="display:none;"
+          title="Open this booking's invoice on the Billing page">View invoice</button>
+      </div>
+
+      <div class="field">
+        <label>Colour on the planner</label>
+        <div class="swatches" data-el="b-colour"><button type="button" class="swatch auto selected" data-colour="" title="Automatic — colour by status">A</button></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">
+          "A" colours the booking by its status. Pick a colour to use your own code instead —
+          overdue rentals stay outlined in red either way.
+        </div>
+      </div>
+
+      <div class="field"><label>Notes for this booking</label>
+        <textarea data-el="b-notes" rows="4" placeholder="e.g. baby seat, second driver, late flight&#10;Multiple lines are fine."></textarea>
+      </div>
+      <!-- The money this form implies, always current, right where Save is
+           pressed — the desk never saves a booking without seeing it.
+           (Pattern from the pilot's own tools: Total / to pay now / to pay
+           at pickup, above the fixed Save bar.) -->
+      <div class="money-block" data-el="b-money-block"></div>
+      <div class="modal-actions">
+        <!-- Grouped so Cancel and Save always stay together at the right, whatever
+             else is on the row. These four are hidden until the booking exists:
+             an agreement needs a reference number, and there is nothing to send
+             about a form that has not been saved. -->
+        <div class="modal-actions-side">
+          <!-- Order fixed by the pilot (19 Aug 2026): destructive first and
+               isolated, then the working documents in the order a rental
+               actually uses them, sending last. -->
+          <button class="btn danger" data-el="delete-booking" style="display:none;">Delete booking</button>
+          <button class="btn" data-el="print-confirmation" style="display:none;">Booking confirmation</button>
+          <button class="btn" data-el="damage-btn" style="display:none;">Damage diagram</button>
+          <button class="btn" data-el="sign-btn" style="display:none;">Signature</button>
+          <button class="btn" data-el="print-agreement" style="display:none;">Rental agreement</button>
+          <button class="btn" data-el="print-invoice" style="display:none;">Invoice</button>
+          <button class="btn danger" data-el="void-invoice" style="display:none;">Void invoice…</button>
+          <button class="btn" data-el="print-receipt" style="display:none;">Receipt</button>
+          <button class="btn danger" data-el="void-receipt" style="display:none;">Void receipt…</button>
+          <button class="btn" data-el="email-booking" style="display:none;">Email customer</button>
+          <button class="btn" data-el="whatsapp-booking" style="display:none;">WhatsApp</button>
+        </div>
+        <button class="btn" data-close="booking-modal">Cancel</button>
+        <button class="btn-primary" data-el="save-booking">Save booking</button>
+      </div>
+    </div>
+  </div>
+
+  </div>
+
+  <!-- Export / backup -->
+  <div class="overlay" id="export-modal">
+    <div class="modal">
+      <h2>Export your data</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1.2rem;line-height:1.5;">
+        Save a copy of everything in this company's account. Keep backups somewhere safe —
+        deleted records cannot be recovered otherwise.
       </p>
-      <a href="mailto:mia1652001@gmail.com?subject=FleetMate%20pilot">Get in touch</a>
+      <div class="card-actions" style="margin-top:0;flex-direction:column;align-items:stretch;gap:8px;">
+        <button class="btn" id="export-json">Full backup (.json) — everything, for restoring</button>
+        <button class="btn" id="export-bookings-csv">Bookings &amp; invoices (.csv) — opens in Excel</button>
+        <button class="btn" id="export-customers-csv">Customers (.csv) — opens in Excel</button>
+        <button class="btn" id="export-cars-csv">Cars (.csv) — opens in Excel</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="export-close">Close</button>
+      </div>
     </div>
-  </section>
-
+  </div>
 </div>
 
-<footer>
-  <div class="wrap">
-    <p>FleetMate · Built in Mauritius</p>
-    <p><a href="app.html">Open the app</a></p>
-  </div>
-</footer>
-
+<script type="module" src="app.js"></script>
 <script>
-  // Opened from an installed home-screen icon? Skip the marketing page.
-  const standalone =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.navigator.standalone === true;
-  if (standalone) location.replace("app.html");
+  // Caching is disabled while the app is still being built, so that every
+  // upload is seen straight away. This removes any service worker and cache
+  // left over from earlier versions.
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.getRegistrations()
+      .then(rs => rs.forEach(r => r.unregister()))
+      .catch(() => {});
+  }
+  if (window.caches) {
+    caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(() => {});
+  }
 </script>
 </body>
 </html>
