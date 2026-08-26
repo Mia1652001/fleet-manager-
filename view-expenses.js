@@ -7,7 +7,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstat
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr,
   staffNames, expenseCategoryNames, orderedCars, loadPref, savePref,
-  el, val, setVal, openModal, closeModal, showError
+  el, val, setVal, openModal, closeModal, showError, makeHoldGate
 } from "./store.js";
 
 let root = null;
@@ -444,13 +444,23 @@ function wireBoard() {
 
   // Dragging a chip to another cell moves the expense to that day and
   // category in one motion — a plain record, so no confirmation needed.
+  // Picked up: the chip lifts, so a finger drag looks like one.
+  const hold = makeHoldGate(box,
+    () => { if (boardDrag?.chip) boardDrag.chip.classList.add("chip-held"); },
+    () => box.querySelectorAll(".chip-held").forEach(c => c.classList.remove("chip-held")));
+
   box.addEventListener("pointerdown", (e) => {
     const chip = e.target.closest("[data-chip]");
     if (!chip || e.target.closest(".job-tick")) return;
-    boardDrag = { id: chip.dataset.chip, x: e.clientX, y: e.clientY, moved: false, to: null };
+    boardDrag = { id: chip.dataset.chip, x: e.clientX, y: e.clientY, moved: false, to: null, chip };
+    hold.down(e);
   });
   box.addEventListener("pointermove", (e) => {
     if (!boardDrag) return;
+    // A finger must hold still first, or this is a scroll and the drag is off.
+    // Before, a finger drag only worked at all if a second finger happened to
+    // stop the board scrolling — the pilot found that by accident (26 Aug).
+    if (!hold.move(e)) { if (!hold.active) boardDrag = null; return; }
     if (!boardDrag.moved) {
       if (Math.hypot(e.clientX - boardDrag.x, e.clientY - boardDrag.y) < 7) return;
       boardDrag.moved = true;
@@ -463,6 +473,7 @@ function wireBoard() {
     e.preventDefault();
   });
   const finish = async (e) => {
+    hold.cancel();
     if (!boardDrag) return;
     const drag = boardDrag;
     boardDrag = null;

@@ -10,7 +10,7 @@ import {
   findClash, describeInterval, startTime, endTime,
   rentalDays, rateFor, rentalTotal, hasManualTotal,
   loadPref, savePref,
-  el, val, setVal, openModal, closeModal, showError,
+  el, val, setVal, makeHoldGate, openModal, closeModal, showError,
   showToast
 } from "./store.js";
 
@@ -556,8 +556,16 @@ function wireBoardDrag() {
   const board = el(root, "board");
   if (!board) return;
 
+  // Picked up: the chip lifts, so a finger drag looks like one.
+  const hold = makeHoldGate(board,
+    () => { if (chipDrag?.chip) chipDrag.chip.classList.add("chip-held"); },
+    () => board.querySelectorAll(".chip-held").forEach(c => c.classList.remove("chip-held")));
+
+  // Touch used to be turned away on this line. It now goes through the same
+  // press-and-hold gate the Expenses board uses (26 Aug) — a finger that moves
+  // straight away still scrolls the board, exactly as before.
   board.addEventListener("pointerdown", (e) => {
-    if (e.pointerType === "touch" || e.button !== 0) return;
+    if (e.pointerType !== "touch" && e.button !== 0) return;
     if (e.target.closest("[data-tickbox]") || e.target.closest("[data-add-day]")) return;
     const chip = e.target.closest("[data-tick]");
     if (!chip || chip.dataset.kind === "service") return;   // servicing has nobody to assign
@@ -572,8 +580,10 @@ function wireBoardDrag() {
       fromStaff: cell.dataset.cellStaff || "",
       day: cell.dataset.cellDay,
       moved: false,
-      pointerId: e.pointerId
+      pointerId: e.pointerId,
+      chip
     };
+    hold.down(e);
     // Capture is taken only once this turns out to be a drag — see pointermove.
     // Capturing here retargets the follow-up click to the board, so a plain tap
     // never reached the chip and opening a job stopped working entirely.
@@ -581,6 +591,9 @@ function wireBoardDrag() {
 
   board.addEventListener("pointermove", (e) => {
     if (!chipDrag) return;
+    // Not yet held long enough — and if the gate has closed, the finger was
+    // scrolling, so the drag is abandoned and the board scrolls normally.
+    if (!hold.move(e)) { if (!hold.active) chipDrag = null; return; }
     const under = document.elementFromPoint(e.clientX, e.clientY);
     const cell = under && under.closest && under.closest("[data-cell-day]");
 
@@ -604,6 +617,7 @@ function wireBoardDrag() {
   });
 
   const finish = async () => {
+    hold.cancel();
     if (!chipDrag) return;
     const drag = chipDrag;
     chipDrag = null;
@@ -623,6 +637,7 @@ function wireBoardDrag() {
 
   board.addEventListener("pointerup", finish);
   board.addEventListener("pointercancel", () => {
+    hold.cancel();
     // Same as the planner: a cancel before any movement is the browser starting
     // a selection, not the user letting go.
     if (chipDrag && !chipDrag.moved) return;
@@ -633,6 +648,7 @@ function wireBoardDrag() {
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && chipDrag) {
+      hold.cancel();
       chipDrag = null;
       board.classList.remove("dragging-chip");
       board.querySelectorAll(".board-cell.drop-target").forEach(c => c.classList.remove("drop-target"));

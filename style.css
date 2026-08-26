@@ -2081,6 +2081,20 @@ input[type="number"] {
   outline-offset: -3px;
 }
 
+/* "Picked up": the moment a press-and-hold arms a finger drag. Without it a
+   phone gives no sign that holding did anything, and the natural response is
+   to keep pressing harder or give up (26 Aug). Chips are never scaled by more
+   than a hair — a board is dense and a big lift would cover its neighbours. */
+.board-chip.chip-held, .chip-held {
+  transform: scale(1.04);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.22);
+  position: relative;
+  z-index: 5;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .board-chip, [data-chip] { transition: transform 0.12s ease, box-shadow 0.12s ease; }
+}
+
 /* ---------- Multi-select picker ---------- */
 .multi-pick { position: relative; display: inline-block; }
 .multi-panel {

@@ -711,7 +711,7 @@ export function paidPatch(b, paid) {
 // The version shown in Settings and on the wordmark's tooltip, bumped with
 // every package — so "did the upload deploy?" is answered by looking, not by
 // wondering. Format: date, then a word for what the build was about.
-export const APP_VERSION = "26 Aug 2026 \u00b7 pilot-19";
+export const APP_VERSION = "26 Aug 2026 \u00b7 pilot-20";
 
 // ---------- Themes ----------
 // Per-company appearance, stored on the settings document so everyone who
@@ -1479,6 +1479,63 @@ export function bookingYears() {
 // ---------- Small DOM helpers ----------
 // Each view works inside its own container and uses data-el attributes,
 // so element names can repeat across views without clashing.
+// ---------- Press-and-hold before a finger drag ----------
+// A board scrolls in both directions, so a finger landing on a chip is
+// ambiguous: drag, or scroll? Safari resolves it by scrolling, which cancels
+// the drag — that is why dragging an expense needed a second finger to work
+// at all (pilot, 26 Aug). The answer is the one every phone already teaches:
+// hold still for a moment and the thing is picked up; move straight away and
+// the board scrolls as usual.
+//
+// Deliberately NOT solved with `touch-action: none` on the chips. That would
+// make a chip un-scrollable, and on a full board the chips cover most of the
+// surface — the page would feel stuck. Instead the scroll is blocked only
+// after the hold has armed, through a non-passive touchmove listener, which
+// is the only thing Safari actually honours.
+//
+// One gate per board, shared by both boards so they cannot drift apart.
+export const TOUCH_HOLD_MS = 350;   // long enough not to fire while scrolling
+export const TOUCH_SLOP = 8;        // px of wander allowed during the hold
+
+export function makeHoldGate(box, onArm, onDisarm) {
+  let timer = null, sx = 0, sy = 0, armed = false, active = false, touch = false;
+
+  const clear = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    if (armed && onDisarm) onDisarm();
+    armed = false; active = false; touch = false;
+  };
+
+  // Non-passive: preventDefault here is what stops the board scrolling under
+  // a drag. Only ever called once armed, so ordinary scrolling is untouched.
+  box.addEventListener("touchmove", (e) => { if (armed) e.preventDefault(); }, { passive: false });
+
+  return {
+    // Call from pointerdown. A mouse drags immediately, as it always has.
+    down(e) {
+      clear();
+      active = true;
+      touch = e.pointerType === "touch";
+      if (!touch) { armed = true; return; }
+      sx = e.clientX; sy = e.clientY;
+      timer = setTimeout(() => { timer = null; armed = true; if (onArm) onArm(); }, TOUCH_HOLD_MS);
+    },
+    // Call from pointermove. True = the drag may proceed. False = either still
+    // waiting for the hold, or the finger moved first and this is a scroll —
+    // check .active to tell those apart.
+    move(e) {
+      if (!active) return false;
+      if (armed) return true;
+      if (Math.hypot(e.clientX - sx, e.clientY - sy) > TOUCH_SLOP) { clear(); return false; }
+      return false;
+    },
+    get armed() { return armed; },
+    get active() { return active; },
+    cancel: clear
+  };
+}
+
 export function el(root, name) {
   return root.querySelector(`[data-el="${name}"]`);
 }
