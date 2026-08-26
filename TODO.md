@@ -3,6 +3,29 @@
 Requests from the pilot company (30 July 2026), parked deliberately during the
 testing period. New features wait; fixes to existing behaviour go out as found.
 
+## Pre-zip gates (mandatory, every build)
+
+Run all of these before packaging. Several are here because skipping them
+shipped a broken version.
+
+- `node --check` every JS file, with a FAILED flag.
+- esbuild bundle link gate, target safari15 — catches a missed file or import.
+- Zero literal `\uXXXX` escapes in index.html (two shipped as visible text).
+- data-el checks verify PLACEMENT (inside the right section), not existence.
+- `python3 css_gate.py style.css <previous shipped style.css>` — added 26 Aug
+  after an edit meant for `.rep-wrap` matched a different rule with a similar
+  name (the indented `#view-reports .rep-wrap` inside the shared phone
+  full-bleed list) and wiped 72 lines: the full-bleed bodies for Bookings,
+  Tasks, Expenses and Reports, the board-head alignment rule and the phone
+  tick sizes. Brace counts stayed balanced, so nothing noticed until the
+  pilot's phone did. The gate checks the mobile layout invariants by BODY,
+  not by selector name, and lists every deleted line against the previous
+  zip — more than 25, or any from a guarded rule, is a stop.
+- Rule for editing style.css: every replacement anchors on a string asserted
+  to occur exactly once. Never `index()` of a short fragment; never a slice
+  between two searches. The file has near-duplicate selectors on purpose.
+- APP_VERSION bumped; byte-verify changed files inside the final zip.
+
 ## Money & documents
 - [x] **Bank charges / commission %** — done (v92). Answers from the pilot,
       6 August: a percentage of the invoice total (rental + all extras), added

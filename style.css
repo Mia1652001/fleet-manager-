@@ -2559,7 +2559,70 @@ input[type="number"] {
   #view-expenses .board-head-wrap,
   #view-tasks [data-el="board"],
   #view-expenses [data-el="xboard"],
+  #view-reports .rep-head-wrap,
   #view-reports .rep-wrap {
+    width: calc(100% + 2 * var(--main-pad-x, 0.9rem));
+    margin-left: calc(-1 * var(--main-pad-x, 0.9rem));
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+  }
+
+  /* The frozen date/name strip holds its own copy of the grid. It must fill
+     that strip and not shift again, or the two would sit a padding apart and
+     the columns would stop lining up. */
+  .board-head-wrap .staff-board {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+/* ---------- Bigger tick boxes on a phone ----------
+   The board's tick is 13px square. On a desktop that is a precise little
+   control under a mouse pointer; under a thumb it is a miss waiting to happen,
+   and the pilot's staff mark jobs done on their phones all day. It roughly
+   doubles on a phone — 24px, which is 3.4 times the area — and centres itself
+   in the chip rather than sitting on the text baseline, where a taller box
+   would hang low.
+
+   Deliberately not stretched into an invisible 44px pad: chips sit a few pixels
+   apart in a cell, and a pad that big would swallow taps meant for the chip
+   beside it and mark the wrong job done. A visible box you can actually see and
+   hit beats a large invisible one.
+
+   Desktop is untouched — every rule here is inside the phone breakpoint. */
+@media (max-width: 640px) {
+  .board-tick {
+    width: 24px;
+    height: 24px;
+    /* Top-aligned, not centred: a chip whose text wraps to four lines would
+       float the box halfway down it, away from the line it belongs to. The
+       chip's own alignment is baseline, which suits a 13px box and hangs a
+       24px one well below the first line. */
+    align-self: flex-start;
+    border-radius: 4px;
+    font-size: 15px;
+    line-height: 22px;
+  }
+
+  /* The same job in List mode. 22px was already the better of the two, but it
+     is still under the thumb and the two views should not disagree. */
+  #view-tasks .job-tick {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+}
+
+/* ---------- Reports: revenue by car and month ----------
+   Twelve money columns plus a total and an average will not fit a phone and
+   should not try: shrinking them to fit produces a grid nobody can read a
+   figure out of. The table keeps a legible size and the box scrolls sideways,
+   with the car column frozen so a row never loses the vehicle it belongs to —
+   the same treatment the planner and the boards get. */
+.rep-title { font-family: var(--font-display); font-size: 1.05rem; font-weight: 400; margin: 0 8px 0 0; }
+
+.rep-wrap {
   /* Sideways only. The page owns vertical scrolling — a height cap here is
      the window-in-a-window the pilot rejected (24 Aug), and it came back by
      mistake on 26 Aug when the frozen heading was first attempted this way.
@@ -2596,7 +2659,6 @@ input[type="number"] {
 }
 .rep-head-wrap .rep-table { margin: 0; background: transparent; }
 .rep-head-wrap .rep-table thead th { position: static; }
-}
 
 .rep-table { border-collapse: collapse; width: 100%; font-size: 12px; }
 .rep-table th, .rep-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
