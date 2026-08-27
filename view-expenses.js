@@ -419,6 +419,17 @@ function renderBoard(items) {
     box.dataset.mirrorWired = "1";
     box.addEventListener("scroll", () => { headWrap.scrollLeft = box.scrollLeft; });
   }
+  // The status-bar mask applies only while the strip is actually pinned —
+  // the planner's sentinel, verbatim (see view-bookings.js). At rest there
+  // is no mask and no dead space; in the browser env() is 0 and nothing
+  // changes. Wired once, on the wrap, so re-renders don't stack observers.
+  if (headWrap && !headWrap.dataset.pinWired && "IntersectionObserver" in window) {
+    headWrap.dataset.pinWired = "1";
+    const pin = el(root, "xhead-pin-sentinel");
+    if (pin) new IntersectionObserver(([e]) =>
+      headWrap.classList.toggle("hdr-pinned", !e.isIntersecting && e.boundingClientRect.top < 0)
+    ).observe(pin);
+  }
 }
 
 

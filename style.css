@@ -1920,7 +1920,13 @@ input[type="number"] {
 #view-tasks .board-head-wrap,
 #view-expenses .board-head-wrap {
   position: sticky;
-  top: env(safe-area-inset-top, 0px);
+  /* True top, like the planner's date strip — NOT env(safe-area-inset-top).
+     That offset pinned the strip BELOW the status bar, so scrolled rows
+     stayed readable in the strip above it in the installed app (pilot's
+     screenshots, 27 Aug 09:23). The strip itself masks that zone while
+     pinned — the .hdr-pinned rule further down, the planner's sentinel
+     technique. In the browser env() is 0, so nothing there ever changes. */
+  top: 0;
   z-index: 20;
   overflow-x: hidden;
   background: var(--bg);
@@ -3208,6 +3214,17 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
    (a sentinel observer toggles the class). The always-on padding technique
    cost ~75px of dead space at rest — the pilot's circled gap (24 Aug). */
 #view-bookings .tl-head-wrap.hdr-pinned {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* The boards' staff strips had the older arrangement — pinned below the
+   status bar, scrolled rows readable in the strip above them in the
+   installed app (pilot's screenshots, 27 Aug 09:23, Tasks and Expenses;
+   the browser showed nothing because env() is 0 there). Same cure as the
+   planner, same class, same sentinel: mask the status bar only while
+   actually pinned, so there is no dead space at rest. */
+#view-tasks .board-head-wrap.hdr-pinned,
+#view-expenses .board-head-wrap.hdr-pinned {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
