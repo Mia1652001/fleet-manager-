@@ -1,6 +1,6 @@
 {
-  "name": "FleetMate",
-  "short_name": "FleetMate",
+  "name": "VeFlow",
+  "short_name": "VeFlow",
   "description": "Car rental fleet, bookings, customers, billing and maintenance.",
   "start_url": "./",
   "scope": "./",
