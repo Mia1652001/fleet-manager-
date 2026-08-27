@@ -92,10 +92,16 @@ const REP_CAR_MIN = 120;
 const REP_CAR_MAX = 460;
 let repCarW = Number(loadPref("reports:carW", 0)) || 0;
 
-// The header cell of every report's first column, grip included.
-function repCarHead(label) {
-  return `<th class="rep-car">${label}<span class="tl-colgrip" data-rep-grip
-    title="Drag to resize this column \u00b7 double-click to reset">\u22ee\u22ee</span></th>`;
+// The header cell of a report's first column. The resize grip is opt-in and
+// only the Invoices tables ask for it now: on the by-car and month grids it
+// floated over the month headings on a phone and dragging it there did
+// nothing useful (pilot's screenshot, 27 Aug 19:00). The drag machinery
+// further down is delegated on [data-rep-grip], so a table without the grip
+// simply has nothing to grab — no other change needed.
+function repCarHead(label, withGrip) {
+  const grip = withGrip ? `<span class="tl-colgrip" data-rep-grip
+    title="Drag to resize this column \u00b7 double-click to reset">\u22ee\u22ee</span>` : "";
+  return `<th class="rep-car">${label}${grip}</th>`;
 }
 
 function applyRepCarW(w) {
@@ -1006,7 +1012,7 @@ function paintInvoiceTable() {
     <table class="rep-table inv-table">
       <thead>
         <tr>
-          ${repCarHead("Invoice")}
+          ${repCarHead("Invoice", true)}
           <th>Issued</th>
           <th>Period</th>
           <th>Customer</th>
@@ -1084,7 +1090,7 @@ function renderAllBookings(box, rows) {
     <table class="rep-table inv-table">
       <thead>
         <tr>
-          ${repCarHead("Invoice")}
+          ${repCarHead("Invoice", true)}
           <th>Period</th>
           <th>Customer</th>
           <th>Vehicle</th>
