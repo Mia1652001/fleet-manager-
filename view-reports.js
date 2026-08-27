@@ -823,6 +823,18 @@ function syncRepHead() {
     // Column widths change with the window, so the copy is remeasured.
     window.addEventListener("resize", () => syncRepHead());
   }
+
+  // The status-bar mask applies only while the heading is actually pinned —
+  // the planner's sentinel, fourth use (see view-bookings.js). Wired once,
+  // on the wrap, so the repeated syncs don't stack observers; in the
+  // browser env() is 0 and nothing changes.
+  if (!wrap.dataset.pinWired && "IntersectionObserver" in window) {
+    wrap.dataset.pinWired = "1";
+    const pin = el(root, "rep-pin-sentinel");
+    if (pin) new IntersectionObserver(([e]) =>
+      wrap.classList.toggle("hdr-pinned", !e.isIntersecting && e.boundingClientRect.top < 0)
+    ).observe(pin);
+  }
 }
 
 function renderInvoices() {

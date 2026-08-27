@@ -2654,7 +2654,11 @@ input[type="number"] {
 .rep-region { position: relative; }
 .rep-head-wrap {
   position: sticky;
-  top: env(safe-area-inset-top, 0px);
+  /* True top, like the planner and the boards — NOT env(safe-area-inset-top),
+     which pinned it below the status bar and left scrolled rows readable in
+     the strip above it in the installed app. Masked while pinned by the
+     .hdr-pinned rule further down; in the browser env() is 0 either way. */
+  top: 0;
   z-index: 6;
   overflow-x: hidden;
   background: var(--bg);
@@ -3225,6 +3229,17 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
    actually pinned, so there is no dead space at rest. */
 #view-tasks .board-head-wrap.hdr-pinned,
 #view-expenses .board-head-wrap.hdr-pinned {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Reports' heading: same disease, same cure — with one extra word.
+   syncRepHead() sets the wrap's height in px to lay the copied heading
+   exactly over the real one, and the page's border-box would take the
+   status-bar padding OUT of that height and clip the copy. content-box,
+   only while pinned, stacks the padding above the measured height instead.
+   At rest the rule does not apply and nothing changes. */
+.rep-head-wrap.hdr-pinned {
+  box-sizing: content-box;
   padding-top: env(safe-area-inset-top, 0px);
 }
 
