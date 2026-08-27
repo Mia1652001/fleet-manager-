@@ -92,23 +92,29 @@ const REP_CAR_MIN = 120;
 const REP_CAR_MAX = 460;
 let repCarW = Number(loadPref("reports:carW", 0)) || 0;
 
-// The header cell of a report's first column. The resize grip is opt-in and
-// only the Invoices tables ask for it now: on the by-car and month grids it
-// floated over the month headings on a phone and dragging it there did
-// nothing useful (pilot's screenshot, 27 Aug 19:00). The drag machinery
-// further down is delegated on [data-rep-grip], so a table without the grip
-// simply has nothing to grab — no other change needed.
-function repCarHead(label, withGrip) {
-  const grip = withGrip ? `<span class="tl-colgrip" data-rep-grip
-    title="Drag to resize this column \u00b7 double-click to reset">\u22ee\u22ee</span>` : "";
-  return `<th class="rep-car">${label}${grip}</th>`;
+// The header cell of every report's first column, grip included — the
+// planner's control, in the planner's place: the right edge of the frozen
+// first column. What the person actually sees and grabs is the CLONE of this
+// heading (syncRepHead lays a copy over the real one to freeze it), so the
+// drag machinery below listens on the whole rep-region — real table and
+// copy alike — and the width variable lives on the region so both copies
+// read it. Removing the grip from some sheets (pilot-26) treated the
+// symptom; the clone's grip was dead everywhere because the old listener
+// only covered the real table.
+function repCarHead(label) {
+  return `<th class="rep-car">${label}<span class="tl-colgrip" data-rep-grip
+    title="Drag to resize this column \u00b7 double-click to reset">\u22ee\u22ee</span></th>`;
 }
 
 function applyRepCarW(w) {
-  const box = el(root, "rep-table");
-  if (!box) return;
-  if (w) box.style.setProperty("--rep-car-w", w + "px");
-  else box.style.removeProperty("--rep-car-w");
+  // On the REGION, not the table wrapper: the frozen-heading copy lives in
+  // rep-head-wrap, a sibling of the table, and a variable set on the table
+  // never reached it — the copy's first column fell back to the default
+  // width, which is why the grip drifted away from the column edge.
+  const region = el(root, "rep-region");
+  if (!region) return;
+  if (w) region.style.setProperty("--rep-car-w", w + "px");
+  else region.style.removeProperty("--rep-car-w");
 }
 
 // Set by a jump from a booking; cleared as soon as the row has been shown.
@@ -302,34 +308,42 @@ export function mount(container) {
   // The column grip. Pointer events (not mouse) so it works on the phone,
   // with the pointer captured so a fast drag that leaves the header keeps
   // resizing rather than stopping dead.
+  // Listens on the REGION, not the table: the grip the person actually sees
+  // and grabs belongs to the frozen-heading COPY in rep-head-wrap, which is
+  // the table's sibling — a listener on the table alone made the visible
+  // grip dead (pilot's screenshots, 27 Aug 09:37). Each width change
+  // re-syncs the copy so it never drifts from the real columns mid-drag.
   {
-    const box = el(root, "rep-table");
+    const region = el(root, "rep-region");
     let drag = null;
-    box.addEventListener("pointerdown", (e) => {
+    region.addEventListener("pointerdown", (e) => {
       const grip = e.target.closest("[data-rep-grip]");
       if (!grip) return;
       const cell = grip.closest(".rep-car");
       drag = { x: e.clientX, w: repCarW || (cell ? cell.getBoundingClientRect().width : 190) };
-      box.setPointerCapture(e.pointerId);
+      region.setPointerCapture(e.pointerId);
       e.preventDefault();
     });
-    box.addEventListener("pointermove", (e) => {
+    region.addEventListener("pointermove", (e) => {
       if (!drag) return;
       repCarW = Math.round(Math.min(REP_CAR_MAX, Math.max(REP_CAR_MIN, drag.w + e.clientX - drag.x)));
       applyRepCarW(repCarW);
+      syncRepHead();
     });
     const finish = () => {
       if (!drag) return;
       drag = null;
       savePref("reports:carW", repCarW);
+      syncRepHead();
     };
-    box.addEventListener("pointerup", finish);
-    box.addEventListener("pointercancel", finish);
-    box.addEventListener("dblclick", (e) => {
+    region.addEventListener("pointerup", finish);
+    region.addEventListener("pointercancel", finish);
+    region.addEventListener("dblclick", (e) => {
       if (!e.target.closest("[data-rep-grip]")) return;
       repCarW = 0;
       savePref("reports:carW", 0);
       applyRepCarW(0);
+      syncRepHead();
     });
   }
 
@@ -1024,7 +1038,7 @@ function paintInvoiceTable() {
     <table class="rep-table inv-table">
       <thead>
         <tr>
-          ${repCarHead("Invoice", true)}
+          ${repCarHead("Invoice")}
           <th>Issued</th>
           <th>Period</th>
           <th>Customer</th>
@@ -1102,7 +1116,7 @@ function renderAllBookings(box, rows) {
     <table class="rep-table inv-table">
       <thead>
         <tr>
-          ${repCarHead("Invoice", true)}
+          ${repCarHead("Invoice")}
           <th>Period</th>
           <th>Customer</th>
           <th>Vehicle</th>

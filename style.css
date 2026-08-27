@@ -2669,6 +2669,14 @@ input[type="number"] {
 }
 .rep-head-wrap .rep-table { margin: 0; background: transparent; }
 .rep-head-wrap .rep-table thead th { position: static; }
+/* ...except the frozen first column. The copy's car cell must pin left
+   exactly like the real one while the mirror scrolls the months beneath it,
+   and the resize grip positions against it — sticky IS a positioning
+   context (the planner's corner, same lesson). Making every cloned cell
+   static was what let the copy's first column drift sideways and sent its
+   grip floating over the month headings, dead to the drag listener.
+   top: auto — the only stickiness here is sideways; the wrap owns vertical. */
+.rep-head-wrap .rep-table thead th.rep-car { position: sticky; left: 0; top: auto; }
 
 .rep-table { border-collapse: collapse; width: 100%; font-size: 12px; }
 .rep-table th, .rep-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
