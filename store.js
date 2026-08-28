@@ -698,7 +698,7 @@ export function paidPatch(b, paid) {
 // The version shown in Settings and on the wordmark's tooltip, bumped with
 // every package — so "did the upload deploy?" is answered by looking, not by
 // wondering. Format: date, then a word for what the build was about.
-export const APP_VERSION = "28 Aug 2026 \u00b7 pilot-30";
+export const APP_VERSION = "28 Aug 2026 \u00b7 pilot-31";
 
 // ---------- Themes ----------
 // Per-company appearance, stored on the settings document so everyone who

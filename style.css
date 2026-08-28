@@ -3144,6 +3144,7 @@ header { padding-top: calc(0.7rem + env(safe-area-inset-top)); }
    always in the table and shown by class, so opening one is a class flip —
    nothing above it redraws or moves. */
 .inv-row { cursor: pointer; }
+.bill-row { cursor: pointer; }
 .inv-row:hover td, .inv-row:hover th.rep-car { background: var(--bg); }
 .inv-chev {
   display: inline-block; width: 12px; margin-right: 4px;

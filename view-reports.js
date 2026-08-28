@@ -379,6 +379,17 @@ export function mount(container) {
     if (wa) { const b = state.bookings.find(x => x.id === wa.dataset.remindWa); if (b) contactByWhatsApp(b); return; }
     const sec = e.target.closest("[data-secstatus]");
     if (sec) { setSecurityStatus(sec.dataset.secstatus, sec.dataset.to); return; }
+    // A line on the Billing report opens that booking's entry in the invoice
+    // register ("link each line on billing to the correct invoice" — pilot,
+    // 28 Aug). Same jump the booking form's View invoice button makes:
+    // switch tab, clear anything filtering it out, widen the window only if
+    // needed, then open and flash the row.
+    const bill = e.target.closest("tr[data-goto-invoice]");
+    if (bill) {
+      applyInvoiceFocus(bill.dataset.gotoInvoice);
+      render();
+      return;
+    }
     // Anything else on an invoice row opens or closes its breakdown. Buttons
     // and links have all returned above, so a click on them never toggles.
     const row = e.target.closest("tr[data-toggle]");
@@ -584,7 +595,7 @@ function renderBillingReport() {
       <th class="rep-num">Total</th><th class="rep-num">Paid in</th>
       <th class="rep-num">Received</th><th class="rep-num">Balance</th><th>Status</th></tr></thead>
     <tbody>
-      ${rows.map(b => `<tr>
+      ${rows.map(b => `<tr class="bill-row" data-goto-invoice="${b.id}" title="Open this invoice in the register">
         <td>${esc(bookingRef(b))}</td><td>${esc(b.renter || "")}</td><td>${esc(bookingCarLabel(b))}</td>
         <td>${esc(formatDate(b.startDate))}</td><td>${esc(formatDate(b.endDate))}</td>
         <td class="rep-num">${rentalDays(b)}</td>
