@@ -318,7 +318,18 @@ function renderCategoryTotals(list) {
   });
   if (!map.size) { box.innerHTML = ""; return; }
   const rows = [...map.values()].sort((a, b) => b.total - a.total);
-  box.innerHTML = `<button type="button" class="btn cat-totals-toggle">${totalsOpen ? "\u25be" : "\u25b8"} Totals</button><div class="cat-total-strip">` + rows.map(r => `
+  // The sum over every category leads the strip ("can we get the total up
+  // also?" — pilot, 28 Aug). Same filtered list as the categories, so the
+  // parts always add up to it exactly.
+  const all = rows.reduce((a, r) => ({ total: a.total + r.total, owed: a.owed + r.owed, count: a.count + r.count }),
+    { total: 0, owed: 0, count: 0 });
+  box.innerHTML = `<button type="button" class="btn cat-totals-toggle">${totalsOpen ? "\u25be" : "\u25b8"} Totals</button><div class="cat-total-strip">` + `
+    <div class="cat-total cat-total-all">
+      <div class="cat-total-name">All categories</div>
+      <div class="cat-total-val">${esc(formatAmount(all.total))}</div>
+      <div class="cat-total-sub">${all.count} item${all.count === 1 ? "" : "s"}${
+        all.owed > 0 ? ` \u00b7 ${esc(formatAmount(all.owed))} to refund` : ""}</div>
+    </div>` + rows.map(r => `
     <div class="cat-total">
       <div class="cat-total-name">${esc(r.name)}</div>
       <div class="cat-total-val">${esc(formatAmount(r.total))}</div>

@@ -429,7 +429,7 @@ function renderMoney() {
   // is only being held. Each figure answers the one before it.
   el(root, "money").innerHTML =
     figure("Booked", formatAmount(m.booked), "", "bookings", "rentals starting this month") +
-    figure("Received", formatAmount(m.received), "green", "billing", "cash arriving this month, any booking") +
+    figure("Received", formatAmount(m.received), "green", "billing", "paid so far on this month\u2019s rentals") +
     figure("Outstanding", formatAmount(m.outstanding), "red", "billing", "unpaid rentals already started") +
     figure("Deposits held", formatAmount(m.deposits), "blue", "billing");
 }

@@ -2413,6 +2413,10 @@ input[type="number"] {
   text-transform: uppercase;
   color: var(--muted);
 }
+/* The all-categories chip that leads the strip: same shape as the others,
+   picked out by weight and a stronger edge rather than a new size. */
+.cat-total-all { border-left: 3px solid var(--text); }
+.cat-total-all .cat-total-name { color: var(--text); font-weight: 600; }
 .cat-total-val { font-size: 1.15rem; line-height: 1.35; }
 .cat-total-sub { font-size: 10px; color: var(--muted); }
 .board-head-total {

@@ -455,12 +455,10 @@ export function monthLabel(key) {
 // whether a date belongs to the period being shown — one calendar month on the
 // Dashboard, whatever the dropdowns say on Billing.
 //
-// Note which date each figure is filed under. Outstanding, Booked and Deposits
-// go by the day the rental starts, which is how the desk files an invoice
-// ("the August invoices" are the rentals that began in August). Received goes
-// by the day the money actually arrived, which is not the same day at all: an
-// advance taken in August on a September rental was received in August. That
-// distinction is the whole point of reporting by month.
+// Every figure is filed under the day the rental starts — Received included,
+// since 28 Aug (the pilot's call): "the August figures" are the August
+// rentals, booked, received-against and outstanding alike, and the dashboard
+// ties out against the Billing report for the same month.
 // The day an advance arrived. Recorded explicitly from now on
 // (advanceRecordedAt, stamped by the Deposits dialog); for the advances taken
 // before that field existed, inferred the way settledOn infers — the booking's
@@ -486,30 +484,19 @@ export function moneySummary(bookings, inScope) {
     unpaidCount: owed.length,
     booked: ofPeriod.reduce((s, b) => s + invoiceTotal(b), 0),
     deposits: ofPeriod.reduce((s, b) => s + securityHeld(b), 0),
-    // Received is cash that actually arrived in the period: every advance by
-    // the day it was taken, plus every settled balance by the day it settled.
-    // The two cannot double-count — settledAmount is the balance only, the
-    // advance having been subtracted when the balance was struck. Before
-    // Aug 2026 advances were counted nowhere, which is why Booked, Received
-    // and Outstanding refused to reconcile: the gap was every deposit ever
-    // taken, plus rentals not yet started.
-    // Received is cash that actually arrived in the period. A booking with a
-    // payments ledger answers from the ledger — each entry by its own date —
-    // and a booking without one answers the old way (advance by its recorded
-    // date, settled balance by its settle date). One booking is always in
-    // exactly one branch, so nothing can be counted twice.
-    received: Math.round(bookings.reduce((sum, b) => {
-      const pays = paymentsOf(b);
-      if (pays.length) {
-        return sum + pays
-          .filter(p => inScope(paymentOn(p)))
-          .reduce((x, p) => x + (Number(p.amount) || 0), 0);
-      }
-      let r = 0;
-      if ((Number(b.advancePaid) || 0) > 0 && inScope(advanceReceivedOn(b))) r += Number(b.advancePaid);
-      if (b.paid && inScope(settledOn(b))) r += settledAmount(b);
-      return sum + r;
-    }, 0) * 100) / 100
+    // Received: everything paid so far against THIS period's rentals — the
+    // same bookings Booked counts, filed by start date like everything else.
+    //
+    // This is the pilot's decision, 28 Aug ("Received: it should concern only
+    // for the month"), replacing the cash-arrival definition that filed each
+    // payment by the day it landed. The old way was the accountant's answer
+    // to "what came in this month"; it also meant the three figures could
+    // never reconcile, because Received included other months' rentals. Now
+    // they answer one question about one set of rentals, and it tallies with
+    // the Billing report's Received for the same month — his own test.
+    // paidTotal covers both worlds (ledger and legacy advance+settled), one
+    // branch per booking, so nothing counts twice.
+    received: Math.round(ofPeriod.reduce((s, b) => s + paidTotal(b), 0) * 100) / 100
   };
 }
 
@@ -711,7 +698,7 @@ export function paidPatch(b, paid) {
 // The version shown in Settings and on the wordmark's tooltip, bumped with
 // every package — so "did the upload deploy?" is answered by looking, not by
 // wondering. Format: date, then a word for what the build was about.
-export const APP_VERSION = "27 Aug 2026 \u00b7 pilot-29";
+export const APP_VERSION = "28 Aug 2026 \u00b7 pilot-30";
 
 // ---------- Themes ----------
 // Per-company appearance, stored on the settings document so everyone who
