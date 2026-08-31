@@ -7,11 +7,12 @@
 // a backup writes into belongs to one computer and means nothing on another.
 
 import { db, setSync, auth, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "./firebase-init.js";
-import { doc, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, setDoc, deleteField, recentActivity, describeEntry, logEvent } from "./audit.js";
 import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES, THEME_LIST, themePresetOf, themeVars, applyTheme, FONT_LIST, themeFontOf, extraEntities, openModal, closeModal, carCustomFields, formatDate } from "./store.js";
 import {
   CATEGORIES, INTERVALS, backupPrefs, saveBackupPrefs, daysSinceBackup,
-  runBackup, folderSupported, folderStatus, chooseFolder, forgetFolder
+  runBackup, folderSupported, folderStatus, chooseFolder, forgetFolder,
+  downloadBlob
 } from "./backup.js";
 
 let root = null;
@@ -265,6 +266,10 @@ export function mount(container) {
   el(root, "save-settings").addEventListener("click", saveSettings);
   const pwBtn = el(root, "pw-change");
   if (pwBtn) pwBtn.addEventListener("click", changePassword);
+  const auditBtn = el(root, "audit-load");
+  if (auditBtn) auditBtn.addEventListener("click", loadActivity);
+  const auditCsv = el(root, "audit-csv");
+  if (auditCsv) auditCsv.addEventListener("click", downloadActivityCsv);
 
   const themeGrid = el(root, "theme-presets");
   if (themeGrid) themeGrid.addEventListener("click", (e) => {
@@ -774,4 +779,62 @@ async function saveSettings() {
     setSync("error");
   }
   btn.disabled = false; btn.textContent = "Save company details";
+}
+
+// ---------- Activity log ----------
+// Read on demand, never live: the log is consulted occasionally and each
+// read of 200 entries counts against the free plan's daily reads, so it is
+// loaded when the button is pressed rather than kept open in the background.
+let activityRows = [];
+
+function fmtWhen(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return iso || "";
+  const p = n => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+async function loadActivity() {
+  const btn = el(root, "audit-load");
+  const list = el(root, "audit-list");
+  const csv = el(root, "audit-csv");
+  const note = el(root, "audit-note");
+  if (!btn || !list) return;
+  showError(root, "audit-error", "");
+  btn.disabled = true; btn.textContent = "Loading\u2026";
+  try {
+    activityRows = await recentActivity(200);
+    if (!activityRows.length) {
+      list.innerHTML = `<p class="settings-note">Nothing recorded yet. Entries appear here from the first save after this version went live.</p>`;
+    } else {
+      list.innerHTML = activityRows.map(e => `
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
+          <strong>${esc(fmtWhen(e.at))}</strong> \u2014 ${esc(describeEntry(e))}
+        </div>`).join("");
+    }
+    if (csv) csv.disabled = activityRows.length === 0;
+    if (note) note.textContent = activityRows.length ? `Latest ${activityRows.length} entries` : "";
+  } catch (e) {
+    const code = e?.code || "";
+    showError(root, "audit-error",
+      /permission/.test(code)
+        ? "The activity log needs the /audit rules block published in Firebase before it can be read."
+        : /failed-precondition|index/.test(code + (e?.message || ""))
+          ? "Firestore needs an index for this list \u2014 open the browser console: the error there contains a link that creates it."
+          : "Couldn't load the activity log (" + (code || e?.message || e) + ").");
+  }
+  btn.disabled = false; btn.textContent = "Show recent activity";
+}
+
+function downloadActivityCsv() {
+  if (!activityRows.length) return;
+  const q = v => '"' + String(v ?? "").replace(/"/g, '""') + '"';
+  const lines = [["When", "Who", "Action", "What", "Fields", "Details"].map(q).join(",")];
+  activityRows.forEach(e => {
+    lines.push([fmtWhen(e.at), e.email || e.uid, e.action, e.label || (e.col ? e.col + "/" + e.docId : ""),
+      (e.fields || []).join(" "), describeEntry(e)].map(q).join(","));
+  });
+  const name = `veflow-activity-${(state.settings?.companyName || state.ctx?.companyId || "company").replace(/[^a-z0-9]+/gi, "-")}-${new Date().toISOString().slice(0, 10)}.csv`;
+  downloadBlob(name, new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+  logEvent("export", { label: `activity log CSV (${activityRows.length} entries)` });
 }

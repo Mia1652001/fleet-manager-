@@ -2,7 +2,7 @@
 // plus any manually added jobs. Booking-derived jobs stay in step with the
 // bookings automatically; only manual tasks are stored separately.
 import { db, setSync } from "./firebase-init.js";
-import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, updateDoc, deleteDoc, doc } from "./audit.js";
 import { openBookingModal } from "./booking-form.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr, buildSchedule, staffNames,

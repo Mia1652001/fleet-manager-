@@ -23,6 +23,14 @@ import {
   invoiceNo, vatRatePct, vatSplit,
   paidTotal, lastPaymentMethod, hasLedger, entityForBooking
 } from "./store.js";
+import { logEvent } from "./audit.js";
+
+// One line in the activity log for every document that leaves the app on
+// paper or by message. The booking is named by its reference; the document
+// text itself is never copied into the log.
+function noteDocument(action, kind, b) {
+  logEvent(action, { col: "bookings", docId: b?.id || "", label: `${kind} for booking ${bookingRef(b)}` });
+}
 
 function line(label, value) {
   return value
@@ -439,6 +447,7 @@ export function emailBooking(bookingId) {
   }
 
   const subject = `${entityForBooking(b).name || "Car rental"} — booking ${bookingRef(b)}`;
+  noteDocument("share", "Email", b);
   window.location.href =
     `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}` +
     `&body=${encodeURIComponent(confirmationText(b))}`;
@@ -491,6 +500,7 @@ export function whatsappBooking(bookingId) {
     return { ok: false, reason: "No phone number saved for this booking or customer." };
   }
 
+  noteDocument("share", "WhatsApp message", b);
   openWhatsApp(raw, confirmationText(b));
   return { ok: true };
 }
@@ -545,6 +555,7 @@ function openPrintable(html) {
 export function openAgreement(bookingId) {
   const b = state.bookings.find(x => x.id === bookingId);
   if (!b) return { ok: false, reason: "That booking could not be found." };
+  noteDocument("print", "Rental agreement", b);
   return openPrintable(documentHtml(b));
 }
 
@@ -555,6 +566,7 @@ export function openAgreement(bookingId) {
 export function openConfirmation(bookingId) {
   const b = state.bookings.find(x => x.id === bookingId);
   if (!b) return { ok: false, reason: "That booking could not be found." };
+  noteDocument("print", "Booking confirmation", b);
   return openPrintable(confirmationHtml(b));
 }
 
@@ -569,6 +581,7 @@ export function openConfirmation(bookingId) {
 export function openInvoice(bookingId, justIssuedNo, justKind) {
   const b = state.bookings.find(x => x.id === bookingId);
   if (!b) return { ok: false, reason: "That booking could not be found." };
+  noteDocument("print", "Invoice", b);
   return openPrintable(invoiceHtml(b, justIssuedNo, justKind));
 }
 
@@ -583,6 +596,7 @@ export function openVoidedInvoice(bookingId, no) {
   const isVat = v.kind === "vat";
   const w = window.open("", "_blank");
   if (!w) return { ok: false, reason: "Pop-up blocked" };
+  noteDocument("print", `Voided invoice ${v.no}`, b);
   w.document.write(`<!DOCTYPE html><html><head><title>${isVat ? "VAT invoice" : "Invoice"} ${esc(v.no)} (VOID)</title>
 ${DOC_STYLES}
 <style>
@@ -716,6 +730,7 @@ export function openReceipt(bookingId, justIssuedNo) {
   // on its way to the server but this device's copy of the booking may not
   // carry it yet, and a receipt printing without its number would be the one
   // failure this whole feature exists to prevent.
+  noteDocument("print", "Receipt", b);
   return openPrintable(receiptHtml(b, justIssuedNo));
 }
 

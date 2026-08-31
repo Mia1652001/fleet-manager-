@@ -1,6 +1,6 @@
 // Fleet view — inventory with status derived from bookings.
 import { db, setSync } from "./firebase-init.js";
-import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch , arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch , arrayUnion } from "./audit.js";
 import { loadXlsx } from "./backup.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr, describeInterval,

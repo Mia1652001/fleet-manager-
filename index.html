@@ -1014,6 +1014,23 @@
             <span class="saved-note" data-el="pw-saved"></span>
           </div>
         </div>
+
+        <div class="settings-card">
+          <h3>Activity log</h3>
+          <p class="settings-note">Who did what, and when: every save and
+            delete, sign-ins and sign-outs, printed documents, messages sent
+            and backups taken, recorded by the app as they happen. Names of
+            changed fields are kept; phone numbers, emails, passport numbers
+            and notes are never copied into the log. Entries cannot be edited
+            or deleted from the app and are kept for two years.</p>
+          <div class="settings-actions">
+            <button class="btn" data-el="audit-load">Show recent activity</button>
+            <button class="btn" data-el="audit-csv" disabled>Download as CSV</button>
+            <span class="saved-note" data-el="audit-note"></span>
+          </div>
+          <div class="error" data-el="audit-error"></div>
+          <div data-el="audit-list"></div>
+        </div>
         <div class="settings-card">
           <h3>Appearance</h3>
           <p class="settings-note">Applies to everyone in this company. Save keeps it; printed documents stay paper-white.</p>

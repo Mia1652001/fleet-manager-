@@ -1,6 +1,6 @@
 // Customers view — register with rental history.
 import { db, setSync } from "./firebase-init.js";
-import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from "./audit.js";
 import {
   state, onDataChange, esc, formatDate, bookingCarLabel,
   el, val, setVal, openModal, closeModal, showError,

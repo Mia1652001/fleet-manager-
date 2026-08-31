@@ -92,18 +92,42 @@ shipped a broken version.
 ## Security — before the first paying customer
 Do-now items (console work, no code): two-factor authentication on the Google
 account and on GitHub; get every pilot company to run its first backup.
-- [ ] **Password self-service** — "forgot password" reset link on the sign-in
-      page, and let users change their own password (Firebase Auth supports
-      both; small code change). Stops passwords living in WhatsApp threads.
-- [ ] **Schema validation in Firestore rules** — verify *what* is written, not
-      just who writes: amounts are numbers, dates are dates, required fields
-      present. Protects a company from its own buggy or tampered client.
+Full review against OWASP Top 10:2025 done 31 Aug 2026 — see
+`VeFlow-Security-Review.md` for the findings, the console checklist and the
+data-retention and registration answers.
+- [x] **Password self-service** — done: "Forgot your password?" on the sign-in
+      page (neutral message whether or not the address exists) and a change-
+      password card on Settings with re-authentication.
+- [x] **Activity log** (pilot-34) — every write goes through `audit.js`; one
+      append-only entry per save/delete/sign-in/sign-out/print/message/backup
+      in `audit/{companyId}/entries`. Field names always, values only for
+      numbers, booleans and dates — never phone/email/passport/notes. Read on
+      demand from Settings → Activity log, CSV download. Rules block added
+      (update/delete: false). Retention 24 months via `expireAt` (attach a
+      Firestore TTL policy on that field when convenient).
+- [x] **On-device copy wiped at sign-out** (pilot-34) — terminate + clear
+      persistence + reload, so a shared or lost phone holds no company data
+      after sign-out. Test on the pilot's iPhone before announcing.
+- [ ] **Console hardening** (no code, ~30 min) — password policy (min 10,
+      Require), email-enumeration protection on, restrict the browser API key
+      to app.veflowapp.com, prune Authorized domains, enable Firestore Data
+      Access audit logs in Google Cloud (server-side, tamper-proof layer).
+- [ ] **Schema validation in Firestore rules** — the minimal rules (create-
+      only date/amount checks, logo, carLimit) are the ceiling until a change
+      can be proven in the Rules playground first; two outages came from
+      going further. Never the same day as an app release.
 - [ ] **Backup discipline** — every active company set up with the automatic
       weekly backup to a folder; check the Firebase usage dashboard monthly
       (reads/day vs the free-plan ceiling) once 3+ companies are active.
 - [ ] **Onboarding checklist** — written steps for account creation (auth user
       → users doc with exact companyId → incognito sign-in test) so no company
       is ever set up from memory.
+- [ ] **Data retention tool** — "customers with no booking for N years" list
+      with a delete button, and a TTL policy on audit entries. Retention
+      periods must be written into the subscription agreement first.
+- [ ] **Content-Security-Policy** — meta tag draft is in the review; GitHub
+      Pages cannot do report-only, so it must be tested on a quiet day.
+- [ ] **Rules-enforced roles** (layer 2) — staff role today is interface-only.
 - [ ] Onboard the 3-car company (~1 week after Mauritius Tour Operator starts).
 
 ## Bigger items (likely need Blaze / Firebase Storage — stage 7 territory)

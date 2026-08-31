@@ -17,6 +17,7 @@ import { state, bookingCarLabel, rentalDays, rateFor, rentalTotal,
          deliveryCost, insuranceCost, otherCost, invoiceTotal,
          bankCharge, bankChargePct, amountDue,
          loadPref, savePref , paidTotal, paymentsOf, lastPaymentMethod, carCustomFields } from "./store.js";
+import { logEvent } from "./audit.js";
 
 export const CATEGORIES = [
   { key: "bookings",  label: "Bookings & invoices" },
@@ -397,5 +398,8 @@ export async function runBackup({ mayPrompt = true } = {}) {
   }
 
   saveBackupPrefs({ lastRun: new Date().toISOString() });
+  // A backup is the company's data leaving the system in one file, so it is
+  // recorded: what was exported and where it went.
+  logEvent("export", { label: `${format} backup (${categories.join(", ")}) \u2014 ${where}` });
   return { ok: true, filename, format, where, categories: categories.length };
 }

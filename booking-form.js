@@ -10,7 +10,7 @@ import { openAgreement, openConfirmation, openReceipt, openInvoice, emailBooking
 // here). Safe because both sides export hoisted function declarations and
 // only call each other from click handlers, never while the modules load.
 import { openPayModal } from "./view-billing.js";
-import { collection, addDoc, updateDoc, deleteDoc, doc, arrayUnion, deleteField, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, updateDoc, deleteDoc, doc, arrayUnion, deleteField, runTransaction } from "./audit.js";
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
   makeBookingRef, bookingRef, showToast,

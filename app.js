@@ -4,7 +4,8 @@
 
 import { db, auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setSync, sendPasswordResetEmail } from "./firebase-init.js";
 import { collection, query, where, onSnapshot, doc, getDoc, getDocFromServer, terminate, clearIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, bookingRef, loadPref, savePref, bankCharge, bankChargePct, amountDue, applyTheme, APP_VERSION } from "./store.js";
+import { state, notifyDataChange, bookingCarLabel, rentalDays, rateFor, rentalTotal, advancePaid, balanceFor, bookingRef, loadPref, savePref, bankCharge, bankChargePct, amountDue, applyTheme, APP_VERSION, esc } from "./store.js";
+import { logEvent } from "./audit.js";
 
 import * as fleet from "./view-fleet.js";
 import * as bookings from "./view-bookings.js";
@@ -37,6 +38,10 @@ const VIEWS = {
 // time would attach a second copy of every click handler.
 let wired = false;
 let unsubs = [];
+// True between pressing "Sign in" and the profile loading, so the activity
+// log can tell a real sign-in from the app merely being reopened with a
+// remembered session.
+let freshLogin = false;
 
 // Which collections have delivered at least once since sign-in. The automatic
 // backup must not run before all of them have: 2.5 seconds after opening, a
@@ -96,6 +101,11 @@ onAuthStateChanged(auth, async (user) => {
       // existing login keeps exactly the access it has today.
       role: snap.data().role || "admin"
     };
+    // Recorded in the company's activity log: a sign-in, or the app being
+    // reopened with a remembered session. Never awaited — the log must not
+    // delay the screen.
+    logEvent(freshLogin ? "sign-in" : "session");
+    freshLogin = false;
     startApp();
   } catch (e) {
     // The full error goes to the console too: the on-screen message names the
@@ -164,6 +174,7 @@ async function doLogin() {
 
   btn.disabled = true; btn.textContent = "Signing in...";
   try {
+    freshLogin = true;
     await signInWithEmailAndPassword(auth, email, password);
     // onAuthStateChanged takes it from here
   } catch (e) {
@@ -244,8 +255,29 @@ function startApp() {
   if (!wired) {
     wired = true;
     document.getElementById("logout-btn").addEventListener("click", async () => {
+      // The sign-out is recorded while the person is still signed in (the
+      // rules would refuse it a moment later). Capped at 1.5 s so a device
+      // with no connection is never held on the screen it is trying to leave.
+      try {
+        await Promise.race([logEvent("sign-out"), new Promise(r => setTimeout(r, 1500))]);
+      } catch {}
       stopListeners();
       await signOut(auth);
+      // The on-device copy of the company's data (customers' phone numbers
+      // and emails included) is deleted at sign-out, so a shared or lost
+      // phone holds nothing once the person has signed out. terminate() is
+      // the SDK's required step before the cache can be cleared, and the
+      // reload below starts a clean Firestore instance — the same sequence
+      // the recovery path above already uses. The in-memory resets that
+      // follow still run first, so the sign-in screen never shows the
+      // previous company's pixels even for the instant before the reload.
+      const wipeLocalCopy = async () => {
+        try { await terminate(db); await clearIndexedDbPersistence(db); } catch (e) {
+          console.warn("Local data clear at sign-out failed:", e);
+        }
+        location.replace(location.pathname);
+      };
+      setTimeout(wipeLocalCopy, 0);
       // Everything, settings included: leaving the settings behind meant the
       // next person to sign in on this device briefly saw the previous
       // company's currency, logo and name until their own snapshot arrived.
@@ -380,7 +412,7 @@ function applyCompanyIdentity() {
 
   const slot = document.getElementById("company-logo");
   if (slot) {
-    slot.innerHTML = s.logo ? `<img src="${s.logo}" alt="">` : "";
+    slot.innerHTML = s.logo ? `<img src="${esc(s.logo)}" alt="">` : "";
     slot.style.display = s.logo ? "block" : "none";
   }
   if (s.companyName) document.title = `${s.companyName} — VeFlow`;

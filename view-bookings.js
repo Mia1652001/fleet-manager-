@@ -4,7 +4,7 @@
 // dashboard planner, so both screens open the same form and validate the same way.
 import { openBookingModal } from "./booking-form.js";
 import { db, setSync } from "./firebase-init.js";
-import { updateDoc, deleteDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { updateDoc, deleteDoc, doc, writeBatch } from "./audit.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr, bookingCarLabel, bookingState,
   sharesStartHandover, sharesEndHandover, serviceDue, initPanelToggle,

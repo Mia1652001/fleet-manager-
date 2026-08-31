@@ -3,7 +3,7 @@
 import { db, setSync } from "./firebase-init.js";
 import { openBookingModal, recalcAtTodayRate } from "./booking-form.js";
 import { openWhatsApp } from "./agreement.js";
-import { updateDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { updateDoc, doc, arrayUnion } from "./audit.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, bookingCarLabel, customerForBooking, companyName, takeFocus,
   rentalDays, rateFor, rentalTotal, hasManualTotal, advancePaid, balanceFor, securityHeld,

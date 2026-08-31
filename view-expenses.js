@@ -3,7 +3,7 @@
 // it, what for, and optionally which car it belongs to. Categories are the
 // company's own, defined in Settings the way brokers and staff are.
 import { db, setSync } from "./firebase-init.js";
-import { collection, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, updateDoc, deleteDoc, doc } from "./audit.js";
 import {
   state, onDataChange, esc, formatDate, formatAmount, todayStr,
   staffNames, expenseCategoryNames, orderedCars, loadPref, savePref,

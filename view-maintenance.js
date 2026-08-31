@@ -1,6 +1,6 @@
 // Maintenance view — service schedules, due warnings, out-of-service toggle.
 import { db, setSync } from "./firebase-init.js";
-import { updateDoc, doc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { updateDoc, doc, arrayUnion } from "./audit.js";
 import {
   state, onDataChange, esc, formatDate, serviceDue, todayStr,
   el, val, setVal, openModal, closeModal, showError
