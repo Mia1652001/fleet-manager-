@@ -42,6 +42,10 @@ let unsubs = [];
 // log can tell a real sign-in from the app merely being reopened with a
 // remembered session.
 let freshLogin = false;
+// True from the moment sign-out starts wiping this device until the page
+// reloads. While it is set, the sign-in form stays locked: the database
+// client is closed and a sign-in would fail with "failed-precondition".
+let wiping = false;
 
 // Which collections have delivered at least once since sign-in. The automatic
 // backup must not run before all of them have: 2.5 seconds after opening, a
@@ -106,6 +110,7 @@ onAuthStateChanged(auth, async (user) => {
     // delay the screen.
     logEvent(freshLogin ? "sign-in" : "session");
     freshLogin = false;
+    sessionStorage.removeItem("fsTerminatedReload");
     startApp();
   } catch (e) {
     // The full error goes to the console too: the on-screen message names the
@@ -147,6 +152,14 @@ onAuthStateChanged(auth, async (user) => {
       location.reload();
       return;
     }
+    // A "failed-precondition" here means this page's database client was
+    // terminated (by the sign-out wipe) and the reload that should have
+    // followed did not happen. A reload is the only cure, so do it — once.
+    if (/failed-precondition|terminated/i.test(msg) && !sessionStorage.getItem("fsTerminatedReload")) {
+      sessionStorage.setItem("fsTerminatedReload", "1");
+      location.reload();
+      return;
+    }
     showLogin("Signed in, but couldn't load your profile (" + msg + ").");
   }
 });
@@ -158,10 +171,12 @@ function showLogin(msg) {
   if (msg) { err.textContent = msg; err.classList.add("show"); }
   else { err.classList.remove("show"); }
   const btn = document.getElementById("login-btn");
+  if (wiping) { btn.disabled = true; btn.textContent = "Clearing this device\u2026"; return; }
   btn.disabled = false; btn.textContent = "Sign in";
 }
 
 async function doLogin() {
+  if (wiping) return;
   const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-password").value;
   const err = document.getElementById("login-error");
@@ -271,8 +286,25 @@ function startApp() {
       // the recovery path above already uses. The in-memory resets that
       // follow still run first, so the sign-in screen never shows the
       // previous company's pixels even for the instant before the reload.
+      //
+      // Two guards, both from 31 Aug: clearing the local database waits for
+      // the browser to delete it, and that wait never ends while another tab
+      // has the app open — so the whole wipe is capped at 2 seconds and the
+      // reload happens regardless (a blocked delete completes on its own
+      // once the other tab closes). And the sign-in form is disabled until
+      // the reload, because a sign-in against a terminated client fails
+      // with "failed-precondition" — which is exactly what was seen.
       const wipeLocalCopy = async () => {
-        try { await terminate(db); await clearIndexedDbPersistence(db); } catch (e) {
+        wiping = true;
+        const btn = document.getElementById("login-btn");
+        if (btn) { btn.disabled = true; btn.textContent = "Clearing this device\u2026"; }
+        const timeLimit = new Promise(r => setTimeout(r, 2000));
+        try {
+          await Promise.race([
+            (async () => { await terminate(db); await clearIndexedDbPersistence(db); })(),
+            timeLimit
+          ]);
+        } catch (e) {
           console.warn("Local data clear at sign-out failed:", e);
         }
         location.replace(location.pathname);

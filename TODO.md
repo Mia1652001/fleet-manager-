@@ -98,14 +98,14 @@ data-retention and registration answers.
 - [x] **Password self-service** — done: "Forgot your password?" on the sign-in
       page (neutral message whether or not the address exists) and a change-
       password card on Settings with re-authentication.
-- [x] **Activity log** (pilot-34) — every write goes through `audit.js`; one
+- [x] **Activity log** (pilot-35) — every write goes through `audit.js`; one
       append-only entry per save/delete/sign-in/sign-out/print/message/backup
       in `audit/{companyId}/entries`. Field names always, values only for
       numbers, booleans and dates — never phone/email/passport/notes. Read on
       demand from Settings → Activity log, CSV download. Rules block added
       (update/delete: false). Retention 24 months via `expireAt` (attach a
       Firestore TTL policy on that field when convenient).
-- [x] **On-device copy wiped at sign-out** (pilot-34) — terminate + clear
+- [x] **On-device copy wiped at sign-out** (pilot-35) — terminate + clear
       persistence + reload, so a shared or lost phone holds no company data
       after sign-out. Test on the pilot's iPhone before announcing.
 - [ ] **Console hardening** (no code, ~30 min) — password policy (min 10,
