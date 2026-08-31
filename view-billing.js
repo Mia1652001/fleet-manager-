@@ -279,7 +279,7 @@ export function invoiceDetailsHtml(b) {
         ${bankCharge(b) > 0 ? `<span>Total due: <strong>${formatAmount(amountDue(b))}</strong></span>` : ""}
         ${hasLedger(b)
           ? `<span>Received so far: <strong>${formatAmount(paidTotal(b))}</strong> <span style="opacity:0.7;">(${paymentsOf(b).length} payment${paymentsOf(b).length === 1 ? "" : "s"})</span></span>`
-          : adv > 0 ? `<span>Advance paid: <strong>-${fxPair(b, adv, b.fxAdvance)}</strong></span>` : ""}
+          : adv > 0 ? `<span>Part payment: <strong>-${fxPair(b, adv, b.fxAdvance)}</strong></span>` : ""}
         ${(hasLedger(b) ? paidTotal(b) > 0 : adv > 0) && !b.paid ? `<span>Balance: <strong>${formatAmount(balance)}</strong></span>` : ""}
         ${b.paid && b.paidAt ? `<span>Paid on: <strong>${formatDate(b.paidAt.slice(0, 10))}</strong></span>` : ""}
         ${log ? `<span style="color:var(--muted);">Last change: ${esc(log.action)} ${formatDate(String(log.at).slice(0, 10))}${log.by ? ` by ${esc(log.by)}` : ""}</span>` : ""}
@@ -586,9 +586,9 @@ export function openDepositModal(id) {
   if (sym) {
     const rate = fxRate(sym);
     const rateNote = rate ? ` (house rate ${rate})` : "";
-    el(root, "dep-fxadvance-label").textContent = `Advance in ${sym}${rateNote}`;
+    el(root, "dep-fxadvance-label").textContent = `Part payment in ${sym}${rateNote}`;
     el(root, "dep-fxsecurity-label").textContent = `Security in ${sym}${rateNote}`;
-    el(root, "dep-advance-label").textContent = `= Advance in ${home} (reduces balance owed)`;
+    el(root, "dep-advance-label").textContent = `= Part payment in ${home} (reduces balance owed)`;
     el(root, "dep-security-label").textContent = `= Security in ${home} (refundable, held separately)`;
     setVal(root, "dep-fxadvance", b?.fxAdvance ?? "");
     setVal(root, "dep-fxsecurity", b?.fxSecurity ?? "");
@@ -605,7 +605,7 @@ export function openDepositModal(id) {
       if (rate) secBtn.textContent = advBtn ? advBtn.textContent : `Use today's rate (${rate})`;
     }
   } else {
-    el(root, "dep-advance-label").textContent = "Advance paid (reduces balance owed)";
+    el(root, "dep-advance-label").textContent = "Part payment / advance (reduces balance owed)";
     el(root, "dep-security-label").textContent = "Security deposit (refundable, held separately)";
     const ra = el(root, "dep-fx-recalc-advance"); if (ra) ra.style.display = "none";
     const rs2 = el(root, "dep-fx-recalc-security"); if (rs2) rs2.style.display = "none";

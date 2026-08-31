@@ -2975,6 +2975,8 @@ input.car-cell:focus { border-color: var(--accent); outline: none; background: v
 /* ---------- Money page bits ---------- */
 .pay-chip { font-size: 10px; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 3px; }
 .pay-chip.paid { background: var(--green-bg); color: var(--green-text); }
+/* Part paid: something received, balance still owed — amber, between unpaid and paid. */
+.pay-chip.part { background: var(--amber-bg, #fbf1d8); color: var(--amber-text, #7a5400); }
 .btn-small { padding: 4px 10px; font-size: 11px; min-height: 0; }
 .app-version { margin-top: 18px; font-size: 11px; color: var(--muted); text-align: right; }
 

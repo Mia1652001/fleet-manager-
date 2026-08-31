@@ -6,6 +6,10 @@
 
 import { db, setSync } from "./firebase-init.js";
 import { openAgreement, openConfirmation, openReceipt, openInvoice, emailBooking, whatsappBooking, CAR_OUTLINE } from "./agreement.js";
+// Deliberately a cycle with view-billing (it imports openBookingModal from
+// here). Safe because both sides export hoisted function declarations and
+// only call each other from click handlers, never while the modules load.
+import { openPayModal } from "./view-billing.js";
 import { collection, addDoc, updateDoc, deleteDoc, doc, arrayUnion, deleteField, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   state, esc, formatDate, todayStr, findClash, describeInterval,
@@ -84,6 +88,18 @@ export function mountBookingForm() {
   el(root, "b-currency").addEventListener("change", syncCurrencyFields);
   // The reverse of Billing's "View booking": from the booking straight to its
   // invoice. Only for saved bookings — a form not yet saved has no invoice.
+  // "A button that says part payment, with the same function" (pilot,
+  // 28 Aug): the same payments dialog Billing and Reports use — one dialog,
+  // one write path. The booking form is closed first, so its stale "Marked
+  // as paid" checkbox can never be saved over what the payment just wrote.
+  const partPay = el(root, "b-part-payment");
+  if (partPay) partPay.addEventListener("click", () => {
+    if (!editingBookingId) return;
+    const id = editingBookingId;
+    closeModal(root, "booking-modal");
+    openPayModal(id);
+  });
+
   const viewInvoice = el(root, "b-view-invoice");
   if (viewInvoice) viewInvoice.addEventListener("click", () => {
     if (!editingBookingId) return;
@@ -1108,6 +1124,8 @@ export function openBookingModal(bookingId, preset) {
   // Shown in the title when editing, which is where someone looks when a
   // customer rings up quoting a number.
   {
+    const pp = el(root, "b-part-payment");
+    if (pp) pp.style.display = editingBookingId ? "" : "none";
     const vi = el(root, "b-view-invoice");
     if (vi) vi.style.display = editing ? "inline-flex" : "none";
   }

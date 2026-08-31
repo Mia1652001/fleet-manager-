@@ -174,6 +174,35 @@ const invOpen = new Set();
 function invCategory(b) {
   return b.paid ? "paid" : hasStarted(b) ? "unpaid" : "upcoming";
 }
+// A part payment is money received against a booking that is not yet
+// settled. It stays in the "unpaid" category — it IS still owed — but reads
+// as "Part paid" on screen and can be filtered on its own ("reflected in
+// reports also" — pilot, 28 Aug).
+function isPartPaid(b) {
+  return !b.paid && paidTotal(b) > 0;
+}
+function statusLabel(b) {
+  const c = invCategory(b);
+  if (c === "paid") return "Paid";
+  if (isPartPaid(b)) return c === "upcoming" ? "Part paid \u00b7 not started" : "Part paid";
+  return c === "unpaid" ? "Unpaid" : "Not started";
+}
+
+// The broker dropdowns on both tabs. "*" is everyone; "-" is the bookings
+// with NO broker — the walk-in and local customers the pilot could not
+// isolate before ("insert also a value for the filtering of non-brokers",
+// 30 Aug). Any other value is a broker's name.
+const NO_BROKER = "-";
+function brokerMatches(b, choice) {
+  if (choice === "*") return true;
+  const name = (b.broker || "").trim();
+  return choice === NO_BROKER ? !name : name === choice;
+}
+function brokerOptions(names, chosen) {
+  return `<option value="*"${chosen === "*" ? " selected" : ""}>All customers</option>
+        <option value="${NO_BROKER}"${chosen === NO_BROKER ? " selected" : ""}>No broker (direct)</option>` +
+    names.map(n => `<option value="${esc(n)}"${chosen === n ? " selected" : ""}>${esc(n)}</option>`).join("");
+}
 
 function quarterStart(t) {
   const m = Number(t.slice(5, 7));
@@ -546,8 +575,9 @@ function renderBillingReport() {
   if (billMonth !== "*") rows = rows.filter(b => String(b.startDate || "").slice(5, 7) === billMonth);
   if (repEntity !== "*") rows = rows.filter(b => carEntityId(b.carId) === repEntity);
   const brokers = [...new Set(rows.map(b => (b.broker || "").trim()).filter(Boolean))].sort();
-  if (billBroker !== "*") rows = rows.filter(b => (b.broker || "").trim() === billBroker);
-  if (billStatus !== "all") rows = rows.filter(b => catOf(b) === billStatus);
+  rows = rows.filter(b => brokerMatches(b, billBroker));
+  if (billStatus === "partpaid") rows = rows.filter(isPartPaid);
+  else if (billStatus !== "all") rows = rows.filter(b => catOf(b) === billStatus);
   rows.sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)));
 
   ctrl.innerHTML = `<div class="filter-row" style="margin-bottom:8px;">
@@ -559,12 +589,11 @@ function renderBillingReport() {
         }).join("")}
       </select>
       <select data-el="bill-status">
-        ${[["all", "All bookings"], ["paid", "Paid"], ["unpaid", "Unpaid"], ["upcoming", "Not started"]]
+        ${[["all", "All bookings"], ["paid", "Paid"], ["unpaid", "Unpaid"], ["partpaid", "Part paid"], ["upcoming", "Not started"]]
           .map(([v, n]) => `<option value="${v}"${billStatus === v ? " selected" : ""}>${n}</option>`).join("")}
       </select>
       <select data-el="bill-broker">
-        <option value="*">All brokers</option>
-        ${brokers.map(n => `<option value="${esc(n)}"${billBroker === n ? " selected" : ""}>${esc(n)}</option>`).join("")}
+        ${brokerOptions(brokers, billBroker)}
       </select>
     </div>`;
   ctrl.querySelector('[data-el="bill-month"]').addEventListener("change", (e) => { billMonth = e.target.value; render(); });
@@ -576,7 +605,7 @@ function renderBillingReport() {
     note.textContent = "";
     return;
   }
-  const BADGE = { paid: "Paid", unpaid: "Unpaid", upcoming: "Not started" };
+  // Status text comes from statusLabel so a part payment reads as one.
   const totals = rows.reduce((a, b) => {
     a.total += invoiceTotal(b); a.recv += paidTotal(b); a.days += rentalDays(b);
     if (catOf(b) === "unpaid") a.owed += balanceFor(b);
@@ -604,7 +633,7 @@ function renderBillingReport() {
         <td class="rep-num">${fxCell(b)}</td>
         <td class="rep-num">${esc(formatAmount(paidTotal(b)))}</td>
         <td class="rep-num">${esc(formatAmount(balanceFor(b)))}</td>
-        <td>${BADGE[catOf(b)]}</td></tr>`).join("")}
+        <td>${esc(statusLabel(b))}</td></tr>`).join("")}
     </tbody>
     <tfoot><tr><th colspan="5">${rows.length} booking${rows.length === 1 ? "" : "s"}</th>
       <th class="rep-num">${totals.days}</th>
@@ -770,12 +799,12 @@ function invBase() {
 function invMatches(r) {
   const q = invQ.trim().toLowerCase();
   if (q && !`${r.b.renter || ""} ${bookingCarLabel(r.b)} ${r.no}`.toLowerCase().includes(q)) return false;
-  if (invBroker !== "*" && (r.b.broker || "").trim() !== invBroker) return false;
-  return true;
+  return brokerMatches(r.b, invBroker);
 }
 function invoiceRows() {
   const rows = invBase().filter(invMatches);
   if (invStatus === "all") return rows;
+  if (invStatus === "partpaid") return rows.filter(r => !r.voided && isPartPaid(r.b));
   // A voided number is neither paid nor owed; it shows under All only.
   return rows.filter(r => !r.voided && invCategory(r.b) === invStatus);
 }
@@ -783,11 +812,11 @@ function invoiceRows() {
 // promise Billing's tab counts make.
 function invStatusCounts() {
   const rows = invBase().filter(invMatches);
-  const n = { all: rows.length, unpaid: 0, paid: 0, upcoming: 0 };
-  rows.forEach(r => { if (!r.voided) n[invCategory(r.b)]++; });
+  const n = { all: rows.length, unpaid: 0, paid: 0, partpaid: 0, upcoming: 0 };
+  rows.forEach(r => { if (r.voided) return; n[invCategory(r.b)]++; if (isPartPaid(r.b)) n.partpaid++; });
   return n;
 }
-const STATUS_LABELS = [["all", "All"], ["unpaid", "Unpaid"], ["paid", "Paid"], ["upcoming", "Not started"]];
+const STATUS_LABELS = [["all", "All"], ["unpaid", "Unpaid"], ["partpaid", "Part paid"], ["paid", "Paid"], ["upcoming", "Not started"]];
 
 // ---------- The frozen heading ----------
 // Same arrangement as the planner and the two boards: the heading that must
@@ -893,8 +922,7 @@ function paintInvoiceControls() {
         ${STATUS_LABELS.map(([v, t]) => `<option value="${v}"${invStatus === v ? " selected" : ""}>${t} (${n[v]})</option>`).join("")}
       </select>
       <select data-inv="broker">
-        <option value="*">All brokers</option>
-        ${brokers.map(b => `<option value="${esc(b)}"${invBroker === b ? " selected" : ""}>${esc(b)}</option>`).join("")}
+        ${brokerOptions(brokers, invBroker)}
       </select>
       ${invScope === "issued" ? `
       <select data-inv="kind">
@@ -1002,7 +1030,9 @@ function periodHtml(b) {
 }
 function statusChip(b) {
   const c = invCategory(b);
-  return c === "paid" ? `<span class="pay-chip paid">PAID</span>` : "";
+  if (c === "paid") return `<span class="pay-chip paid">PAID</span>`;
+  if (isPartPaid(b)) return `<span class="pay-chip part">PART PAID</span>`;
+  return "";
 }
 
 // Scroll the row into view and outline it briefly. Runs after the table has
@@ -1203,7 +1233,7 @@ async function exportInvoicesXlsx() {
   const r2 = x => Math.round(x * 100) / 100;
   const co = companyName() || "Company";
   const issued = invScope === "issued";
-  const statusOf = r => r.voided ? "Void" : ({ paid: "Paid", unpaid: "Unpaid", upcoming: "Not started" })[invCategory(r.b)];
+  const statusOf = r => r.voided ? "Void" : statusLabel(r.b);
   const head = issued
     ? ["Invoice no", "Kind", "VAT %", "Issued", "Booking", "Customer", "Vehicle", "From", "To", "Broker",
        "Value excl. VAT", "VAT", "Total", "Received", "Balance", "Status"]

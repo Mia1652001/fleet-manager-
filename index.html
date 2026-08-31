@@ -520,7 +520,7 @@
             <div class="field"><label data-el="dep-fxsecurity-label">Security in €</label>
               <input data-el="dep-fxsecurity" type="number" min="0" step="any" placeholder="e.g. 300"></div>
           </div>
-          <div class="field"><label data-el="dep-advance-label">Advance paid (reduces balance owed)</label>
+          <div class="field"><label data-el="dep-advance-label">Part payment / advance (reduces balance owed)</label>
             <div style="display:flex;gap:8px;align-items:center;">
               <input data-el="dep-advance" type="number" min="0" placeholder="e.g. 2000" style="flex:1;">
               <button type="button" class="btn" data-el="dep-fx-recalc-advance" style="display:none;white-space:nowrap;"
@@ -534,7 +534,7 @@
                 title="Recalculate using today's house rate — only this booking changes">Use today's rate</button>
             </div>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;">Advance payment is deducted from the rental total. Security deposit is a refundable hold — mark it refunded or kept when the car comes back.</div>
+          <div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;">A part payment (advance) is deducted from the rental total — the invoice and agreement show it and the balance still due. Security deposit is a refundable hold — mark it refunded or kept when the car comes back.</div>
           <div class="modal-actions">
             <button class="btn" data-close="deposit-modal">Cancel</button>
             <button class="btn-primary" data-el="save-deposit">Save deposits</button>
@@ -1464,6 +1464,8 @@
 
       <div class="field checkbox-field" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
         <label class="check-row"><input type="checkbox" data-el="b-paid"> Marked as paid</label>
+        <button type="button" class="btn" data-el="b-part-payment" style="display:none;"
+          title="Record money received on this booking — the invoice then shows the balance still due">Part payment</button>
         <button type="button" class="btn" data-el="b-view-invoice" style="display:none;"
           title="Open this booking's invoice on the Billing page">View invoice</button>
       </div>

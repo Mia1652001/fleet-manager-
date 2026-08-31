@@ -98,7 +98,7 @@ function moneyBlock(b) {
       ${charge > 0
         ? `<tr><th>Bank charge (${esc(String(bankChargePct(b)))}% — card payment)</th><td class="ag-num">${esc(formatAmount(charge))}</td></tr>`
         : ""}
-      ${advance > 0 ? `<tr><th>${ledgered ? "Less received so far" : "Less advance already paid"}</th><td class="ag-num">− ${esc(ledgered ? formatAmount(advance) : fxPair(b, advance, b.fxAdvance))}</td></tr>` : ""}
+      ${advance > 0 ? `<tr><th>${ledgered ? "Less part payments received" : "Less part payment already made"}</th><td class="ag-num">− ${esc(ledgered ? formatAmount(advance) : fxPair(b, advance, b.fxAdvance))}</td></tr>` : ""}
       <tr class="ag-total"><th>${b.paid ? "Total (settled)" : "Balance due"}</th>
         <td class="ag-num">${esc(formatAmount(b.paid ? amountDue(b) : balance))}</td></tr>
       ${security > 0 ? `<tr><th>Refundable security deposit</th><td class="ag-num">${esc(fxPair(b, security, b.fxSecurity))}</td></tr>` : ""}
@@ -401,7 +401,7 @@ function confirmationText(b) {
 
   if (advance > 0) lines.push(ledgered
     ? `Received so far: ${formatAmount(advance)}`
-    : `Advance already paid: ${fxPair(b, advance, b.fxAdvance)}`);
+    : `Part payment already made: ${fxPair(b, advance, b.fxAdvance)}`);
   lines.push(b.paid ? "Paid in full — thank you." : `Balance due: ${formatAmount(balance)}`);
   if (security > 0) lines.push(`Refundable security deposit: ${fxPair(b, security, b.fxSecurity)}`);
 
@@ -693,7 +693,7 @@ ${DOC_ACTIONS}
     <tr><th>Value excluding VAT</th><td class="ag-num">${esc(formatAmount(split.excl))}</td></tr>
     <tr><th>VAT ${esc(String(pct))}% (included)</th><td class="ag-num">${esc(formatAmount(split.vat))}</td></tr>` : ""}
     <tr class="ag-total"><th>Total${isVat ? " (incl. VAT)" : ""}</th><td class="ag-num">${esc(formatAmount(total))}</td></tr>
-    ${settled > 0 ? `<tr><th>${b.paid ? "Settled in full" : "Advance received"}</th><td class="ag-num">${esc(formatAmount(settled))}</td></tr>` : ""}
+    ${settled > 0 ? `<tr><th>${b.paid ? "Settled in full" : "Part payment received"}</th><td class="ag-num">${esc(formatAmount(settled))}</td></tr>` : ""}
     ${outstanding > 0 ? `<tr><th>Balance due</th><td class="ag-num">${esc(formatAmount(outstanding))}</td></tr>` : ""}
   </table>
 
