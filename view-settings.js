@@ -87,6 +87,57 @@ function paintThemeControls() {
 function previewTheme() {
   applyTheme(effectiveTheme());
   paintThemeControls();
+  paintThemeNote();
+}
+
+// True while something has been chosen but not saved.
+function themeDraftActive() {
+  return Object.values(themeDraft).some(v => v !== null);
+}
+function clearThemeDraft() {
+  themeDraft = { preset: null, bg: null, accent: null, font: null, text: null, headInk: null };
+}
+// The note beside the Save appearance button: says plainly when what is on
+// screen is only a preview, because the preview looked saved (pilot, 31 Aug).
+function paintThemeNote(text) {
+  const n = el(root, "theme-saved");
+  if (!n) return;
+  if (text !== undefined) { n.textContent = text; return; }
+  n.textContent = themeDraftActive() ? "Not saved yet \u2014 press Save appearance" : "";
+}
+
+// Saves only the appearance fields, from the Appearance card's own button.
+// Before this the only Save was in the company-details card further up the
+// page, so a chosen theme was easy to leave unsaved; it then looked like the
+// theme "did not stick".
+async function saveTheme() {
+  const btn = el(root, "theme-save");
+  if (!btn) return;
+  const t = effectiveTheme();
+  btn.disabled = true; btn.textContent = "Saving...";
+  setSync("saving");
+  try {
+    await setDoc(doc(db, "settings", state.ctx.companyId), {
+      companyId: state.ctx.companyId,
+      themePreset: t.themePreset, themeBg: t.themeBg, themeAccent: t.themeAccent,
+      themeFont: t.themeFont, themeText: t.themeText, themeHeadInk: t.themeHeadInk,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    clearThemeDraft();
+    paintThemeNote("Saved.");
+    setTimeout(() => paintThemeNote(), 2500);
+  } catch (e) {
+    paintThemeNote("Couldn't save (" + (e.code || e.message) + "). Try again.");
+    setSync("error");
+  }
+  btn.disabled = false; btn.textContent = "Save appearance";
+}
+// Drops the preview and returns the screen to what is saved.
+function revertTheme() {
+  clearThemeDraft();
+  applyTheme(state.settings || {});
+  paintThemeControls();
+  paintThemeNote();
 }
 
 // ---------- Trading companies ----------
@@ -369,6 +420,18 @@ export function mount(container) {
   });
 
   onDataChange(() => { if (root.classList.contains("active")) render(); });
+  // The settings document can change while a theme is being previewed —
+  // issuing a receipt writes to it, a colleague may save something — and
+  // app.js re-applies the SAVED theme on every such change. That wiped the
+  // preview mid-choice and looked like the theme reverting by itself. This
+  // runs after app.js's repaint and puts the preview back until it is saved
+  // or undone.
+  onDataChange(() => { if (themeDraftActive()) applyTheme(effectiveTheme()); });
+
+  const themeSave = el(root, "theme-save");
+  if (themeSave) themeSave.addEventListener("click", saveTheme);
+  const themeRevert = el(root, "theme-revert");
+  if (themeRevert) themeRevert.addEventListener("click", revertTheme);
 }
 
 export function render() {
@@ -771,7 +834,8 @@ async function saveSettings() {
     await setDoc(doc(db, "settings", state.ctx.companyId), data, { merge: true });
     logoTouched = false;
     // The saved theme is now the theme; the draft has nothing left to say.
-    themeDraft = { preset: null, bg: null, accent: null, font: null, text: null, headInk: null };
+    clearThemeDraft();
+    paintThemeNote();
     el(root, "settings-saved").textContent = "Saved.";
     setTimeout(() => { const n = el(root, "settings-saved"); if (n) n.textContent = ""; }, 2500);
   } catch (e) {

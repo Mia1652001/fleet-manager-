@@ -1033,7 +1033,7 @@
         </div>
         <div class="settings-card">
           <h3>Appearance</h3>
-          <p class="settings-note">Applies to everyone in this company. Save keeps it; printed documents stay paper-white.</p>
+          <p class="settings-note">Pick a theme and colours, then press <strong>Save appearance</strong> below — until then it is only a preview on this screen. Applies to everyone in this company; printed documents stay paper-white.</p>
           <div class="theme-grid" data-el="theme-presets"></div>
           <div class="field" style="margin-top:14px;">
             <label>Font</label>
@@ -1070,6 +1070,11 @@
                 <button type="button" class="btn" data-el="s-theme-accent-clear">Theme default</button>
               </div>
             </div>
+          </div>
+          <div class="settings-actions">
+            <button class="btn-primary" data-el="theme-save">Save appearance</button>
+            <button class="btn" data-el="theme-revert">Undo changes</button>
+            <span class="saved-note" data-el="theme-saved"></span>
           </div>
         </div>
 
