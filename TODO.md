@@ -108,7 +108,8 @@ data-retention and registration answers.
 - [x] **On-device copy wiped at sign-out** (pilot-37) — terminate + clear
       persistence + reload, so a shared or lost phone holds no company data
       after sign-out. Test on the pilot's iPhone before announcing.
-- [x] **Daily check card** (pilot-37) — admin-only Dashboard card reading the
+- [x] **Daily check** (pilot-37, moved in pilot-39 from the Dashboard into
+      Settings \u2192 Activity log at the owner's request) — admin-only Dashboard card reading the
       activity log since the last review: deletions, refused writes, sign-ins
       outside 06:00–22:00, exports, and money/date changes on bookings after a
       receipt or invoice was issued. "Mark as reviewed" sets the per-device

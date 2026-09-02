@@ -7,8 +7,8 @@
 // a backup writes into belongs to one computer and means nothing on another.
 
 import { db, setSync, auth, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "./firebase-init.js";
-import { doc, setDoc, deleteField, recentActivity, describeEntry, logEvent } from "./audit.js";
-import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES, THEME_LIST, themePresetOf, themeVars, applyTheme, FONT_LIST, themeFontOf, extraEntities, openModal, closeModal, carCustomFields, formatDate } from "./store.js";
+import { doc, setDoc, deleteField, recentActivity, describeEntry, logEvent, reviewActivity } from "./audit.js";
+import { state, onDataChange, esc, el, val, setVal, checked, setChecked, showError, showToast, FX_CURRENCIES, THEME_LIST, themePresetOf, themeVars, applyTheme, FONT_LIST, themeFontOf, extraEntities, openModal, closeModal, carCustomFields, formatDate , loadPref, savePref } from "./store.js";
 import {
   CATEGORIES, INTERVALS, backupPrefs, saveBackupPrefs, daysSinceBackup,
   runBackup, folderSupported, folderStatus, chooseFolder, forgetFolder,
@@ -317,6 +317,12 @@ export function mount(container) {
   el(root, "save-settings").addEventListener("click", saveSettings);
   const pwBtn = el(root, "pw-change");
   if (pwBtn) pwBtn.addEventListener("click", changePassword);
+  const reviewMark = el(root, "review-mark");
+  if (reviewMark) reviewMark.addEventListener("click", () => {
+    savePref(reviewMarkerKey(), new Date().toISOString());
+    reviewCache = null;
+    renderReview();
+  });
   const auditBtn = el(root, "audit-load");
   if (auditBtn) auditBtn.addEventListener("click", loadActivity);
   const auditCsv = el(root, "audit-csv");
@@ -435,6 +441,7 @@ export function mount(container) {
 }
 
 export function render() {
+  renderReview();
   if (!root) return;
   const s = state.settings || {};
 
@@ -901,4 +908,55 @@ function downloadActivityCsv() {
   const name = `veflow-activity-${(state.settings?.companyName || state.ctx?.companyId || "company").replace(/[^a-z0-9]+/gi, "-")}-${new Date().toISOString().slice(0, 10)}.csv`;
   downloadBlob(name, new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" }));
   logEvent("export", { label: `activity log CSV (${activityRows.length} entries)` });
+}
+
+// ---------- Daily check (in the Activity log card) ----------
+// The watch list, shown where the log lives. Loaded once per app session
+// (and again after "Mark as reviewed"), never on every repaint: each check
+// is a read of the activity log. Admin logins only; for other roles the
+// whole Settings page is already out of reach.
+let reviewCache = null;
+let reviewLoading = false;
+let reviewError = "";
+
+function reviewMarkerKey() { return "auditReview:" + (state.ctx?.user?.uid || ""); }
+function reviewSince() {
+  return loadPref(reviewMarkerKey()) || new Date(Date.now() - 86400000).toISOString();
+}
+function loadReview() {
+  if (reviewLoading) return;
+  reviewLoading = true; reviewError = "";
+  reviewActivity(reviewSince())
+    .then(r => { reviewCache = r; })
+    .catch(e => { reviewError = e?.code || e?.message || String(e); reviewCache = { checked: 0, findings: [] }; })
+    .then(() => { reviewLoading = false; if (root.classList.contains("active")) renderReview(); });
+}
+function renderReview() {
+  const range = el(root, "review-range");
+  const box = el(root, "review-list");
+  if (!range || !box) return;
+  const dte = new Date(reviewSince());
+  const p = n => String(n).padStart(2, "0");
+  range.textContent = `Daily check \u2014 everything recorded since ${p(dte.getDate())}/${p(dte.getMonth() + 1)} ${p(dte.getHours())}:${p(dte.getMinutes())}, against the watch list: deletions, refused writes, sign-ins outside 06:00\u201322:00, exports, money or dates changed after a receipt or invoice.`;
+  if (!reviewCache) {
+    if (!reviewLoading) loadReview();
+    box.innerHTML = `<div class="empty">Checking\u2026</div>`;
+    return;
+  }
+  if (reviewError) {
+    box.innerHTML = `<div class="empty">Couldn't check the activity log (${esc(reviewError)}). It loads again next time the app opens.</div>`;
+    return;
+  }
+  const f = reviewCache.findings;
+  if (!f.length) {
+    box.innerHTML = `<div class="empty">Nothing unusual \u2014 ${reviewCache.checked} action${reviewCache.checked === 1 ? "" : "s"} recorded, none on the watch list.</div>`;
+    return;
+  }
+  const rows = f.slice(0, 30).map(x => `
+    <div class="jd-row">
+      <span class="jd-l">${p(x.at.getDate())}/${p(x.at.getMonth() + 1)} ${p(x.at.getHours())}:${p(x.at.getMinutes())}</span>
+      <span class="jd-v">${x.level === "warn" ? "<strong>Look:</strong> " : ""}${esc(x.text)} <span style="color:var(--muted);">\u2014 ${esc(x.why)}</span></span>
+    </div>`).join("");
+  const more = f.length > 30 ? `<div class="empty">+ ${f.length - 30} more \u2014 press Show recent activity for the full list.</div>` : "";
+  box.innerHTML = rows + more;
 }

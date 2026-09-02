@@ -15,84 +15,12 @@ import {
   requestFocus,
   carDocsDue,
   CAR_DOC_FIELDS, MONTH_NAMES
-, monthlySummary, loadPref, savePref } from "./store.js";
-import { reviewActivity } from "./audit.js";
+, monthlySummary } from "./store.js";
 
 let root = null;
 
-// ---------- Daily check ----------
-// Loaded once per app session (and again after "Mark as reviewed"), never on
-// every repaint: each check is a read of the activity log and the dashboard
-// repaints constantly. Admin logins only; the card stays hidden for others.
-let reviewCache = null;
-let reviewLoading = false;
-let reviewError = "";
-
-function reviewMarkerKey() { return "auditReview:" + (state.ctx?.user?.uid || ""); }
-function reviewSince() {
-  return loadPref(reviewMarkerKey()) || new Date(Date.now() - 86400000).toISOString();
-}
-function fmtSince(iso) {
-  const dte = new Date(iso);
-  if (isNaN(dte)) return "";
-  const p = n => String(n).padStart(2, "0");
-  return `${p(dte.getDate())}/${p(dte.getMonth() + 1)} ${p(dte.getHours())}:${p(dte.getMinutes())}`;
-}
-function loadReview() {
-  if (reviewLoading) return;
-  reviewLoading = true; reviewError = "";
-  reviewActivity(reviewSince())
-    .then(r => { reviewCache = r; })
-    .catch(e => { reviewError = e?.code || e?.message || String(e); reviewCache = { checked: 0, findings: [] }; })
-    .then(() => { reviewLoading = false; if (root.classList.contains("active")) renderReview(); });
-}
-function renderReview() {
-  const card = el(root, "review-card");
-  if (!card) return;
-  if (state.ctx?.role !== "admin") { card.style.display = "none"; return; }
-  card.style.display = "";
-  const range = el(root, "review-range");
-  if (range) range.textContent = "since " + fmtSince(reviewSince());
-  const box = el(root, "review-list");
-  if (!box) return;
-  if (!reviewCache) {
-    if (!reviewLoading) loadReview();
-    box.innerHTML = `<div class="empty">Checking…</div>`;
-    return;
-  }
-  if (reviewError) {
-    box.innerHTML = `<div class="empty">Couldn't check the activity log (${esc(reviewError)}). It loads again next time the app opens.</div>`;
-    return;
-  }
-  const f = reviewCache.findings;
-  if (!f.length) {
-    box.innerHTML = `<div class="empty">Nothing unusual — ${reviewCache.checked} action${reviewCache.checked === 1 ? "" : "s"} recorded, none matching the watch list (deletions, refused writes, sign-ins outside 06:00–22:00, exports, money or dates changed after a receipt or invoice).</div>`;
-    return;
-  }
-  const p = n => String(n).padStart(2, "0");
-  const rows = f.slice(0, 30).map(x => `
-    <div class="jd-row">
-      <span class="jd-l">${p(x.at.getDate())}/${p(x.at.getMonth() + 1)} ${p(x.at.getHours())}:${p(x.at.getMinutes())}</span>
-      <span class="jd-v">${x.level === "warn" ? "<strong>Look:</strong> " : ""}${esc(x.text)} <span style="color:var(--muted);">— ${esc(x.why)}</span></span>
-    </div>`).join("");
-  const more = f.length > 30 ? `<div class="empty">+ ${f.length - 30} more — the full list is in Settings → Activity log.</div>` : "";
-  box.innerHTML = rows + more;
-}
-
-// Which month the Money card is reporting. Starts on the current one every
-// time the app opens: a figure left on some month three back would be read as
-// today's position by whoever glanced at it next.
-let moneyMonth = thisMonth();
-
 export function mount(container) {
   root = container;
-
-  const reviewMark = el(root, "review-mark");
-  if (reviewMark) reviewMark.addEventListener("click", () => {
-    savePref(reviewMarkerKey(), new Date().toISOString());
-    reviewCache = null;
-    renderReview();
-  });
 
   // Everything on the dashboard is a shortcut to the page that owns it.
   // The mini planner that used to live here is gone (pilot request, Aug
@@ -211,7 +139,6 @@ function figure(label, value, tone, goto, sub) {
 }
 
 export function render() {
-  renderReview();
   if (!root) return;
   renderCharts();
   const t = todayStr();

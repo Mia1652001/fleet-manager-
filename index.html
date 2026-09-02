@@ -91,19 +91,6 @@
       <div class="dash-alerts" data-el="alerts"></div>
 
       <div class="dash-grid">
-        <!-- Daily check: the activity log's watch list for administrators.
-             Hidden for other roles; filled by view-dashboard. -->
-        <div class="dash-card" data-el="review-card" style="display:none">
-          <div class="dash-head">
-            <h3>Daily check <span class="dash-range" data-el="review-range"></span></h3>
-            <span class="dash-minnav">
-              <button class="btn" data-el="review-mark">Mark as reviewed</button>
-              <a href="#settings" class="dash-link">Full log →</a>
-            </span>
-          </div>
-          <div data-el="review-list"></div>
-        </div>
-
         <div class="dash-card">
           <div class="dash-head">
             <h3>Today</h3>
@@ -1030,13 +1017,10 @@
 
         <div class="settings-card">
           <h3>Activity log</h3>
-          <p class="settings-note">Who did what, and when: every save and
-            delete, sign-ins and sign-outs, printed documents, messages sent
-            and backups taken, recorded by the app as they happen. Names of
-            changed fields are kept; phone numbers, emails, passport numbers
-            and notes are never copied into the log. Entries cannot be edited
-            or deleted from the app and are kept for two years.</p>
+          <p class="settings-note" data-el="review-range"></p>
+          <div data-el="review-list"></div>
           <div class="settings-actions">
+            <button class="btn-primary" data-el="review-mark">Mark as reviewed</button>
             <button class="btn" data-el="audit-load">Show recent activity</button>
             <button class="btn" data-el="audit-csv" disabled>Download as CSV</button>
             <span class="saved-note" data-el="audit-note"></span>
