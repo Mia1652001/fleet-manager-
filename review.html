@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>VeFlow — operator review</title>
+<link rel="stylesheet" href="./style.css">
+<style>
+  /* Layout for this page's report only; every control is the standard set
+     from style.css. */
+  .op-wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px 60px; }
+  .op-company { border: 1px solid var(--border); border-radius: 10px; background: var(--card, #fff); padding: 12px 14px; margin: 0 0 12px; }
+  .op-company h3 { margin: 0 0 4px; }
+  .op-quiet { color: var(--muted); }
+  .op-row { padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .op-row:last-child { border-bottom: none; }
+  .op-when { color: var(--muted); margin-right: 6px; white-space: nowrap; }
+  .op-topline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 16px; }
+  .op-note { color: var(--muted); font-size: 12px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<!-- The operator's own page. It is not linked from the app and is not part
+     of it: it exists for one person, reads across every company, and works
+     only for an account whose users document carries operator: true (set in
+     the Firebase console; no client can write it). Anyone else who signs in
+     here is refused by the server rules, not by this page. -->
+<div class="login-wrap" id="login" style="display:none;">
+  <div class="login-card">
+    <h1><em>Ve</em>Flow</h1>
+    <div class="login-sub">Operator review — all companies</div>
+    <div class="form-error" id="login-error"></div>
+    <div class="field"><label>Email</label><input id="login-email" type="email" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input id="login-password" type="password" autocomplete="current-password"></div>
+    <button class="btn-primary" id="login-btn" style="width:100%;">Sign in</button>
+  </div>
+</div>
+
+<div class="op-wrap" id="report" style="display:none;">
+  <h1><em>Ve</em>Flow — daily review</h1>
+  <div class="op-topline">
+    <span id="op-range" class="op-quiet"></span>
+    <button class="btn" id="op-refresh">Check again</button>
+    <button class="btn-primary" id="op-mark">Mark all as reviewed</button>
+    <button class="btn" id="op-signout">Sign out</button>
+  </div>
+  <div id="op-list"><div class="empty">Checking…</div></div>
+  <p class="op-note">Watch list: deletions, writes the server refused,
+    sign-ins outside 06:00–22:00, exports and backups. Money-after-receipt
+    changes are checked inside each company's own Daily check card, because
+    this page deliberately has no access to booking contents. Reviewing here
+    does not silence the companies' own cards.</p>
+</div>
+<script type="module" src="./review.js"></script>
+</body>
+</html>

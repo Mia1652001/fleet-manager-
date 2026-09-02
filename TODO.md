@@ -98,16 +98,28 @@ data-retention and registration answers.
 - [x] **Password self-service** — done: "Forgot your password?" on the sign-in
       page (neutral message whether or not the address exists) and a change-
       password card on Settings with re-authentication.
-- [x] **Activity log** (pilot-36) — every write goes through `audit.js`; one
+- [x] **Activity log** (pilot-37) — every write goes through `audit.js`; one
       append-only entry per save/delete/sign-in/sign-out/print/message/backup
       in `audit/{companyId}/entries`. Field names always, values only for
       numbers, booleans and dates — never phone/email/passport/notes. Read on
       demand from Settings → Activity log, CSV download. Rules block added
       (update/delete: false). Retention 24 months via `expireAt` (attach a
       Firestore TTL policy on that field when convenient).
-- [x] **On-device copy wiped at sign-out** (pilot-36) — terminate + clear
+- [x] **On-device copy wiped at sign-out** (pilot-37) — terminate + clear
       persistence + reload, so a shared or lost phone holds no company data
       after sign-out. Test on the pilot's iPhone before announcing.
+- [x] **Daily check card** (pilot-37) — admin-only Dashboard card reading the
+      activity log since the last review: deletions, refused writes, sign-ins
+      outside 06:00–22:00, exports, and money/date changes on bookings after a
+      receipt or invoice was issued. "Mark as reviewed" sets the per-device
+      marker. Cross-company version for the operator: separate private tool,
+      not in the app; Blaze scheduled-email digest also parked.
+- [x] **Operator review page** (pilot-38) — review.html/review.js, not linked
+      from the app: signs in, lists every company via the operator flag, runs
+      the same watch list (minus the receipt rule — no booking access, by
+      design), one digest, per-company markers on the operator's device.
+      Needs: pilot-38 rules published + operator: true on the operator's
+      users document (console). Blaze scheduled-email digest still parked.
 - [ ] **Console hardening** (no code, ~30 min) — password policy (min 10,
       Require), email-enumeration protection on, restrict the browser API key
       to app.veflowapp.com, prune Authorized domains, enable Firestore Data

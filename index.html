@@ -91,6 +91,19 @@
       <div class="dash-alerts" data-el="alerts"></div>
 
       <div class="dash-grid">
+        <!-- Daily check: the activity log's watch list for administrators.
+             Hidden for other roles; filled by view-dashboard. -->
+        <div class="dash-card" data-el="review-card" style="display:none">
+          <div class="dash-head">
+            <h3>Daily check <span class="dash-range" data-el="review-range"></span></h3>
+            <span class="dash-minnav">
+              <button class="btn" data-el="review-mark">Mark as reviewed</button>
+              <a href="#settings" class="dash-link">Full log →</a>
+            </span>
+          </div>
+          <div data-el="review-list"></div>
+        </div>
+
         <div class="dash-card">
           <div class="dash-head">
             <h3>Today</h3>

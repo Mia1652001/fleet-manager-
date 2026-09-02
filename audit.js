@@ -288,6 +288,73 @@ export function runTransaction(dbArg, fn, options) {
   );
 }
 
+// ---------- The daily check (Dashboard) ----------
+// Reads everything recorded since the given moment and pulls out the entries
+// an administrator should glance at. Rules, not judgement: deletions, writes
+// the server refused, sign-ins outside working hours, data leaving the
+// system, and money or dates changed on a booking after its receipt or
+// invoice was issued. Everything else stays quiet.
+const REVIEW_HOURS = { from: 6, to: 22 };   // sign-ins outside these hours are flagged
+const MONEY_DATE_FIELDS = ["dailyRate", "startDate", "endDate", "advancePaid", "securityDeposit", "total", "bankChargePct"];
+
+function hasIssuedDoc(b) { return !!(b && (b.receiptNo || b.invoiceNo)); }
+
+// The watch list itself, as a pure function so the operator review page can
+// run the same rules across companies. `issuedDoc(docId)` answers whether a
+// booking has a receipt or invoice; pass null when that cannot be known (the
+// operator page has no read access to bookings, by design) and the rule is
+// skipped rather than guessed.
+export function classifyEntries(entries, issuedDoc) {
+  const findings = [];
+  const flag = (e, why, level) => findings.push({
+    at: e.atDate, level, why,
+    text: describeEntry({ ...e, at: e.atDate.toISOString() })
+  });
+  for (const e of entries) {
+    if (e.action === "delete") { flag(e, "deleted", "warn"); continue; }
+    if (e.action === "failed") { flag(e, "refused by the server", "warn"); continue; }
+    if (e.action === "sign-in" || e.action === "session") {
+      const h = e.atDate.getHours();
+      if (h < REVIEW_HOURS.from || h >= REVIEW_HOURS.to) flag(e, "outside working hours", "warn");
+      continue;
+    }
+    if (e.action === "export") { flag(e, "data left the system", "info"); continue; }
+    if (issuedDoc && e.action === "update" && e.col === "bookings" && issuedDoc(e.docId)) {
+      const touched = (e.fields || []).filter(f => MONEY_DATE_FIELDS.includes(f));
+      if (touched.length) flag(e, "money or dates changed after a receipt or invoice was issued", "warn");
+      continue;
+    }
+  }
+  findings.sort((a, b) => (a.level === b.level ? b.at - a.at : a.level === "warn" ? -1 : 1));
+  return findings;
+}
+
+// Fetches a company's entries newer than `sinceIso`. Exported for the
+// operator review page; the app's own Daily check wraps it below.
+export async function fetchEntriesSince(companyId, sinceIso, limitN = 500) {
+  const since = new Date(sinceIso);
+  const q = fs.query(
+    fs.collection(db, "audit", companyId, "entries"),
+    fs.where("at", ">", fs.Timestamp.fromDate(isNaN(since) ? new Date(Date.now() - 86400000) : since)),
+    fs.orderBy("at", "desc"),
+    fs.limit(limitN)
+  );
+  const snap = await fs.getDocs(q);
+  return snap.docs.map(d => {
+    const x = d.data();
+    const at = x.at && typeof x.at.toDate === "function" ? x.at.toDate() : new Date(x.ts || 0);
+    return { id: d.id, ...x, atDate: at };
+  });
+}
+
+export async function reviewActivity(sinceIso) {
+  const cid = state.ctx?.companyId;
+  if (!cid) return { checked: 0, findings: [] };
+  const entries = await fetchEntriesSince(cid, sinceIso);
+  const findings = classifyEntries(entries, (docId) => hasIssuedDoc(state.bookings.find(b => b.id === docId)));
+  return { checked: entries.length, findings };
+}
+
 // ---------- Reading the log (Settings → Activity) ----------
 export async function recentActivity(limitN = 200) {
   const cid = state.ctx?.companyId;
