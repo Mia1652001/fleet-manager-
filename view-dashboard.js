@@ -19,6 +19,11 @@ import {
 
 let root = null;
 
+// Which month the Money card is reporting. Starts on the current one every
+// time the app opens: a figure left on some month three back would be read as
+// today's position by whoever glanced at it next.
+let moneyMonth = thisMonth();
+
 export function mount(container) {
   root = container;
 
