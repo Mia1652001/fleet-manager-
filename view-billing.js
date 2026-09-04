@@ -67,12 +67,12 @@ export function mount(container) {
   // Foreign deposit amounts fill their Rs twins from the house rate, exactly
   // like the booking total. The Rs fields stay editable afterwards.
   [["dep-fxadvance", "dep-advance"], ["dep-fxsecurity", "dep-security"]].forEach(([fxName, homeName]) => {
-    el(root, fxName).addEventListener("input", () => {
+    el(dlg, fxName).addEventListener("input", () => {
       const b = state.bookings.find(x => x.id === depositBookingId);
       const rate = b?.fxCurrency ? fxRate(b.fxCurrency) : null;
-      const amount = parseFloat(val(root, fxName));
+      const amount = parseFloat(val(dlg, fxName));
       if (rate && Number.isFinite(amount) && amount >= 0) {
-        setVal(root, homeName, Math.round(amount * rate));
+        setVal(dlg, homeName, Math.round(amount * rate));
       }
     });
   });
