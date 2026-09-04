@@ -21,6 +21,12 @@ shipped a broken version.
   pilot's phone did. The gate checks the mobile layout invariants by BODY,
   not by selector name, and lists every deleted line against the previous
   zip — more than 25, or any from a guarded rule, is a stop.
+- Dialog placement: a dialog opened from ANY page other than its own view
+  must live outside every `<section class="view">` (beside #booking-form-root
+  or in #billing-dialogs). Views are display:none when inactive, so a dialog
+  inside one "opens" invisibly — Part payment "just closed the form" and
+  Reports' Record payment was silently dead until 4 Sep (pilot-41). Check
+  with jsdom: `overlay.closest("section.view")` must be null for such dialogs.
 - Rule for editing style.css: every replacement anchors on a string asserted
   to occur exactly once. Never `index()` of a short fragment; never a slice
   between two searches. The file has near-duplicate selectors on purpose.

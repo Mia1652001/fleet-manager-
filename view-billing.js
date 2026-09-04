@@ -26,6 +26,10 @@ const BADGE = {
 };
 
 let root = null;
+// The payment and deposit dialogs are not inside this view — they sit in
+// #billing-dialogs outside every view so they can open from any page. Every
+// lookup into them goes through dlg, never root (4 Sep).
+const dlg = document.getElementById("billing-dialogs");
 let filter = "unpaid";
 // Both default to "", meaning no restriction. They work independently: a year
 // alone gives that whole year, a month alone gives that month in every year, and
@@ -58,8 +62,8 @@ export function mount(container) {
   });
 
   el(root, "search").addEventListener("input", render);
-  el(root, "save-deposit").addEventListener("click", saveDeposits);
-  el(root, "pay-save").addEventListener("click", savePayment);
+  el(dlg, "save-deposit").addEventListener("click", saveDeposits);
+  el(dlg, "pay-save").addEventListener("click", savePayment);
   // Foreign deposit amounts fill their Rs twins from the house rate, exactly
   // like the booking total. The Rs fields stay editable afterwards.
   [["dep-fxadvance", "dep-advance"], ["dep-fxsecurity", "dep-security"]].forEach(([fxName, homeName]) => {
@@ -77,7 +81,7 @@ export function mount(container) {
   // one booking. Marked-paid bookings ask for confirmation first, naming the
   // old and new figures, so a settled invoice never changes without someone
   // deliberately choosing to change it.
-  const recalcAdv = el(root, "dep-fx-recalc-advance");
+  const recalcAdv = el(dlg, "dep-fx-recalc-advance");
   if (recalcAdv) recalcAdv.addEventListener("click", () => {
     const b = state.bookings.find(x => x.id === depositBookingId);
     if (!b?.fxCurrency) return;
@@ -86,7 +90,7 @@ export function mount(container) {
       isPaid: !!b.paid, paidLabel: "advance"
     });
   });
-  const recalcSec = el(root, "dep-fx-recalc-security");
+  const recalcSec = el(dlg, "dep-fx-recalc-security");
   if (recalcSec) recalcSec.addEventListener("click", () => {
     const b = state.bookings.find(x => x.id === depositBookingId);
     if (!b?.fxCurrency) return;
@@ -105,10 +109,14 @@ export function mount(container) {
     render();
   });
 
-  root.querySelectorAll("[data-close]").forEach(b =>
-    b.addEventListener("click", () => closeModal(root, b.dataset.close)));
-  root.querySelectorAll(".overlay").forEach(o =>
-    o.addEventListener("click", e => { if (e.target === o) o.classList.remove("open"); }));
+  // Cancel buttons and click-outside, for the page's own dialogs AND the two
+  // that live outside the view (see #billing-dialogs in index.html).
+  [root, dlg].forEach(r => {
+    r.querySelectorAll("[data-close]").forEach(b =>
+      b.addEventListener("click", () => closeModal(r, b.dataset.close)));
+    r.querySelectorAll(".overlay").forEach(o =>
+      o.addEventListener("click", e => { if (e.target === o) o.classList.remove("open"); }));
+  });
 
   el(root, "list").addEventListener("click", async (e) => {
     const btn = e.target.closest("button");
@@ -474,8 +482,8 @@ export function openPayModal(id) {
   payBookingId = id;
   const b = state.bookings.find(x => x.id === id);
   if (!b) return;
-  showError(root, "pay-error", null);
-  el(root, "pay-title").textContent = `Payments \u2014 ${b.renter || bookingRef(b)}`;
+  showError(dlg, "pay-error", null);
+  el(dlg, "pay-title").textContent = `Payments \u2014 ${b.renter || bookingRef(b)}`;
 
   const pays = paymentsOf(b);
   const due = amountDue(b);
@@ -486,7 +494,7 @@ export function openPayModal(id) {
       <span>${p.method ? esc(p.method) : "\u2014"}</span>
       <span class="pay-amt${(Number(p.amount) || 0) < 0 ? " pay-neg" : ""}">${esc(formatAmount(Number(p.amount) || 0))}</span>
     </div>${p.note ? `<div class="pay-note">${esc(p.note)}</div>` : ""}`).join("");
-  el(root, "pay-list").innerHTML = `
+  el(dlg, "pay-list").innerHTML = `
     ${pays.length ? rows : (Number(b.advancePaid) || 0) > 0
       ? `<div class="pay-note">The advance of ${esc(formatAmount(Number(b.advancePaid)))} will appear here as the opening entry when the first payment is recorded.</div>`
       : `<div class="pay-note">Nothing received yet.</div>`}
@@ -498,28 +506,28 @@ export function openPayModal(id) {
       <span class="pay-amt">${esc(formatAmount(Math.max(0, due - got)))}</span>
     </div>`;
 
-  setVal(root, "pay-amount", b.paid ? "" : (balanceFor(b) || ""));
-  setVal(root, "pay-method", "");
-  setVal(root, "pay-date", todayStr());
-  setVal(root, "pay-note", "");
-  openModal(root, "pay-modal");
+  setVal(dlg, "pay-amount", b.paid ? "" : (balanceFor(b) || ""));
+  setVal(dlg, "pay-method", "");
+  setVal(dlg, "pay-date", todayStr());
+  setVal(dlg, "pay-note", "");
+  openModal(dlg, "pay-modal");
 }
 
 async function savePayment() {
   const id = payBookingId;
   const b = state.bookings.find(x => x.id === id);
   if (!b) return;
-  const amount = parseFloat(val(root, "pay-amount"));
-  const method = val(root, "pay-method");
-  const on = val(root, "pay-date") || todayStr();
-  const note = val(root, "pay-note");
+  const amount = parseFloat(val(dlg, "pay-amount"));
+  const method = val(dlg, "pay-method");
+  const on = val(dlg, "pay-date") || todayStr();
+  const note = val(dlg, "pay-note");
 
   if (!Number.isFinite(amount) || amount === 0) {
-    showError(root, "pay-error", "Enter the amount received — a negative amount records a refund.");
+    showError(dlg, "pay-error", "Enter the amount received — a negative amount records a refund.");
     return;
   }
 
-  const btn = el(root, "pay-save");
+  const btn = el(dlg, "pay-save");
   btn.disabled = true;
   setSync("saving");
   try {
@@ -552,13 +560,13 @@ async function savePayment() {
     }
     await updateDoc(doc(db, "bookings", id), patch);
     setSync("live");
-    closeModal(root, "pay-modal");
+    closeModal(dlg, "pay-modal");
     showToast(settledNow && !b.paid
       ? `Payment recorded \u2014 booking settled in full`
       : `Payment recorded`);
   } catch (err) {
     setSync("error");
-    showError(root, "pay-error", "Couldn't save the payment (" + (err.code || err.message) + "). Try again.");
+    showError(dlg, "pay-error", "Couldn't save the payment (" + (err.code || err.message) + "). Try again.");
   }
   btn.disabled = false;
 }
@@ -566,36 +574,36 @@ async function savePayment() {
 export function openDepositModal(id) {
   depositBookingId = id;
   const b = state.bookings.find(x => x.id === id);
-  setVal(root, "dep-advance", b?.advancePaid || "");
+  setVal(dlg, "dep-advance", b?.advancePaid || "");
   // Once a booking has a payment history, the advance lives there: this field
   // becomes a display, and Record payment is the only door money comes in by.
   const ledgered = b && hasLedger(b);
-  const advIn = el(root, "dep-advance");
+  const advIn = el(dlg, "dep-advance");
   advIn.disabled = !!ledgered;
-  if (ledgered) setVal(root, "dep-advance", "");
-  const advLabel = el(root, "dep-advance-label");
+  if (ledgered) setVal(dlg, "dep-advance", "");
+  const advLabel = el(dlg, "dep-advance-label");
   if (ledgered) advLabel.textContent = "Advance is in the payment history — use Record payment";
-  setVal(root, "dep-security", b?.securityDeposit || "");
+  setVal(dlg, "dep-security", b?.securityDeposit || "");
 
   // Foreign-currency bookings take deposits in that currency too: the foreign
   // amounts lead, and the Rs fields underneath become the agreed conversion —
   // the figure the books actually record.
   const sym = b?.fxCurrency || "";
   const home = state.settings?.currency || "Rs";
-  el(root, "dep-fx-row").style.display = sym ? "flex" : "none";
+  el(dlg, "dep-fx-row").style.display = sym ? "flex" : "none";
   if (sym) {
     const rate = fxRate(sym);
     const rateNote = rate ? ` (house rate ${rate})` : "";
-    el(root, "dep-fxadvance-label").textContent = `Part payment in ${sym}${rateNote}`;
-    el(root, "dep-fxsecurity-label").textContent = `Security in ${sym}${rateNote}`;
-    el(root, "dep-advance-label").textContent = `= Part payment in ${home} (reduces balance owed)`;
-    el(root, "dep-security-label").textContent = `= Security in ${home} (refundable, held separately)`;
-    setVal(root, "dep-fxadvance", b?.fxAdvance ?? "");
-    setVal(root, "dep-fxsecurity", b?.fxSecurity ?? "");
+    el(dlg, "dep-fxadvance-label").textContent = `Part payment in ${sym}${rateNote}`;
+    el(dlg, "dep-fxsecurity-label").textContent = `Security in ${sym}${rateNote}`;
+    el(dlg, "dep-advance-label").textContent = `= Part payment in ${home} (reduces balance owed)`;
+    el(dlg, "dep-security-label").textContent = `= Security in ${home} (refundable, held separately)`;
+    setVal(dlg, "dep-fxadvance", b?.fxAdvance ?? "");
+    setVal(dlg, "dep-fxsecurity", b?.fxSecurity ?? "");
     // Named with the actual rate, same as the booking form's button, and
     // hidden entirely when Settings has no rate for this currency.
-    const advBtn = el(root, "dep-fx-recalc-advance");
-    const secBtn = el(root, "dep-fx-recalc-security");
+    const advBtn = el(dlg, "dep-fx-recalc-advance");
+    const secBtn = el(dlg, "dep-fx-recalc-security");
     if (advBtn) {
       advBtn.style.display = rate ? "inline-block" : "none";
       if (rate) advBtn.textContent = `Use today's rate (${rate})`;
@@ -605,23 +613,23 @@ export function openDepositModal(id) {
       if (rate) secBtn.textContent = advBtn ? advBtn.textContent : `Use today's rate (${rate})`;
     }
   } else {
-    el(root, "dep-advance-label").textContent = "Part payment / advance (reduces balance owed)";
-    el(root, "dep-security-label").textContent = "Security deposit (refundable, held separately)";
-    const ra = el(root, "dep-fx-recalc-advance"); if (ra) ra.style.display = "none";
-    const rs2 = el(root, "dep-fx-recalc-security"); if (rs2) rs2.style.display = "none";
+    el(dlg, "dep-advance-label").textContent = "Part payment / advance (reduces balance owed)";
+    el(dlg, "dep-security-label").textContent = "Security deposit (refundable, held separately)";
+    const ra = el(dlg, "dep-fx-recalc-advance"); if (ra) ra.style.display = "none";
+    const rs2 = el(dlg, "dep-fx-recalc-security"); if (rs2) rs2.style.display = "none";
   }
-  showError(root, "deposit-error", null);
-  openModal(root, "deposit-modal");
+  showError(dlg, "deposit-error", null);
+  openModal(dlg, "deposit-modal");
 }
 
 async function saveDeposits() {
   if (!depositBookingId) return;
-  showError(root, "deposit-error", null);
+  showError(dlg, "deposit-error", null);
 
-  const advance = parseFloat(val(root, "dep-advance")) || 0;
-  const security = parseFloat(val(root, "dep-security")) || 0;
+  const advance = parseFloat(val(dlg, "dep-advance")) || 0;
+  const security = parseFloat(val(dlg, "dep-security")) || 0;
   if (advance < 0 || security < 0) {
-    showError(root, "deposit-error", "Amounts can't be negative."); return;
+    showError(dlg, "deposit-error", "Amounts can't be negative."); return;
   }
 
   const b = state.bookings.find(x => x.id === depositBookingId);
@@ -638,16 +646,16 @@ async function saveDeposits() {
   // Foreign amounts need their Rs twin: a €100 advance with no Rs value gives
   // the books nothing to record.
   const sym = b?.fxCurrency || "";
-  const fxAdvance = sym ? (parseFloat(val(root, "dep-fxadvance")) || 0) : 0;
-  const fxSecurity = sym ? (parseFloat(val(root, "dep-fxsecurity")) || 0) : 0;
+  const fxAdvance = sym ? (parseFloat(val(dlg, "dep-fxadvance")) || 0) : 0;
+  const fxSecurity = sym ? (parseFloat(val(dlg, "dep-fxsecurity")) || 0) : 0;
   if (fxAdvance > 0 && advance <= 0) {
-    showError(root, "deposit-error", `Enter the agreed value of the ${sym} advance in the field below it.`); return;
+    showError(dlg, "deposit-error", `Enter the agreed value of the ${sym} advance in the field below it.`); return;
   }
   if (fxSecurity > 0 && security <= 0) {
-    showError(root, "deposit-error", `Enter the agreed value of the ${sym} security deposit in the field below it.`); return;
+    showError(dlg, "deposit-error", `Enter the agreed value of the ${sym} security deposit in the field below it.`); return;
   }
 
-  const btn = el(root, "save-deposit");
+  const btn = el(dlg, "save-deposit");
   btn.disabled = true; btn.textContent = "Saving...";
   setSync("saving");
   try {
@@ -667,10 +675,10 @@ async function saveDeposits() {
     if (security > 0 && !b.securityStatus) update.securityStatus = "held";
     if (security === 0) update.securityStatus = null;
     await updateDoc(doc(db, "bookings", depositBookingId), update);
-    closeModal(root, "deposit-modal");
+    closeModal(dlg, "deposit-modal");
     depositBookingId = null;
   } catch (e) {
-    showError(root, "deposit-error", "Couldn't save (" + (e.code || e.message) + "). Try again.");
+    showError(dlg, "deposit-error", "Couldn't save (" + (e.code || e.message) + "). Try again.");
     setSync("error");
   }
   btn.disabled = false; btn.textContent = "Save deposits";

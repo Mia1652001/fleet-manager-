@@ -508,73 +508,12 @@
       <div class="list-total" data-el="list-total"></div>
       <div class="card-list" data-el="list"><div class="loading-screen">Loading invoices...</div></div>
 
-      <div class="overlay" data-el="deposit-modal">
-        <div class="modal">
-          <h2>Deposits</h2>
-          <div class="form-error" data-el="deposit-error"></div>
-          <!-- Shown only for bookings taken in a foreign currency: the foreign
-               amounts lead, the Rs figures below become the agreed conversion. -->
-          <div class="field-row equal" data-el="dep-fx-row" style="display:none;">
-            <div class="field"><label data-el="dep-fxadvance-label">Advance in €</label>
-              <input data-el="dep-fxadvance" type="number" min="0" step="any" placeholder="e.g. 100"></div>
-            <div class="field"><label data-el="dep-fxsecurity-label">Security in €</label>
-              <input data-el="dep-fxsecurity" type="number" min="0" step="any" placeholder="e.g. 300"></div>
-          </div>
-          <div class="field"><label data-el="dep-advance-label">Part payment / advance (reduces balance owed)</label>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <input data-el="dep-advance" type="number" min="0" placeholder="e.g. 2000" style="flex:1;">
-              <button type="button" class="btn" data-el="dep-fx-recalc-advance" style="display:none;white-space:nowrap;"
-                title="Recalculate using today's house rate — only this booking changes">Use today's rate</button>
-            </div>
-          </div>
-          <div class="field"><label data-el="dep-security-label">Security deposit (refundable, held separately)</label>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <input data-el="dep-security" type="number" min="0" placeholder="e.g. 5000" style="flex:1;">
-              <button type="button" class="btn" data-el="dep-fx-recalc-security" style="display:none;white-space:nowrap;"
-                title="Recalculate using today's house rate — only this booking changes">Use today's rate</button>
-            </div>
-          </div>
-          <div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;">A part payment (advance) is deducted from the rental total — the invoice and agreement show it and the balance still due. Security deposit is a refundable hold — mark it refunded or kept when the car comes back.</div>
-          <div class="modal-actions">
-            <button class="btn" data-close="deposit-modal">Cancel</button>
-            <button class="btn-primary" data-el="save-deposit">Save deposits</button>
-          </div>
-        </div>
-      </div>
+      
 
       <!-- Payment history: every rupee received on a booking, as it happened.
            Recording the payment that clears the balance is what "mark paid"
            now means — and it is how receipts learn HOW money arrived. -->
-      <div class="overlay" data-el="pay-modal">
-        <div class="modal">
-          <h2 data-el="pay-title">Payments</h2>
-          <div class="form-error" data-el="pay-error"></div>
-          <div data-el="pay-list" style="margin-bottom:12px;"></div>
-          <div class="field-row">
-            <div class="field"><label>Amount received</label>
-              <input type="number" step="0.01" data-el="pay-amount" placeholder="negative = refund"></div>
-            <div class="field"><label>Paid by</label>
-              <select data-el="pay-method">
-                <option value="">—</option>
-                <option>Cash</option>
-                <option>Juice</option>
-                <option>Bank transfer</option>
-                <option>Card</option>
-                <option>Other</option>
-              </select></div>
-          </div>
-          <div class="field-row">
-            <div class="field"><label>Date received</label>
-              <input type="date" data-el="pay-date"></div>
-            <div class="field"><label>Note</label>
-              <input type="text" data-el="pay-note" placeholder="optional"></div>
-          </div>
-          <div class="modal-actions">
-            <button class="btn" data-close="pay-modal">Close</button>
-            <button class="btn-primary" data-el="pay-save">Record payment</button>
-          </div>
-        </div>
-      </div>
+      
     </section>
 
     <!-- ---------- MAINTENANCE ---------- -->
@@ -1262,6 +1201,78 @@
   <datalist id="dl-customers"></datalist>
   <datalist id="dl-brokers"></datalist>
   <datalist id="dl-expense-categories"></datalist>
+
+<!-- The payment and deposit dialogs live OUTSIDE every view, beside the
+     booking form, for the same reason it does: a dialog inside a view is
+     display:none whenever that view is not the active tab. Inside Billing
+     they were invisible from Bookings and Reports — "Part payment just
+     closes the form" (pilot, 4 Sep). view-billing.js reaches them through
+     this wrapper, not through its own section. -->
+<div id="billing-dialogs">
+<div class="overlay" data-el="pay-modal">
+        <div class="modal">
+          <h2 data-el="pay-title">Payments</h2>
+          <div class="form-error" data-el="pay-error"></div>
+          <div data-el="pay-list" style="margin-bottom:12px;"></div>
+          <div class="field-row">
+            <div class="field"><label>Amount received</label>
+              <input type="number" step="0.01" data-el="pay-amount" placeholder="negative = refund"></div>
+            <div class="field"><label>Paid by</label>
+              <select data-el="pay-method">
+                <option value="">—</option>
+                <option>Cash</option>
+                <option>Juice</option>
+                <option>Bank transfer</option>
+                <option>Card</option>
+                <option>Other</option>
+              </select></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Date received</label>
+              <input type="date" data-el="pay-date"></div>
+            <div class="field"><label>Note</label>
+              <input type="text" data-el="pay-note" placeholder="optional"></div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn" data-close="pay-modal">Close</button>
+            <button class="btn-primary" data-el="pay-save">Record payment</button>
+          </div>
+        </div>
+      </div>
+<div class="overlay" data-el="deposit-modal">
+        <div class="modal">
+          <h2>Deposits</h2>
+          <div class="form-error" data-el="deposit-error"></div>
+          <!-- Shown only for bookings taken in a foreign currency: the foreign
+               amounts lead, the Rs figures below become the agreed conversion. -->
+          <div class="field-row equal" data-el="dep-fx-row" style="display:none;">
+            <div class="field"><label data-el="dep-fxadvance-label">Advance in €</label>
+              <input data-el="dep-fxadvance" type="number" min="0" step="any" placeholder="e.g. 100"></div>
+            <div class="field"><label data-el="dep-fxsecurity-label">Security in €</label>
+              <input data-el="dep-fxsecurity" type="number" min="0" step="any" placeholder="e.g. 300"></div>
+          </div>
+          <div class="field"><label data-el="dep-advance-label">Part payment / advance (reduces balance owed)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input data-el="dep-advance" type="number" min="0" placeholder="e.g. 2000" style="flex:1;">
+              <button type="button" class="btn" data-el="dep-fx-recalc-advance" style="display:none;white-space:nowrap;"
+                title="Recalculate using today's house rate — only this booking changes">Use today's rate</button>
+            </div>
+          </div>
+          <div class="field"><label data-el="dep-security-label">Security deposit (refundable, held separately)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input data-el="dep-security" type="number" min="0" placeholder="e.g. 5000" style="flex:1;">
+              <button type="button" class="btn" data-el="dep-fx-recalc-security" style="display:none;white-space:nowrap;"
+                title="Recalculate using today's house rate — only this booking changes">Use today's rate</button>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;">A part payment (advance) is deducted from the rental total — the invoice and agreement show it and the balance still due. Security deposit is a refundable hold — mark it refunded or kept when the car comes back.</div>
+          <div class="modal-actions">
+            <button class="btn" data-close="deposit-modal">Cancel</button>
+            <button class="btn-primary" data-el="save-deposit">Save deposits</button>
+          </div>
+        </div>
+      </div>
+</div>
 
 <div id="booking-form-root">
   <!-- Asked once, the first time a receipt is issued for a booking. After
